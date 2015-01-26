@@ -91,7 +91,7 @@ class PanPhlAnJoinParser(ArgumentParser):
     '''
     def __init__(self):
         ArgumentParser.__init__(self)
-        self.add_argument('-i','--i_dna',               metavar='INPUT_DNA_FOLDER',             type=str,   required=True,                  help='Directory containing all the sample .csv files with DNA gene unnormalized coverages and  the pangenome .csv file.')
+        self.add_argument('-i','--i_dna',               metavar='INPUT_DNA_FOLDER',             type=str,   default='',                     help='Directory containing all the sample .csv files with DNA gene unnormalized coverages and  the pangenome .csv file.')
         self.add_argument('-c','--clade',               metavar='CLADE_NAME',                   type=str,   required=True,                  help='Name of the specie to consider, i.e. the basename of the index for the reference genome used by Bowtie2 to align reads.')
         self.add_argument('-o','--o_dna',               metavar='OUTPUT_FILE',                  type=str,                                   help='File to write the computed binary matrix for gene family presence. To follow the standards, .csv file format is a a good extension to choose.')
         self.add_argument('--i_rna',                    metavar='INPUT_RNA_FOLDER',             type=str,                                   help='Directory containing all the sample .csv files with RNA trascripts coverages.')
@@ -222,6 +222,152 @@ def is_present(family, sample2family2presence):
         if sample2family2presence[s][family]:
             return True
     return False
+
+
+# -----------------------------------------------------------------------------
+
+def strains_binary_matrix(selected_strains, strain2family2presence, families, out_channel, TIME, VERBOSE):
+    '''
+    Print the .csv file with the binary matrix for strains gene families presence
+    '''
+    with open(out_channel, mode='w') as csv:
+        csv.write('\t' + '\t'.join(selected_strains) + '\n')
+        for f in families:
+            csv.write(f)
+            for s in selected_strains:
+                p = '\t1' if strain2family2presence[s][f] else '\t0'
+                csv.write(p)
+            csv.write('\n')
+    TIME = time_message(TIME, 'Written strains binary matrix output file.')
+
+
+# -----------------------------------------------------------------------------
+
+def build_strain2family2presence(strains_list, families, genome2families, TIME, VERBOSE):
+    '''
+    Build the dictionary from strain to gene family to presence
+    { STRAIN : { GENE FAMILY : PRESENCE(True or False) } }
+    '''
+    # Build the dictionary strain2family2presence
+    strain2family2presence = defaultdict(dict)
+    numof_strains = len(strains_list)
+    i = 1
+    for s in strains_list:
+        if VERBOSE:
+            print('[I] [' + str(i) + '/' + str(numof_strains) + '] Analysing reference strain ' + s + '...')
+            i += 1
+        for f in families:
+            if f in genome2families[s]:
+                strain2family2presence[s][f] = True
+            else:
+                strain2family2presence[s][f] = False
+    if VERBOSE:
+        TIME = time_message(TIME, 'Gene families presence/absence in strain reference genomes computed.')
+    return TIME, strain2family2presence
+
+
+# -----------------------------------------------------------------------------
+
+def get_strains(pangenome_file, TIME, VERBOSE):
+    '''
+    Return the list of strains (reference genomes) from the pangenome
+    '''
+    strains = set()
+    with open(pangenome_file, 'r') as csv:
+        for line in csv:
+            genome = line.strip().split('\t')[GENOME_INDEX]
+            strains.add(genome)
+    if VERBOSE:
+        TIME = time_message(TIME, 'Extracted ' + str(len(strains)) + ' strains (reference genomes) from the pangenome.')
+    return TIME, sorted(strains)
+
+
+# -----------------------------------------------------------------------------
+
+def strains_filtering(strains_list, strain2family2presence, similarity, samples_panfamilies, families, TIME, VERBOSE):
+    '''
+    Filter out unacceptable strains (reference genomes in the pangenome)
+    '''
+    # Rejection 2 (vertical filtering)
+    numof_strains = len(strains_list)
+    rejected_strains = []
+    i = 1
+    for s in strains_list:
+        if VERBOSE:
+            print('[I] [' + str(i) + '/' + str(numof_strains) + '] Analysing strain ' + s + '...')
+            i += 1
+        f2p = strain2family2presence[s]
+        # Get number of present gene families in strain
+        strain_families = [f for f in f2p if f2p[f]]
+        strain_length = len(strain_families)
+
+        # # Too short genomes
+        # lb, ub = genome_length + (genome_length / 10), genome_length - (genome_length / 10)
+        # if lb <= strain_length and strain_length <= ub:
+        #     rejected_strains.append(s)
+        #     if VERBOSE:
+        #         print('[W] Strain ' + s + ' is rejected because its genome is too short (size: ' + str(strain_length) + ')')
+        # # This part of code is superfluous!
+
+        # Check that at least half of the strain families is present in families
+        half = int(strain_length * similarity / 100)
+        numof_ss_families = 0
+        for f in strain_families:
+            if f in samples_panfamilies:
+                numof_ss_families += 1
+                if numof_ss_families >= half:
+                    break # Exit from the loop to improve performances
+        if numof_ss_families < half:
+            rejected_strains.append(s)
+            if VERBOSE:
+                print('[W] Strain ' + s + ' is rejected because only ' + str(numof_ss_families) + ' families are present in the samples.')
+
+
+    # Delete entries in the dictionary
+    for s in rejected_strains:
+        del(strain2family2presence[s])
+
+    if VERBOSE:
+        print('[I] ' + str(len(rejected_strains)) + ' strain genomes filtered out. Strains are: ' + ', '.join(rejected_strains))
+    selected_strains = sorted([s for s in strain2family2presence if s not in rejected_strains])
+    if VERBOSE:
+        print('[I] Selected strains are: ' + ', '.join(selected_strains))
+
+    # Rejections 3 (horizontal filtering): always-zero gene families
+    never_present_families = []
+    for f in families:
+        always_zero = True
+        for g in strain2family2presence:
+            if strain2family2presence[g][f]: # == True == 1
+                always_zero = False
+                break
+        if always_zero:
+            never_present_families.append(f)
+    if VERBOSE:
+        TIME = time_message(TIME, str(len(never_present_families)) + ' never present gene families filtered out.')
+
+    return TIME, selected_strains, never_present_families
+
+
+# -----------------------------------------------------------------------------
+
+def get_samples_panfamilies(families, sample2family2presence, TIME, VERBOSE):
+    '''
+    Get the sorted list of all the families present in the samples
+    Can be a subset of the pangenome's set of families
+    '''
+    panfamilies = set()
+    for f in families:
+        for s in sample2family2presence:
+            if sample2family2presence[s][f]:
+                panfamilies.add(f)
+                break
+    if VERBOSE:
+        TIME = time_message(TIME, 'Extracted ' + str(len(panfamilies)) + ' gene families present in the samples.')
+    return TIME, sorted(panfamilies)
+
+
+# -----------------------------------------------------------------------------
 
 def rna_seq(out_channel, sample2family2dnaidx, dna_sample2family2cov, dna_sample2family2presence, dna_accepted_samples, rna_samples_list, rna_sample2family2cov, rna_max_zeroes, dna2rna, dna_file2id, rna_id2file, families, c, np_symbol, nan_symbol, clade, TIME, VERBOSE):
     '''
@@ -414,7 +560,7 @@ def strains_gene_hit_percentage(ss_presence, genome2families, accepted_samples, 
 
 # ------------------------------------------------------------------------------
 
-def samples_strains_presences(similarity, sample2family2presence, pangenome, genome_length, out_channel, families, clade, TO_BE_PRINTED, TIME, VERBOSE):
+def samples_strains_presences(sample2family2presence, strains_list, strain2family2presence, genome_length, similarity, out_channel, families, clade, TO_BE_PRINTED, TIME, VERBOSE):
     '''
     Compute gene families presence/absence for strains' genomes and merge them with samples ones
 
@@ -428,82 +574,9 @@ def samples_strains_presences(similarity, sample2family2presence, pangenome, gen
     '''
     sample2family2presence = dict((sample_name(k, clade), v) for (k,v) in sample2family2presence[0].items())
 
-    # strain2family2presence := { STRAIN_NAME : [ ( FAMILY, PRESENCE ), ... ] }
-    strain2family2presence = defaultdict(dict)
-    with open(pangenome, mode='r') as csv:
-        genome2families = defaultdict(set)
-        for line in csv:
-            words = line.strip().split('\t')
-            family, genome = words[FAMILY_INDEX], words[GENOME_INDEX]
-            genome2families[genome].add(family)
-    for g in genome2families:
-        for f in families:
-            if f in genome2families[g]:
-                strain2family2presence[g][f] = True
-            else:
-                strain2family2presence[g][f] = False
-    if VERBOSE:
-        print('[I] Gene families presence/absence in strains reference genomes computed')
-
     # Get all present (in at least one sample) families
-    panfamilies = set()
-    for f in families:
-        for s in sample2family2presence:
-            if sample2family2presence[s][f]:
-                panfamilies.add(f)
-                break
-
-    # Rejection 2 (vertical filtering)
-    rejected_strains = []
-    for s in strain2family2presence:
-        f2p = strain2family2presence[s]
-        # Get number of present gene families in strain
-        strain_families = [f for f in f2p if f2p[f]]
-        strain_length = len(strain_families)
-
-        # Too short
-        # lb, ub = genome_length + (genome_length / 10), genome_length - (genome_length / 10)
-        # if lb <= strain_length and strain_length <= ub:
-        #     rejected_strains.append(s)
-        #     if VERBOSE:
-        #         print('[W] Strain ' + s + ' is rejected because its genome is too short (size: ' + str(strain_length) + ')')
-        # else:
-
-        # Check that at least half of the strain families is present in panfamilies
-        half = int(strain_length * similarity / 100)
-        numof_ss_families = 0
-        for f in strain_families:
-            if f in panfamilies:
-                numof_ss_families += 1
-                if numof_ss_families >= half:
-                    break # Exit from the loop to improve performances
-        if numof_ss_families < half:
-            rejected_strains.append(s)
-            if VERBOSE:
-                print('[W] Strain ' + s + ' is rejected because only ' + str(numof_ss_families) + ' families are present in the samples.')
-
-
-    for s in rejected_strains:
-        del(strain2family2presence[s])
-
-    if VERBOSE:
-        print('[I] ' + str(len(rejected_strains)) + ' strain genomes filtered out. Strains are: ' + ', '.join(rejected_strains))
-    selected_strains = sorted([s for s in strain2family2presence if s not in rejected_strains])
-    if VERBOSE:
-        print('[I] Selected strains are: ' + ', '.join(selected_strains))
-
-    # Rejections 3 (horizontal filtering): always-zero gene families
-    zeroes = []
-    for f in families:
-        always_zero = True
-        for g in strain2family2presence:
-            if strain2family2presence[g][f]: # == True == 1
-                always_zero = False
-                break
-        if always_zero:
-            zeroes.append(f)
-    if VERBOSE:
-        print('[I] ' + str(len(zeroes)) + ' always-zero gene families filtered out.')
+    TIME, samples_panfamilies = get_samples_panfamilies(families, sample2family2presence, TIME, VERBOSE)
+    TIME, selected_strains, never_present_families = strains_filtering(strains_list, strain2family2presence, similarity, samples_panfamilies, families, TIME, VERBOSE)
 
     # Create sorted list of sample/strains names
     sample_and_strain_sorted_list = []
@@ -523,7 +596,7 @@ def samples_strains_presences(similarity, sample2family2presence, pangenome, gen
             # [sample_name(s, clade) for s in sample_and_strain_sorted_list]
             csv.write('\t' + '\t'.join(sample_and_strain_sorted_list) + '\n')
             for f in families:
-                if f not in zeroes:
+                if f not in never_present_families:
                     csv.write(f)
                     for s in sample_and_strain_sorted_list:
                         p = '\t1' if sample_and_strain_presences[s][f] else '\t0'
@@ -628,10 +701,9 @@ def dna_indexing(accepted_samples, sample2family2normcov, min_thresh, med_thresh
     '''
     sample2family2dnaidx = defaultdict(dict)
 
-    accepted_names = sorted([s for s in sample2family2normcov if accepted_samples[s]])
-    accepted_ids = [sample_name(s, clade) for s in accepted_names]
+    accepted_ids = sorted([sample_name(s, clade) for s in accepted_samples])
 
-    for sample in accepted_names:
+    for sample in accepted_samples:
         if VERBOSE:
             print('[I] Indexing DNA for sample ' + sample)
         sample_id = sample_name(sample, clade)
@@ -643,7 +715,7 @@ def dna_indexing(accepted_samples, sample2family2normcov, min_thresh, med_thresh
             csv.write('\t' + '\t'.join(accepted_ids) + '\n')
             for family in families:
                 csv.write(family)
-                for sample in accepted_names:
+                for sample in accepted_samples:
                     csv.write('\t' + str(sample2family2dnaidx[sample][family]))
                 csv.write('\n')
 
@@ -686,7 +758,7 @@ def dna_sample_filtering(samples_coverages, genome_length, threshold, threshold_
     
     Result: only 1 of the 3 HMP samples passed the filter criteria
     '''
-    accepted = {}
+    sample2accepted = {}
     sample2famcovlist = {} # { SAMPLE NAME : ( [ COVERAGE ], [ GENE FAMILY ] ) }
     median = {}
     sample2color = {}
@@ -694,7 +766,7 @@ def dna_sample_filtering(samples_coverages, genome_length, threshold, threshold_
     norm_samples_coverages = defaultdict(dict)
 
     # Take one sample a time
-    for sample in samples_coverages:
+    for sample in sorted(samples_coverages.keys()):
 
         sample_id = sample_name(sample, clade)
         d = samples_coverages[sample]
@@ -725,24 +797,25 @@ def dna_sample_filtering(samples_coverages, genome_length, threshold, threshold_
             print('[I] Median = ' + str(median[sample]) + ' for sample ' + sample_id)
 
         # Apply Filter 1 and 2
-        accepted[sample] = True if median[sample] >= threshold else False # filter 1
-        if accepted[sample]:
+        sample2accepted[sample] = True if median[sample] >= threshold else False # filter 1
+        if sample2accepted[sample]:
             left = median_normalized_covs[sample][int(genome_length * 0.3)]
             right = median_normalized_covs[sample][int(genome_length * 0.7)]
             if not (left < threshold_plateau_left_max and right > threshold_plateau_right_min): # filter 2
-                accepted[sample] = False
+                sample2accepted[sample] = False
                 if VERBOSE:
                     print('[W] Sample ' + sample_id + 'has been rejected!')
             else:
                 if VERBOSE:
                     print('[I] Sample ' + sample_id + ' accepted.')
 
-    return accepted, norm_samples_coverages, sample2famcovlist, sample2color, median_normalized_covs, median
+    accepted_samples_list = sorted([s for s in sample2accepted if sample2accepted[s]])
+    return sample2accepted, accepted_samples_list, norm_samples_coverages, sample2famcovlist, sample2color, median_normalized_covs, median
 
 
 # ----------------------------------------------------------------------------------------------------
 
-def plot_dna_coverage(th_present, left_max, right_min, accepted, samples_coverages, sample2famcovlist, sample2color, median_normalized_covs, genome_length, clade, plot1_name, plot2_name, INTERACTIVE, TIME, VERBOSE=False):
+def plot_dna_coverage(th_present, left_max, right_min, sample2accepted, samples_coverages, sample2famcovlist, sample2color, median_normalized_covs, genome_length, clade, plot1_name, plot2_name, INTERACTIVE, TIME, VERBOSE=False):
     '''
     Draw into two .pdf files the plots for gene families normalized and unnormalized coverages
     Accepted sample present a colored trend, while rejected ones are drawn in grey
@@ -756,7 +829,7 @@ def plot_dna_coverage(th_present, left_max, right_min, accepted, samples_coverag
             samples = sorted(samples_coverages.keys())
             accepted2samples = defaultdict(list)
             for s in samples:
-                if accepted[s]:
+                if sample2accepted[s]:
                     accepted2samples[True].append(s)
                 else:
                     accepted2samples[False].append(s)
@@ -784,7 +857,7 @@ def plot_dna_coverage(th_present, left_max, right_min, accepted, samples_coverag
                     for sample in sorted_samples:
                         sample_id = sample_name(sample, clade)
                         covs = sample2famcovlist[sample][0]
-                        if accepted[sample]:
+                        if sample2accepted[sample]:
                             plt.plot(range(1, len(covs) + 1), covs, sample2color[sample], label=sample_id)
                         else:
                             plt.plot(range(1, len(covs) + 1), covs, COLOR_GREY)
@@ -804,7 +877,7 @@ def plot_dna_coverage(th_present, left_max, right_min, accepted, samples_coverag
                     for sample in sorted_samples:
                         sample_id = sample_name(sample, clade)
                         covs = median_normalized_covs[sample]
-                        if accepted[sample]:
+                        if sample2accepted[sample]:
                             plt.plot(range(1, len(covs) + 1), covs, sample2color[sample], label=sample_id)
                         else:
                             plt.plot(range(1, len(covs) + 1), covs, COLOR_GREY)
@@ -840,7 +913,7 @@ def print_coverage_matrix(dna_files_list, dna_file2id, dna_samples_covs, out_cha
     '''
     TODO
     '''
-    dna_sample_ids = [dna_file2id[s] for s in dna_files_list]
+    dna_sample_ids = sorted([dna_file2id[s] for s in dna_files_list])
     id2file = dict((v,k) for (k,v) in dna_file2id.items())
     if not out_channel == '':
         with open(out_channel, mode='w') as csv:
@@ -860,43 +933,42 @@ def print_coverage_matrix(dna_files_list, dna_file2id, dna_samples_covs, out_cha
 # -----------------------------------------------------------------------------
 
 
-def families_coverages(gene_coverages, gene2family, lengths, VERBOSE):
+def families_coverages(gene2cov, gene2family, lengths, VERBOSE):
     '''
     Compute the gene families coverages clustering the genes coverages
     '''
     # fami_covs = { GENE FAMILY : ( SUM OF FAMILY'S GENE UNNORMALIZED COVERAGES , [ GENE'S LENGTH ] ) }
-    fami_coverages = defaultdict(list)
+    family2cov = defaultdict(list)
 
-    for gen in gene2family:
-        if gen in gene_coverages:
-            fami_coverages[gene2family[gen]].append((gene_coverages[gen], lengths[gen]))
+    for g in gene2family:
+        if g in gene2cov:
+            family2cov[gene2family[g]].append((gene2cov[g], lengths[g]))
         else:
-            fami_coverages[gene2family[gen]].append((0, lengths[gen]))
-        #fami_coverages[gene2family[gen]].append((gene_coverages[gen] if gen in gene_coverages else 0, lengths[gen]))
+            family2cov[gene2family[g]].append((0, lengths[g]))
 
-    for fam in fami_coverages:
-        # fami_coverages[fam] := [(cov1, len1), (cov2, len2), ...]
-        sum_of_covs = float(sum(e[0] for e in fami_coverages[fam]))
-        sum_of_lens = float(sum(e[1] for e in fami_coverages[fam]))
-        cov = sum_of_covs / (sum_of_lens / len(fami_coverages[fam]))
-        fami_coverages[fam] = cov
+    for f in family2cov:
+        # family2cov[f] := [(cov1, len1), (cov2, len2), ...]
+        sum_of_covs = float(sum(e[0] for e in family2cov[f]))
+        sum_of_lens = float(sum(e[1] for e in family2cov[f]))
+        cov = sum_of_covs / (sum_of_lens / len(family2cov[f]))
+        family2cov[f] = cov
 
-    return fami_coverages
+    return family2cov
 
 
 # 
 # HERE IS THE THOMAS' METHOD FOR CALCULATING FAMILY CONVERAGES THROUGH GENE COVERAGE NORMALIZATION
 # 
 
-# def thomas_families_coverages(gene_coverages, contig2gene, gene2family, VERBOSE):
+# def thomas_families_coverages(gene2cov, contig2gene, gene2family, VERBOSE):
 #     for ctg in contig2gene:
 #         for gen in contig2gene[ctg]:
 #             length = contig2gene[ctg][gen][1] - contig2gene[ctg][gen][0] + 1
-#             gene_coverages[gen] = float(gene_coverages[gen]) / length
-#     fami_coverages = defaultdict(int)
+#             gene2cov[gen] = float(gene2cov[gen]) / length
+#     family2cov = defaultdict(int)
 #     for gen in gene2family:
-#         fami_coverages[gene2family[gen]] += gene_coverages[gen]
-#     return fami_coverages
+#         family2cov[gene2family[gen]] += gene2cov[gen]
+#     return family2cov
 
 
 # -----------------------------------------------------------------------------
@@ -932,7 +1004,8 @@ def build_mappings(pangenome_file, VERBOSE):
     avg_genome_length = int(numpy.median(list(genome_lengths.values())))
 
     if VERBOSE:
-        print('[I] Average genome length: ' + str(avg_genome_length))
+        print('[I] Pangenome contains ' + str(len(families)) + ' gene families.')
+        print('[I] Average genome length: ' + str(avg_genome_length) + '.')
     return gene_lengths, gene2family, sorted(list(families)), avg_genome_length, genome2families
 
 
@@ -982,127 +1055,147 @@ def check_args():
     irna = args['i_rna']
     # dna2rna := { DNA_ID : RNA_ID }
     dna2rna = {}
-    if not pairs_path == None:
-        # --sample_pairs is defined: check if the file exists or not
-        if not os.path.exists(pairs_path):
-            show_error_message('DNA-RNA mapping file does not exist.')
-            sys.exit(INEXISTENCE_ERROR_CODE)
-        else:
-            if idna == None or irna == None:
-                show_error_message('With option --sample_pairs must be defined also options --i_dna and --i_rna.')
-                sys.exit(PARAMETER_ERROR_CODE)
-            else:
-                # --i_dna and --i_rna are defined: check if the folders exist or not
-                if not os.path.exists(idna):
-                    show_error_message('Input folder for DNA files does not exist.')
-                    sys.exit(INEXISTENCE_ERROR_CODE)
-                if not os.path.exists(irna):
-                    show_error_message('Input folder for RNA files does not exist.')
-                    sys.exit(INEXISTENCE_ERROR_CODE)
 
-                # --sample_pairs, --i_dna, --i_rna are all defined
-                with open(pairs_path) as drmap:
-                    next(drmap) # Skip the first line, it's the header
-                    for line in drmap:
-                        words = line.strip().split('\t')
-                        dna2rna[words[0]] = words[1]
-                # Search for files reading the DNA-RNA mapping
-                dna_file2id = {}
-                rna_id2file = {}
-                # NB. The idea is: rna_id2file[dna2rna[dna_file2id[sample_dna_file_name]]]
-                #     Also because if we have not defined --sample_pairs, we still have the same dict structure for i_dna[COVERAGES_KEY]
-                #     (i.e. {DNA file path : DNA sample id} <==> {DNA file path : None}) accesing to its values with i_dna[COVERAGES_KEY].keys()
-                for d in dna2rna:
-                    dna_path = find('*' + d + '*.csv.bz2', idna)
-                    if VERBOSE:
-                        print('[I] Looking for "' + dna_path + '"-patterned files...')
-                    if dna_path == []:
-                        print('[W] DNA file corresponding to ID ' + d + ' has not been found. Analysis and mapping for this DNA will be skipped.')
-                        continue
-                    dna_file2id[dna_path[0]] = d
-
-                    rna_path = find('*' + dna2rna[d] + '*.csv.bz2', irna)
-                    if VERBOSE:
-                        print('[I] Looking for "' + rna_path + '"-patterned files...')
-                    if rna_path == []:
-                        print('[W] RNA file corresponding to ID ' + dna2rna[d] + ' has not been found. Analysis for this RNA will be skipped.')
-                        rna_id2file[dna2rna[d]] = NO_RNA_FILE_KEY
-                    else:
-                        rna_id2file[dna2rna[d]] = rna_path[0]
-                # Search pangenome file
-                pangenome_file_pattern = args['clade'] + '_pangenome.csv'
-                if VERBOSE:
-                    print('[I] Searching for ' + pangenome_file_pattern + '...')
-                pangenome_file = find(pangenome_file_pattern, '.') # search first in working directory
-                if pangenome_file == []:
-                    pangenome_file = find(pangenome_file_pattern, idna) # search in DNA input folder
-                    if pangenome_file == []:
-                        pangenome_file = find(pangenome_file_pattern, os.environ['BOWTIE2_INDEXES']) # finally search in environment folder
-                        if pangenome_file == []:
-                            show_error_message('Pangenome file for specie ' + args['clade'] + ' is not found.')
-                            sys.exit(INEXISTENCE_ERROR_CODE)
-                if VERBOSE and len(pangenome_file) > 1:
-                    print('[W] Found more than one matching pangenome files. They are:\n\t' + '\n\t'.join(pangenome_file))
-                    print('    Chosen: ' + pangenome_file[0])
-                    print('    If choice is not good, please make matchable only the desired file.')
-                # Build the comfortable supercomplex of DNA/RNA/pangenome/mapping files
-                args['sample_pairs'] = dna2rna
-                args['i_dna'] = {PANGENOME_KEY : pangenome_file[0], COVERAGES_KEY : dna_file2id}
-                args['i_rna'] = rna_id2file
-                if VERBOSE:
-                    print('[I] Input folder for DNAs: ' + idna)
-                    print('[I] Input folder for RNAs: ' + irna)
-                    print('[I] Pangenome file:        ' + str(pangenome_file[0]))
-                    print('[I] Gene coverages files:\n\t' + '\n\t'.join(list(dna_file2id.keys())))
-                    print('[I] Trascripts coverages files:\n\t' + '\n\t'.join(list(rna_id2file.values())))
-                    print('[I] DNA-RNA projects mapping:\n\t' + '\n\t'.join(k+' >>> '+v for k,v in dna2rna.items()))
-    else:
-        # --sample_pairs is not defined: check only --i_dna
-        
-        if not irna == None: # If --sample_pairs is NOT defined BUT --i_rna yes, then error
-            show_error_message('Option --sample_pairs has not been defined, but --i_rna is defined. You must decide if define both or no one of them.')
-            sys.exit(PARAMETER_ERROR_CODE)
-
-        if not os.path.exists(idna):
-            show_error_message('Input folder for DNA files does not exist.')
-            sys.exit(INEXISTENCE_ERROR_CODE)
-        
-        # Find coverages file
-        covs_file_pattern = '*' + args['clade'].replace('panphlan_', '') + '*.csv.bz2'
-        if VERBOSE:
-            print('[I] Looking for "' + covs_file_pattern + '"-patterned files...')
-        covs_files = find(covs_file_pattern, idna)
-        for f in covs_files:
-            # In the (remote) case where the pangenome file is zipped (.csv.bz2) and located in the same folder of the DNA abundance files, then delete it from the list
-            if 'pangenome' in f:
-                covs_files.pop(covs_files.index(f))
-        if covs_files == []:
-            show_error_message('Any gene coverages file has not been found.')
-            sys.exit(INEXISTENCE_ERROR_CODE)
-        if VERBOSE:
-            print('[I] Found ' + str(len(covs_files)) + ' abundances files.')
-        samples_files = dict((f, sample_name(f, args['clade'])) for f in covs_files)
-        
-        # Find pangenome file
-        pangenome_file_pattern = '*' + args['clade'].replace('panphlan_', '') + '_pangenome.csv'
+    if idna == '':
+        # --i_dna NOT defined: search pangenome file for strain binary matrix printing
+        pangenome_file_pattern = args['clade'] + '_pangenome.csv'
         if VERBOSE:
             print('[I] Searching for ' + pangenome_file_pattern + '...')
-        pangenome_file = find(pangenome_file_pattern, '.') # search first in working directory
-        if pangenome_file == []:
-            pangenome_file = find(pangenome_file_pattern, idna) # search in DNA input folder
+            pangenome_file = find(pangenome_file_pattern, '.') # search first in working directory
             if pangenome_file == []:
                 pangenome_file = find(pangenome_file_pattern, os.environ['BOWTIE2_INDEXES']) # finally search in environment folder
                 if pangenome_file == []:
-                    show_error_message('Any pangenome file has not been found.')
+                    show_error_message('Pangenome file for specie ' + args['clade'] + ' is not found.')
                     sys.exit(INEXISTENCE_ERROR_CODE)
+        if VERBOSE and len(pangenome_file) > 1:
+            print('[W] Found more than one matching pangenome files. They are:\n\t' + '\n\t'.join(pangenome_file))
+            print('    Chosen: ' + pangenome_file[0])
+            print('    If choice is not good, please make matchable only the desired file.')
+        args['i_dna'] = {PANGENOME_KEY : pangenome_file[0], COVERAGES_KEY : None}
+    
+    else:
+        # Normal pipeline
+        if not pairs_path == None:
+            # --sample_pairs is defined: check if the file exists or not
+            if not os.path.exists(pairs_path):
+                show_error_message('DNA-RNA mapping file does not exist.')
+                sys.exit(INEXISTENCE_ERROR_CODE)
+            else:
+                if idna == None or irna == None:
+                    show_error_message('With option --sample_pairs must be defined also options --i_dna and --i_rna.')
+                    sys.exit(PARAMETER_ERROR_CODE)
+                else:
+                    # --i_dna and --i_rna are defined: check if the folders exist or not
+                    if not os.path.exists(idna):
+                        show_error_message('Input folder for DNA files does not exist.')
+                        sys.exit(INEXISTENCE_ERROR_CODE)
+                    if not os.path.exists(irna):
+                        show_error_message('Input folder for RNA files does not exist.')
+                        sys.exit(INEXISTENCE_ERROR_CODE)
 
-        # TODO choose only one pangenome file if more than one are found
+                    # --sample_pairs, --i_dna, --i_rna are all defined
+                    with open(pairs_path) as drmap:
+                        next(drmap) # Skip the first line, it's the header
+                        for line in drmap:
+                            words = line.strip().split('\t')
+                            dna2rna[words[0]] = words[1]
+                    # Search for files reading the DNA-RNA mapping
+                    dna_file2id = {}
+                    rna_id2file = {}
+                    # NB. The idea is: rna_id2file[dna2rna[dna_file2id[sample_dna_file_name]]]
+                    #     Also because if we have not defined --sample_pairs, we still have the same dict structure for i_dna[COVERAGES_KEY]
+                    #     (i.e. {DNA file path : DNA sample id} <==> {DNA file path : None}) accesing to its values with i_dna[COVERAGES_KEY].keys()
+                    for d in dna2rna:
+                        dna_path = find('*' + d + '*.csv.bz2', idna)
+                        if VERBOSE:
+                            print('[I] Looking for "' + dna_path + '"-patterned files...')
+                        if dna_path == []:
+                            print('[W] DNA file corresponding to ID ' + d + ' has not been found. Analysis and mapping for this DNA will be skipped.')
+                            continue
+                        dna_file2id[dna_path[0]] = d
 
-        args['i_dna'] = {PANGENOME_KEY : pangenome_file[0], COVERAGES_KEY : samples_files}
-        if VERBOSE:
-            print('[I] Input folder: ' + idna)
-            print('[I] Gene coverages files:\n\t' + '\n\t'.join(sorted(covs_files)))
-            print('[I] Pangenome file: ' + str(pangenome_file[0]))
+                        rna_path = find('*' + dna2rna[d] + '*.csv.bz2', irna)
+                        if VERBOSE:
+                            print('[I] Looking for "' + rna_path + '"-patterned files...')
+                        if rna_path == []:
+                            print('[W] RNA file corresponding to ID ' + dna2rna[d] + ' has not been found. Analysis for this RNA will be skipped.')
+                            rna_id2file[dna2rna[d]] = NO_RNA_FILE_KEY
+                        else:
+                            rna_id2file[dna2rna[d]] = rna_path[0]
+                    # Search pangenome file
+                    pangenome_file_pattern = args['clade'] + '_pangenome.csv'
+                    if VERBOSE:
+                        print('[I] Searching for ' + pangenome_file_pattern + '...')
+                    pangenome_file = find(pangenome_file_pattern, '.') # search first in working directory
+                    if pangenome_file == []:
+                        pangenome_file = find(pangenome_file_pattern, idna) # search in DNA input folder
+                        if pangenome_file == []:
+                            pangenome_file = find(pangenome_file_pattern, os.environ['BOWTIE2_INDEXES']) # finally search in environment folder
+                            if pangenome_file == []:
+                                show_error_message('Pangenome file for specie ' + args['clade'] + ' is not found.')
+                                sys.exit(INEXISTENCE_ERROR_CODE)
+                    if VERBOSE and len(pangenome_file) > 1:
+                        print('[W] Found more than one matching pangenome files. They are:\n\t' + '\n\t'.join(pangenome_file))
+                        print('    Chosen: ' + pangenome_file[0])
+                        print('    If choice is not good, please make matchable only the desired file.')
+                    # Build the comfortable supercomplex of DNA/RNA/pangenome/mapping files
+                    args['sample_pairs'] = dna2rna
+                    args['i_dna'] = {PANGENOME_KEY : pangenome_file[0], COVERAGES_KEY : dna_file2id}
+                    args['i_rna'] = rna_id2file
+                    if VERBOSE:
+                        print('[I] Input folder for DNAs: ' + idna)
+                        print('[I] Input folder for RNAs: ' + irna)
+                        print('[I] Pangenome file:        ' + str(pangenome_file[0]))
+                        print('[I] Gene coverages files:\n\t' + '\n\t'.join(list(dna_file2id.keys())))
+                        print('[I] Trascripts coverages files:\n\t' + '\n\t'.join(list(rna_id2file.values())))
+                        print('[I] DNA-RNA projects mapping:\n\t' + '\n\t'.join(k+' >>> '+v for k,v in dna2rna.items()))
+        else:
+            # --sample_pairs is not defined: check only --i_dna
+            
+            if not irna == None: # If --sample_pairs is NOT defined BUT --i_rna yes, then error
+                show_error_message('Option --sample_pairs has not been defined, but --i_rna is defined. You must decide if define both or no one of them.')
+                sys.exit(PARAMETER_ERROR_CODE)
+
+            if not os.path.exists(idna):
+                show_error_message('Input folder for DNA files does not exist.')
+                sys.exit(INEXISTENCE_ERROR_CODE)
+            
+            # Find coverages file
+            covs_file_pattern = '*' + args['clade'].replace('panphlan_', '') + '*.csv.bz2'
+            if VERBOSE:
+                print('[I] Looking for "' + covs_file_pattern + '"-patterned files...')
+            covs_files = find(covs_file_pattern, idna)
+            for f in covs_files:
+                # In the (remote) case where the pangenome file is zipped (.csv.bz2) and located in the same folder of the DNA abundance files, then delete it from the list
+                if 'pangenome' in f:
+                    covs_files.pop(covs_files.index(f))
+            if covs_files == []:
+                show_error_message('Any gene coverages file has not been found.')
+                sys.exit(INEXISTENCE_ERROR_CODE)
+            if VERBOSE:
+                print('[I] Found ' + str(len(covs_files)) + ' abundances files.')
+            samples_files = dict((f, sample_name(f, args['clade'])) for f in covs_files)
+            
+            # Find pangenome file
+            pangenome_file_pattern = '*' + args['clade'].replace('panphlan_', '') + '_pangenome.csv'
+            if VERBOSE:
+                print('[I] Searching for ' + pangenome_file_pattern + '...')
+            pangenome_file = find(pangenome_file_pattern, '.') # search first in working directory
+            if pangenome_file == []:
+                pangenome_file = find(pangenome_file_pattern, idna) # search in DNA input folder
+                if pangenome_file == []:
+                    pangenome_file = find(pangenome_file_pattern, os.environ['BOWTIE2_INDEXES']) # finally search in environment folder
+                    if pangenome_file == []:
+                        show_error_message('Any pangenome file has not been found.')
+                        sys.exit(INEXISTENCE_ERROR_CODE)
+
+            # TODO choose only one pangenome file if more than one are found
+
+            args['i_dna'] = {PANGENOME_KEY : pangenome_file[0], COVERAGES_KEY : samples_files}
+            if VERBOSE:
+                print('[I] Input folder: ' + idna)
+                print('[I] Gene coverages files:\n\t' + '\n\t'.join(sorted(covs_files)))
+                print('[I] Pangenome file: ' + str(pangenome_file[0]))
 
     # Check OUTPUT_FILE
     args['o_dna'] = check_output(args['o_dna'], '', 'gene families presence/absence matrix', VERBOSE)
@@ -1242,15 +1335,16 @@ def main():
         print('STEP 1. Translating files into dictionaries...')
     dna_samples_covs = {}
     rna_samples_covs = {}
-    dna_files_list = sorted(args['i_dna'][COVERAGES_KEY].keys())
-    for dna_covs_file in dna_files_list:
-        dna_samples_covs[dna_covs_file] = dict_from_file(dna_covs_file)
-    if RNASEQ:
-        rna_id_list = sorted(args['i_rna'].keys())
-        for rna_covs_id in rna_id_list:
-            rna_covs_file = args['i_rna'][rna_covs_id]
-            if not rna_covs_file == NO_RNA_FILE_KEY:
-                rna_samples_covs[rna_covs_file] = dict_from_file(rna_covs_file)
+    if not args['i_dna'][COVERAGES_KEY] == None:
+        dna_files_list = sorted(args['i_dna'][COVERAGES_KEY].keys())
+        for dna_covs_file in dna_files_list:
+            dna_samples_covs[dna_covs_file] = dict_from_file(dna_covs_file)
+        if RNASEQ:
+            rna_id_list = sorted(args['i_rna'].keys())
+            for rna_covs_id in rna_id_list:
+                rna_covs_file = args['i_rna'][rna_covs_id]
+                if not rna_covs_file == NO_RNA_FILE_KEY:
+                    rna_samples_covs[rna_covs_file] = dict_from_file(rna_covs_file)
 
 
 
@@ -1261,13 +1355,31 @@ def main():
     
 
 
+    # Strains-only presence/absence matrix
+    strains_list = []
+    if ADD_STRAINS or args['strain_hit_genes_perc'] != '':
+        if VERBOSE:
+            print('STEP 3a. Extracting reference genomes gene repertoire...')
+        TIME, strains_list = get_strains(args['i_dna'][PANGENOME_KEY], TIME, VERBOSE)
+        TIME, strain2family2presence = build_strain2family2presence(strains_list, families, genome2families, TIME, VERBOSE)
+        if ADD_STRAINS and args['i_dna'][COVERAGES_KEY] == None:
+            if VERBOSE:
+                print('STEP 3b. Printing presence/absence binary matric for reference genomes...')
+            # TODO
+            TIME = strains_binary_matrix(strains_list, strain2family2presence, families, args['o_dna'], TIME, VERBOSE)
+            end_program(time.time() - TOTAL_TIME)
+            sys.exit(0) 
+
+
     # Convert gene/transcript abundance into family (normalized) coverage
     if VERBOSE:
-        print('STEP 3. Converting from gene families absolute abundances to gene families normalized coverages for DNA samples...')
+        print('STEP 4. Converting from gene families absolute abundances to gene families normalized coverages for DNA samples...')
     for sample in dna_files_list:
         if VERBOSE:
-            print('[I] Normalization for DNA sample ' + sample_name(sample, args['clade']))
+            print('[I] Normalization for DNA sample ' + sample_name(sample, args['clade']) + '...')
         dna_samples_covs[sample] = families_coverages(dna_samples_covs[sample], gene2family, gene_lenghts, VERBOSE)
+    
+    # Get samples list
     # Print coverages in file
     TIME = print_coverage_matrix(dna_files_list, args['i_dna'][COVERAGES_KEY], dna_samples_covs, args['o_cov'], families, args['clade'], TIME, VERBOSE)
     
@@ -1275,53 +1387,49 @@ def main():
 
     # Filter DNA samples according to their median coverage value and plot coverage plateau
     if VERBOSE:
-        print('STEP 4. Plotting charts...')
-    accepted_samples, norm_dna_samples_covs, sample2famcovlist, sample2color, median_normalized_covs, sample2median = dna_sample_filtering(dna_samples_covs, avg_genome_length, args['min_coverage'], args['left_max'], args['right_min'], families, args['clade'], TIME, VERBOSE)
-    result = plot_dna_coverage(args['th_present'], args['left_max'], args['right_min'], accepted_samples, norm_dna_samples_covs, sample2famcovlist, sample2color, median_normalized_covs, avg_genome_length, args['clade'], args['o_covplot'], args['o_covplot_normed'], INTERACTIVE, TIME, VERBOSE)
+        print('STEP 5. Plotting charts...')
+    sample2accepted, accepted_samples, norm_dna_samples_covs, sample2famcovlist, sample2color, median_normalized_covs, sample2median = dna_sample_filtering(dna_samples_covs, avg_genome_length, args['min_coverage'], args['left_max'], args['right_min'], families, args['clade'], TIME, VERBOSE)
+    result = plot_dna_coverage(args['th_present'], args['left_max'], args['right_min'], sample2accepted, norm_dna_samples_covs, sample2famcovlist, sample2color, median_normalized_covs, avg_genome_length, args['clade'], args['o_covplot'], args['o_covplot_normed'], INTERACTIVE, TIME, VERBOSE)
     if VERBOSE:
         print('[I] Charts ' + ('not ' if not result else '') + 'plotted.')
 
 
     # DNA indexing
     if VERBOSE:
-        print('STEP 5a. Indexing DNA samples...')
+        print('STEP 6a. Indexing DNA samples...')
     sample2family2dnaidx, TIME = dna_indexing(accepted_samples, norm_dna_samples_covs, args['th_zero'], args['th_present'], args['th_multicopy'], args['o_idx'], families, args['clade'], TIME, VERBOSE)
     if VERBOSE:
-        print('STEP 5b. Calculating gene families presence/absence...')
-    dna_sample2family2presence = dna_presencing(accepted_samples, dna_files_list, args['i_dna'][COVERAGES_KEY], sample2family2dnaidx, args['o_dna'], families, args['clade'], TIME, VERBOSE)
+        print('STEP 6b. Calculating gene families presence/absence...')
+    dna_sample2family2presence = dna_presencing(sample2accepted, dna_files_list, args['i_dna'][COVERAGES_KEY], sample2family2dnaidx, args['o_dna'], families, args['clade'], TIME, VERBOSE)
     
     if ADD_STRAINS or args['strain_hit_genes_perc'] != '':
         if VERBOSE:
-            print('STEP 5c. Generating gene families coverage also for strains...')
-        ss_presence, TIME = samples_strains_presences(args['strain_similarity_perc'], dna_sample2family2presence, args['i_dna'][PANGENOME_KEY], avg_genome_length, args['o_dna'], families, args['clade'], ADD_STRAINS, TIME, VERBOSE)
+            print('STEP 6c. Generating gene families coverage also for strains...')
+        ss_presence, TIME = samples_strains_presences(dna_sample2family2presence, strains_list, strain2family2presence, avg_genome_length, args['strain_similarity_perc'], args['o_dna'], families, args['clade'], ADD_STRAINS, TIME, VERBOSE)
         # ss_presence = { STRAIN or SAMPLE : { GENE FAMILY : PRESENCE } }
         if args['strain_hit_genes_perc'] != '':
-            strain2sample2hit, TIME = strains_gene_hit_percentage(ss_presence, genome2families, accepted_samples, args['strain_hit_genes_perc'], args['clade'], TIME, VERBOSE)
+            strain2sample2hit, TIME = strains_gene_hit_percentage(ss_presence, genome2families, sample2accepted, args['strain_hit_genes_perc'], args['clade'], TIME, VERBOSE)
 
 
     # 
     rna_file_list = []
     if RNASEQ:
         if VERBOSE:
-            print('STEP 6. Converting from transcripts absolute abundances to transcripts normalized coverages for RNA samples...')
+            print('STEP 7. Converting from transcripts absolute abundances to transcripts normalized coverages for RNA samples...')
         for sample_id in rna_id_list:
             sample = args['i_rna'][sample_id]
             if not sample == NO_RNA_FILE_KEY:
                 if VERBOSE:
-                    print('[I] Normalization for RNA sample ' + sample_name(sample, args['clade']))
+                    print('[I] Normalization for RNA sample ' + sample_name(sample, args['clade']) + '...')
                 rna_file_list.append(sample)
                 rna_samples_covs[sample] = families_coverages(rna_samples_covs[sample], gene2family, gene_lenghts, VERBOSE)
 
-        # Print coverages in file
-        # rna_file_list = sorted(rna_file_list)
-        # rna_file2id = {v:k for k,v in args['i_rna'].items()}
-        # TIME = print_coverage_matrix(rna_file_list, rna_file2id, rna_samples_covs, '../../Largedata/sepidermidis/HMP_sepidermidis_unfiltered_RNA_coverages.csv', families, TIME, VERBOSE)
 
-    # DNA (and RNA) indexingif VERBOSE:
+    # DNA (and RNA) indexing
     if RNASEQ:
         if VERBOSE:
             print('STEP 8. Indexing RNA samples...')
-        rna_seq(args['o_rna'], sample2family2dnaidx, dna_samples_covs, dna_sample2family2presence, accepted_samples, rna_id_list, rna_samples_covs, args['rna_max_zeros'], args['sample_pairs'], args['i_dna'][COVERAGES_KEY], args['i_rna'], families, 10, args['np'], args['nan'], args['clade'], TIME, VERBOSE)
+        rna_seq(args['o_rna'], sample2family2dnaidx, dna_samples_covs, dna_sample2family2presence, sample2accepted, rna_id_list, rna_samples_covs, args['rna_max_zeros'], args['sample_pairs'], args['i_dna'][COVERAGES_KEY], args['i_rna'], families, 10, args['np'], args['nan'], args['clade'], TIME, VERBOSE)
 
     end_program(time.time() - TOTAL_TIME) 
 
