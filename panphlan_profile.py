@@ -702,6 +702,7 @@ def dna_indexing(accepted_samples, sample2family2normcov, min_thresh, med_thresh
     sample2family2dnaidx = defaultdict(dict)
 
     accepted_ids = sorted([sample_name(s, clade) for s in accepted_samples])
+    id2sample = dict((sample_name(s, clade),s) for s in accepted_samples)
 
     for sample in accepted_samples:
         if VERBOSE:
@@ -715,7 +716,8 @@ def dna_indexing(accepted_samples, sample2family2normcov, min_thresh, med_thresh
             csv.write('\t' + '\t'.join(accepted_ids) + '\n')
             for family in families:
                 csv.write(family)
-                for sample in accepted_samples:
+                for sample_id in accepted_ids:
+                    sample = id2sample[sample_id]
                     csv.write('\t' + str(sample2family2dnaidx[sample][family]))
                 csv.write('\n')
 
@@ -1056,6 +1058,7 @@ def check_args():
     # dna2rna := { DNA_ID : RNA_ID }
     dna2rna = {}
 
+    pangenome_file = []
     if idna == '':
         # --i_dna NOT defined: search pangenome file for strain binary matrix printing
         pangenome_file_pattern = args['clade'] + '_pangenome.csv'
@@ -1063,14 +1066,15 @@ def check_args():
             print('[I] Searching for ' + pangenome_file_pattern + '...')
             pangenome_file = find(pangenome_file_pattern, '.') # search first in working directory
             if pangenome_file == []:
-                pangenome_file = find(pangenome_file_pattern, os.environ['BOWTIE2_INDEXES']) # finally search in environment folder
-                if pangenome_file == []:
-                    show_error_message('Pangenome file for specie ' + args['clade'] + ' is not found.')
-                    sys.exit(INEXISTENCE_ERROR_CODE)
+                pangenome_file = find(pangenome_file_pattern, os.environ['BOWTIE2_INDEXES']) # finally search in environment folder           
+        if pangenome_file == []:
+            show_error_message('Pangenome file for specie ' + args['clade'] + ' is not found.')
+            sys.exit(INEXISTENCE_ERROR_CODE)
+        
         if VERBOSE and len(pangenome_file) > 1:
             print('[W] Found more than one matching pangenome files. They are:\n\t' + '\n\t'.join(pangenome_file))
             print('    Chosen: ' + pangenome_file[0])
-            print('    If choice is not good, please make matchable only the desired file.')
+            print('    If choice is not good, please make matchable the desired file only.')
         args['i_dna'] = {PANGENOME_KEY : pangenome_file[0], COVERAGES_KEY : None}
     
     else:
