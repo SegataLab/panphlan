@@ -1021,7 +1021,7 @@ def dict_from_file(input_file):
     d = {}
     f = bz2.BZ2File(input_file, mode='r')
     for line in f:
-        words = line.strip().split('\t')
+        words = line.decode('utf-8').strip().split('\t')
         gene, coverage = words[0], int(words[1])
         d[gene] = coverage
     f.close()
