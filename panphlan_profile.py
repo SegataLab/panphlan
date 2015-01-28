@@ -400,10 +400,9 @@ def rna_seq(out_channel, sample2family2dnaidx, dna_sample2family2cov, dna_sample
 
     sample2family2presence = dict((sample_name(k, clade), v) for (k,v) in dna_sample2family2presence[0].items())
     sample2family2rna_div_dna = defaultdict(dict)
-    families = families #[f for f in families if is_present(f, sample2family2presence)] # TODO CHECK still sorted?
     rna_samples = []
     rna_ids = []
-    dna_accepted_samples = [s for s in dna_accepted_samples if dna_accepted_samples[s]]
+    dna_accepted_samples = sorted([s for s in dna_accepted_samples if dna_accepted_samples[s]])
     
     for dna_sample in dna_accepted_samples:
         rna_sample = rna_id2file[dna2rna[dna_file2id[dna_sample]]]
@@ -432,7 +431,7 @@ def rna_seq(out_channel, sample2family2dnaidx, dna_sample2family2cov, dna_sample
 
 
     # Step 3.4) Normalization + filtering
-    for dna_sample in sorted(rna_samples):
+    for dna_sample in rna_samples:
         sample2zeroes[dna_sample] = (0,0)
 
         # Take all the gene families belonging to the plateau and calculte the median of their RNA/DNA values
@@ -481,9 +480,11 @@ def rna_seq(out_channel, sample2family2dnaidx, dna_sample2family2cov, dna_sample
                 sample2family2log_norm[dna_sample][f] = 0.0 if v == 0.0 else (numpy.log2(v) / c) + 1.0
 
     # Print
+    rnaseq_accepted_samples = sorted(rnaseq_accepted_samples)
+    rnaseq_accepted_ids = [sample_name(s, clade) for s in rnaseq_accepted_samples]
     if not out_channel == '':
         with open(out_channel, mode='w') as csv:
-            csv.write('\t' + '\t'.join([sample_name(s, clade) for s in rnaseq_accepted_samples]) + '\n')
+            csv.write('\t' + '\t'.join(rnaseq_accepted_ids) + '\n')
             for f in families:
                 # Skip the never present gene families
                 all_null = True
@@ -494,7 +495,7 @@ def rna_seq(out_channel, sample2family2dnaidx, dna_sample2family2cov, dna_sample
                             break
                 if not all_null:
                     csv.write(f)
-                    for s in sorted(rnaseq_accepted_samples):
+                    for s in rnaseq_accepted_samples:
                         v = sample2family2log_norm[s][f]
                         if type(v) is float or type(v) is numpy.float64:
                             csv.write('\t' + str(format(v, '.3f')))
@@ -1111,18 +1112,14 @@ def check_args():
                     # NB. The idea is: rna_id2file[dna2rna[dna_file2id[sample_dna_file_name]]]
                     #     Also because if we have not defined --sample_pairs, we still have the same dict structure for i_dna[COVERAGES_KEY]
                     #     (i.e. {DNA file path : DNA sample id} <==> {DNA file path : None}) accesing to its values with i_dna[COVERAGES_KEY].keys()
-                    for d in dna2rna:
+                    for d in sorted([s for s in dna2rna.keys()]):
                         dna_path = find('*' + d + '*.csv.bz2', idna)
-                        if VERBOSE:
-                            print('[I] Looking for "' + dna_path + '"-patterned files...')
                         if dna_path == []:
                             print('[W] DNA file corresponding to ID ' + d + ' has not been found. Analysis and mapping for this DNA will be skipped.')
                             continue
                         dna_file2id[dna_path[0]] = d
 
                         rna_path = find('*' + dna2rna[d] + '*.csv.bz2', irna)
-                        if VERBOSE:
-                            print('[I] Looking for "' + rna_path + '"-patterned files...')
                         if rna_path == []:
                             print('[W] RNA file corresponding to ID ' + dna2rna[d] + ' has not been found. Analysis for this RNA will be skipped.')
                             rna_id2file[dna2rna[d]] = NO_RNA_FILE_KEY
@@ -1152,9 +1149,9 @@ def check_args():
                         print('[I] Input folder for DNAs: ' + idna)
                         print('[I] Input folder for RNAs: ' + irna)
                         print('[I] Pangenome file:        ' + str(pangenome_file[0]))
-                        print('[I] Gene coverages files:\n\t' + '\n\t'.join(list(dna_file2id.keys())))
-                        print('[I] Trascripts coverages files:\n\t' + '\n\t'.join(list(rna_id2file.values())))
-                        print('[I] DNA-RNA projects mapping:\n\t' + '\n\t'.join(k+' >>> '+v for k,v in dna2rna.items()))
+                        print('[I] Gene coverages files:\n\t' + '\n\t'.join(sorted(list(dna_file2id.keys()))))
+                        print('[I] Trascripts coverages files:\n\t' + '\n\t'.join(sorted(list(rna_id2file.values()))))
+                        print('[I] DNA-RNA projects mapping:\n\t' + '\n\t'.join(k+' >>> '+v for k,v in sorted(dna2rna.items())))
         else:
             # --sample_pairs is not defined: check only --i_dna
             
