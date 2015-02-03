@@ -796,18 +796,25 @@ def dna_sample_filtering(samples_coverages, genome_length, threshold, threshold_
             norm_samples_coverages[sample][f] = normed_cov
         # samples_coverages[sample] = {f : samples_coverages[sample][f] / median[sample] for f in samples_coverages[sample]}
 
-        if VERBOSE:
-            print('[I] Median = ' + str(median[sample]) + ' for sample ' + sample_id)
-
         # Apply Filter 1 and 2
+        if VERBOSE:
+            print('[I] Sample ' + sample_id + ':\n\tmedian coverage is ' + str(median[sample]) + ' (must be > ' + str(threshold) + ' to be accepted).')
         sample2accepted[sample] = True if median[sample] >= threshold else False # filter 1
         if sample2accepted[sample]:
             left = median_normalized_covs[sample][int(genome_length * 0.3)]
             right = median_normalized_covs[sample][int(genome_length * 0.7)]
-            if not (left < threshold_plateau_left_max and right > threshold_plateau_right_min): # filter 2
+            if VERBOSE:
+                print('\tleft value is ' + str(left) + ' (must be < ' + str(threshold_plateau_left_max) + ' to be accepted).')
+                print('\tright value is ' + str(right) + ' (must be > ' + str(threshold_plateau_right_min) + ' to be accepted).')
+            # filter 2
+            if left > threshold_plateau_left_max:
                 sample2accepted[sample] = False
                 if VERBOSE:
-                    print('[W] Sample ' + sample_id + 'has been rejected!')
+                    print('[W] Sample ' + sample_id + ' has been rejected because too high left value!')
+            elif right < threshold_plateau_right_min:
+                sample2accepted[sample] = False
+                if VERBOSE:
+                    print('[W] Sample ' + sample_id + ' has been rejected because too low right value!')
             else:
                 if VERBOSE:
                     print('[I] Sample ' + sample_id + ' accepted.')
