@@ -14,14 +14,14 @@ from __future__ import with_statement
 # ==============================================================================
 
 __author__  = 'Thomas Tolio (thomas.tolio@studenti.unitn.it)'
-__version__ = '0.9'
-__date__    = '28 November 2014'
+__version__ = '1.0'
+__date__    = '3 February 2015'
 
 # Imports
 from argparse import ArgumentParser
 from collections import defaultdict
 import os, subprocess, sys, tempfile, time
-
+    
 # Operating systems
 LINUX                   = 'lin'
 WINDOWS                 = 'win'
@@ -50,10 +50,9 @@ class PanPhlAnGenParser(ArgumentParser):
     '''
     def __init__(self):
         ArgumentParser.__init__(self)
-        # self.add_argument( ... )
         self.add_argument('--i_ffn',        metavar='INPUT_FFN_FOLDER',     type=str,   required=True,  help='Folder containing the .ffn files, i.e. the files of gene sequences of all the genomes for pangenome generation.')
         self.add_argument('--i_fna',        metavar='INPUT_FNA_FOLDER',     type=str,   required=True,  help='Folder containing the .fna files, i.e. the files of genomes sequences for Bowtie2 indexes generation.')
-        self.add_argument('--i_uc',         metavar='INPUT_UC_FILE',        type=str,                   help='ONLY FOR TESTING. Give in input the clusters .txt/.uc .')
+        #self.add_argument('--i_uc',         metavar='INPUT_UC_FILE',        type=str,                   help='ONLY FOR TESTING. Give in input the clusters .txt/.uc .')
         self.add_argument('-c','--clade',   metavar='CLADE_NAME',           type=str,   required=True,  help='Name of the specie to consider, i.e. the basename of the index for the reference genome used by Bowtie2 to align reads.')
         self.add_argument('-o','--output',  metavar='OUTPUT_FOLDER',        type=str,   required=True,  help='Directory where to store the produced files (six .bt2 files for Bowtie2 indexes, one .csv file for the pangenome).')
         self.add_argument('--th',           metavar='IDENTITY_PERCENATGE',  type=float, default=95.0,   help='Threshold of gene sequence similarity (in percentage). Default value is 95.0 %.')
@@ -135,7 +134,7 @@ def create_bt2_indexes(fna_folder, clade, output_path, tmp_path, TIME, VERBOSE):
                 # Check generated files
                 build_cmd = ['bowtie2-inspect', '-n', clade]
                 if VERBOSE:
-                    print('[C] bowtie2-inspect -n ' + clade)
+                    print('[I] bowtie2-inspect -n ' + clade)
                 p6 = subprocess.Popen(build_cmd)
                 p6.wait()
 
@@ -198,6 +197,7 @@ def get_gene_locations(ffn_folder, genloc_txt):
     '''
     from Bio import SeqIO
     from Bio.SeqRecord import SeqRecord
+
     # { GENE : ( CONTIG, FROM, TO ) }
     gene2loc = defaultdict(tuple)
     
@@ -221,7 +221,6 @@ def get_gene_locations(ffn_folder, genloc_txt):
 def get_contigs(fna_folder, contig_txt):
     '''
     Map each genome to its own set of contigs
-
     NB. Use Biopython
     '''
     from Bio import SeqIO
@@ -251,7 +250,6 @@ def get_contigs(fna_folder, contig_txt):
 def gene2genome_mapping(ffn_folder, VERBOSE):
     '''
     Map each gene to its own genome
-
     NB. Use Biopython
     '''
     from Bio import SeqIO
@@ -365,15 +363,13 @@ def conversion(merged_uc, merged_txt, TIME, VERBOSE):
     
     # Printing in the TXT file
     with open(merged_txt, mode='w') as otxt:
-        # index = 1
         # k is the centroid gene, v is a gene of the its cluster
-        # for k,v in sorted(uc2cl.items(), key=lambda x:-len(x[1])): # clusters are sorted by length
-        # for k,v in sorted(uc2cl.items(), key=lambda x:str(x[0])): # clusters are sorted by centroid-IDs
         for index, (k,v) in   enumerate( sorted(uc2cl.items(), key=lambda x:str(x[0])) ,1): # clusters are sorted by centroid-IDs; added index starting at 1    
             # Each line of the clusters .txt file is composed by: GENE_FAMILY | CENTROID_GENE | GENE | ... | GENE
             otxt.write(family_of(index) + '\t' + '\t'.join([k] + sorted(list(v))) + '\n') # Intra-line sorting
     
-    TIME = time_message(TIME, 'UC --> TXT conversion has been done.')
+    if VERBOSE:
+        TIME = time_message(TIME, 'UC --> TXT conversion has been done.')
     return TIME
 
 
@@ -382,7 +378,6 @@ def conversion(merged_uc, merged_txt, TIME, VERBOSE):
 def clustering(sorted_merged_ffn, identity, clade, output_path, tmp_path, KEEP_UC, TIME, VERBOSE):
     '''
     Group gene sequence in clusters by similarity
-
     Default similarity is 95%
     '''
     merged_uc_name = output_path + 'usearch7_' + clade + '_cluster.uc'
@@ -400,7 +395,7 @@ def clustering(sorted_merged_ffn, identity, clade, output_path, tmp_path, KEEP_U
                     '--maxaccepts', '32', '--maxrejects', '128', '--wordlength', '3', '--strand', 'both',
                     '--uc', merged_uc.name, '--centroids', centroids_ffn]
         if VERBOSE:
-            print('[C] usearch7 --cluster_smallmem ' + sorted_merged_ffn + ' --id ' + str(identity) + ' --maxaccepts 32 --maxrejects 128 --wordlength 3 --strand both --uc ' + merged_uc.name + ' --centroids ' + centroids_ffn)
+            print('[I] ' + ' '.join(clust_cmd))
         p3 = subprocess.Popen(clust_cmd)
         p3.wait()
         if VERBOSE:
@@ -421,7 +416,8 @@ def clustering(sorted_merged_ffn, identity, clade, output_path, tmp_path, KEEP_U
     finally:
         os.unlink(sorted_merged_ffn)
     
-    TIME = time_message(TIME, 'Clustering with Usearch has been done.')
+    if VERBOSE:
+        TIME = time_message(TIME, 'Clustering with Usearch has been done.')
     return merged_uc, TIME
 
 # ------------------------------------------------------------------------------
@@ -461,7 +457,7 @@ def merging(ffn_folder, tmp_path, TIME, VERBOSE):
                 # 2nd command: usearch7 -sortbylength merged_file.ffn -output merged_file.sorted.ffn -minseqlength 1
                 sort_cmd = ['usearch7', '--sortbylength', tmp_ffn.name, '--output', tmp_sorted_ffn.name, '--minseqlength', '1']
                 if VERBOSE:
-                    print('[C] usearch7 --sortbylength ' + tmp_ffn.name + ' --output ' + tmp_sorted_ffn.name + ' --minseqlength 1')
+                    print('[I] ' + ' '.join(sort_cmd))
                 p2 = subprocess.Popen(sort_cmd)
                 p2.wait()
                 if VERBOSE:
@@ -480,7 +476,8 @@ def merging(ffn_folder, tmp_path, TIME, VERBOSE):
     finally:
         os.unlink(tmp_ffn.name)
 
-    TIME = time_message(TIME, 'FFN merging and Usearch sorting has been done.')
+    if VERBOSE:
+        TIME = time_message(TIME, 'FFN merging and Usearch sorting has been done.')
     # Get in output the temporary merged and sorted .ffn file
     return TIME, tmp_sorted_ffn
 
@@ -645,12 +642,12 @@ def check_args():
         print('[I] Temporary folder: ' + args['tmp'])
 
     # Check --------------------------------------------------------------------
-    ipath = args['i_uc']
-    if not ipath == None:
-        args['i_uc'] = (ipath[-1], ipath)
-    else:
-        args['i_uc'] = ('', ipath)
-    print('[I] ' + str(args['i_uc']))
+    # ipath = args['i_uc']
+    # if not ipath == None:
+    #     args['i_uc'] = (ipath[-1], ipath)
+    # else:
+    #     args['i_uc'] = ('', ipath)
+    # print('[I] ' + str(args['i_uc']))
 
     return args
 
@@ -670,33 +667,33 @@ def main():
     merged_txt = ''
     extension = os.path.splitext(args['i_uc'][0])[1].replace('.', '')
 
-    if args['i_uc'][0] == TXT:
-        print('SKIPPING STEPS 1 AND 2...')
-        merged_txt = args['i_uc'][1]
+    # if args['i_uc'][0] == TXT:
+    #     print('SKIPPING STEPS 1 AND 2...')
+    #     merged_txt = args['i_uc'][1]
 
-    if args['i_uc'][0] == UC:
-        print('SKIPPING STEPS 1 AND 2, proceeding with .txt conversion...')
-        merged_txt = args['output'] + 'merged.txt'
-        TIME = conversion(args['i_uc'][1], merged_txt, TIME, VERBOSE)
+    # if args['i_uc'][0] == UC:
+    #     print('SKIPPING STEPS 1 AND 2, proceeding with .txt conversion...')
+    #     merged_txt = args['output'] + 'merged.txt'
+    #     TIME = conversion(args['i_uc'][1], merged_txt, TIME, VERBOSE)
 
-    else:
-        # Check if software is installed
-        if VERBOSE:
-            print('STEP 1. Checking software...')
-        bowtie2 = check_bowtie2(VERBOSE, PLATFORM)
-        usearch7 = check_usearch7(VERBOSE, PLATFORM)
-        biopython = check_biopython(VERBOSE)
+    # else:
+    # Check if software is installed
+    if VERBOSE:
+        print('\nSTEP 1. Checking software...')
+    bowtie2 = check_bowtie2(VERBOSE, PLATFORM)
+    usearch7 = check_usearch7(VERBOSE, PLATFORM)
+    biopython = check_biopython(VERBOSE)
 
-        # Get gene families cluster
-        if VERBOSE:
-            print('STEP 2. Getting gene families cluster...')
-        merged_txt, TIME = gene_families_clustering(args['i_ffn'], args['th'], args['clade'], args['output'], args['tmp'], KEEP_UC, TIME, VERBOSE)
-        
+    # Get gene families cluster
+    if VERBOSE:
+        print('\nSTEP 2. Getting gene families cluster...')
+    merged_txt, TIME = gene_families_clustering(args['i_ffn'], args['th'], args['clade'], args['output'], args['tmp'], KEEP_UC, TIME, VERBOSE)
+    # end else
+
     # Get pangenome file
     if VERBOSE:
-        print('STEP 3. Getting pangenome file...')
+        print('\nSTEP 3. Getting pangenome file...')
     TIME = pangenome_generation(args['i_ffn'], args['i_fna'], merged_txt, args['clade'], args['output'], TIME, VERBOSE)
-
     # Get Bowtie2 indexes
     TIME = create_bt2_indexes(args['i_fna'], args['clade'], args['output'], args['tmp'], TIME, VERBOSE)
 

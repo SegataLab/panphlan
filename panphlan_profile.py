@@ -14,8 +14,8 @@ from __future__ import with_statement
 # ==============================================================================
 
 __author__  = 'Thomas Tolio (thomas.tolio@studenti.unitn.it)'
-__version__ = '0.9'
-__date__    = '28 November 2014'
+__version__ = '1.0'
+__date__    = '3 February 2015'
 
 # Imports
 from argparse import ArgumentParser
@@ -556,7 +556,7 @@ def strains_gene_hit_percentage(ss_presence, genome2families, accepted_samples, 
             TIME = time_message(TIME, 'Strains hit gene families percentages computed.')
     
     else:
-        print('[W] No file has been written for strains gene hit percentages because there is no accpeted samples.')
+        print('[W] No file has been written for strains gene hit percentages because there is no accepted samples.')
     return strain2sample2hit, TIME
 
 # ------------------------------------------------------------------------------
@@ -815,9 +815,6 @@ def dna_sample_filtering(samples_coverages, genome_length, threshold, threshold_
                 sample2accepted[sample] = False
                 if VERBOSE:
                     print('[W] Sample ' + sample_id + ' has been rejected because too low right value!')
-            else:
-                if VERBOSE:
-                    print('[I] Sample ' + sample_id + ' accepted.')
 
     accepted_samples_list = sorted([s for s in sample2accepted if sample2accepted[s]])
     return sample2accepted, accepted_samples_list, norm_samples_coverages, sample2famcovlist, sample2color, median_normalized_covs, median
@@ -892,12 +889,11 @@ def plot_dna_coverage(th_present, left_max, right_min, sample2accepted, samples_
                         else:
                             plt.plot(range(1, len(covs) + 1), covs, COLOR_GREY)
                     plt.axis([0.0, genome_length * 1.5, 0.0, 9.0])
-                    plt.plot((0.0, genome_length * 1.5), (th_present, th_present), 'k--') # th_present horizontal
-                    plt.plot((0.9 * genome_length, 0.9 * genome_length), (0.0, 9.0), 'k--') # genome length lowerbound vertical
-                    plt.plot((1.1 * genome_length, 1.1 * genome_length), (0.0, 9.0), 'k--') # genome length upperbound vertical
-
-                    plt.plot([genome_length * 0.3], [left_max], 'ro') # left_max intersected with genome length * 0.3
-                    plt.plot([genome_length * 0.7], [right_min], 'ro') # right_min intersected with genome length * 0.7
+                    # plt.plot((0.0, genome_length * 1.5), (th_present, th_present), 'k--') # th_present horizontal
+                    # plt.plot((0.9 * genome_length, 0.9 * genome_length), (0.0, 9.0), 'k--') # genome length lowerbound vertical
+                    # plt.plot((1.1 * genome_length, 1.1 * genome_length), (0.0, 9.0), 'k--') # genome length upperbound vertical
+                    # plt.plot([genome_length * 0.3], [left_max], 'ro') # left_max intersected with genome length * 0.3
+                    # plt.plot([genome_length * 0.7], [right_min], 'ro') # right_min intersected with genome length * 0.7
 
                     plt.legend(loc='upper right', fontsize='xx-small')
                     savefig(plot2_name)
@@ -1342,7 +1338,7 @@ def main():
 
     # From file to dicts
     if VERBOSE:
-        print('STEP 1. Translating files into dictionaries...')
+        print('\nSTEP 1. Translating files into dictionaries...')
     dna_samples_covs = {}
     rna_samples_covs = {}
     if not args['i_dna'][COVERAGES_KEY] == None:
@@ -1360,7 +1356,7 @@ def main():
 
     # Create mappings: gene->family, genome->families, gene->length
     if VERBOSE:
-        print('STEP 2. Creating data mapping...')
+        print('\nSTEP 2. Creating data mapping...')
     gene_lenghts, gene2family, families, avg_genome_length, genome2families = build_mappings(args['i_dna'][PANGENOME_KEY], VERBOSE)
     
 
@@ -1369,12 +1365,12 @@ def main():
     strains_list = []
     if ADD_STRAINS or args['strain_hit_genes_perc'] != '':
         if VERBOSE:
-            print('STEP 3a. Extracting reference genomes gene repertoire...')
+            print('\nSTEP 3a. Extracting reference genomes gene repertoire...')
         TIME, strains_list = get_strains(args['i_dna'][PANGENOME_KEY], TIME, VERBOSE)
         TIME, strain2family2presence = build_strain2family2presence(strains_list, families, genome2families, TIME, VERBOSE)
         if ADD_STRAINS and args['i_dna'][COVERAGES_KEY] == None:
             if VERBOSE:
-                print('STEP 3b. Printing presence/absence binary matric for reference genomes...')
+                print('\nSTEP 3b. Printing presence/absence binary matric for reference genomes...')
             # TODO
             TIME = strains_binary_matrix(strains_list, strain2family2presence, families, args['o_dna'], TIME, VERBOSE)
             end_program(time.time() - TOTAL_TIME)
@@ -1383,7 +1379,7 @@ def main():
 
     # Convert gene/transcript abundance into family (normalized) coverage
     if VERBOSE:
-        print('STEP 4. Converting from gene families absolute abundances to gene families normalized coverages for DNA samples...')
+        print('\nSTEP 4. Converting from gene families absolute abundances to gene families normalized coverages for DNA samples...')
     for sample in dna_files_list:
         if VERBOSE:
             print('[I] Normalization for DNA sample ' + sample_name(sample, args['clade']) + '...')
@@ -1397,24 +1393,24 @@ def main():
 
     # Filter DNA samples according to their median coverage value and plot coverage plateau
     if VERBOSE:
-        print('STEP 5. Plotting charts...')
+        print('\nSTEP 5. Plotting charts...')
     sample2accepted, accepted_samples, norm_dna_samples_covs, sample2famcovlist, sample2color, median_normalized_covs, sample2median = dna_sample_filtering(dna_samples_covs, avg_genome_length, args['min_coverage'], args['left_max'], args['right_min'], families, args['clade'], TIME, VERBOSE)
     result = plot_dna_coverage(args['th_present'], args['left_max'], args['right_min'], sample2accepted, norm_dna_samples_covs, sample2famcovlist, sample2color, median_normalized_covs, avg_genome_length, args['clade'], args['o_covplot'], args['o_covplot_normed'], INTERACTIVE, TIME, VERBOSE)
     if VERBOSE:
-        print('[I] Charts ' + ('not ' if not result else '') + 'plotted.')
+        print('[I] Charts have ' + ('not ' if not result else '') + 'been plotted.')
 
 
     # DNA indexing
     if VERBOSE:
-        print('STEP 6a. Indexing DNA samples...')
+        print('\nSTEP 6a. Indexing DNA samples...')
     sample2family2dnaidx, TIME = dna_indexing(accepted_samples, norm_dna_samples_covs, args['th_zero'], args['th_present'], args['th_multicopy'], args['o_idx'], families, args['clade'], TIME, VERBOSE)
     if VERBOSE:
-        print('STEP 6b. Calculating gene families presence/absence...')
+        print('\nSTEP 6b. Calculating gene families presence/absence...')
     dna_sample2family2presence = dna_presencing(sample2accepted, dna_files_list, args['i_dna'][COVERAGES_KEY], sample2family2dnaidx, args['o_dna'], families, args['clade'], TIME, VERBOSE)
     
     if ADD_STRAINS or args['strain_hit_genes_perc'] != '':
         if VERBOSE:
-            print('STEP 6c. Generating gene families coverage also for strains...')
+            print('\nSTEP 6c. Generating gene families coverage also for strains...')
         ss_presence, TIME = samples_strains_presences(dna_sample2family2presence, strains_list, strain2family2presence, avg_genome_length, args['strain_similarity_perc'], args['o_dna'], families, args['clade'], ADD_STRAINS, TIME, VERBOSE)
         # ss_presence = { STRAIN or SAMPLE : { GENE FAMILY : PRESENCE } }
         if args['strain_hit_genes_perc'] != '':
@@ -1425,7 +1421,7 @@ def main():
     rna_file_list = []
     if RNASEQ:
         if VERBOSE:
-            print('STEP 7. Converting from transcripts absolute abundances to transcripts normalized coverages for RNA samples...')
+            print('\nSTEP 7. Converting from transcripts absolute abundances to transcripts normalized coverages for RNA samples...')
         for sample_id in rna_id_list:
             sample = args['i_rna'][sample_id]
             if not sample == NO_RNA_FILE_KEY:
@@ -1438,7 +1434,7 @@ def main():
     # DNA (and RNA) indexing
     if RNASEQ:
         if VERBOSE:
-            print('STEP 8. Indexing RNA samples...')
+            print('\nSTEP 8. Indexing RNA samples...')
         rna_seq(args['o_rna'], sample2family2dnaidx, dna_samples_covs, dna_sample2family2presence, sample2accepted, rna_id_list, rna_samples_covs, args['rna_max_zeros'], args['sample_pairs'], args['i_dna'][COVERAGES_KEY], args['i_rna'], families, 10, args['np'], args['nan'], args['clade'], TIME, VERBOSE)
 
     end_program(time.time() - TOTAL_TIME) 

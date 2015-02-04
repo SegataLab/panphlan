@@ -14,8 +14,8 @@ from __future__ import with_statement
 # ==============================================================================
 
 __author__  = 'Thomas Tolio (thomas.tolio@studenti.unitn.it)'
-__version__ = '0.9'
-__date__    = '28 November 2014'
+__version__ = '1.0'
+__date__    = '3 February 2015'
 
 # Imports
 from argparse import ArgumentParser
@@ -409,7 +409,7 @@ def piling_up(bam_file, isTemp, csv_file, TIME, VERBOSE):
         # 4th command: samtools index <INPUT BAM FILE>
         index_cmd = ['samtools', 'index', bam_file]
         if VERBOSE:
-            print('[C] ' + ' '.join(index_cmd))
+            print('[I] ' + ' '.join(index_cmd))
         p4 = subprocess.Popen(index_cmd)
         if VERBOSE:
             print('[I] BAM file ' + bam_file + ' has been indexed')
@@ -419,7 +419,7 @@ def piling_up(bam_file, isTemp, csv_file, TIME, VERBOSE):
                 # 5th command: samtools mpileup <INPUT BAM FILE> > <OUTPUT CSV FILE>
                 mpileup_cmd = ['samtools', 'mpileup', bam_file]
                 if VERBOSE:
-                    print('[C] ' + ' '.join(mpileup_cmd) + ' > ' + csv_file)
+                    print('[I] ' + ' '.join(mpileup_cmd) + ' > ' + csv_file)
                 try:
                     p5 = subprocess.Popen(mpileup_cmd, stdout=ocsv)
                     p5.wait()
@@ -465,7 +465,7 @@ def remapping(input_pair, out_bam, max_numof_mismatches, memory, tmp_path, TIME,
         print('[I] Input BAM file is ' + input_path + '. Now convert into SAM...')
     convertback_cmd = ['samtools', 'view', '-h', '-o', '-', input_path] # samtools view -h -o out.sam in.bam
     if VERBOSE:
-        print('[C] ' + ' '.join(convertback_cmd))
+        print('[I] ' + ' '.join(convertback_cmd))
     if tmp_path == None:
         tmp_sam = tempfile.NamedTemporaryFile(delete=False, prefix='panphlan_', suffix='.sam')
     else:
@@ -519,7 +519,7 @@ def bamming(in_sam, out_bam, memory, tmp_path, TIME, VERBOSE):
         # 1st command: samtools view -bS <INPUT SAM FILE>
         view_cmd = ['samtools', 'view', '-bS', in_sam.name]
         if VERBOSE:
-            print('[C] ' + ' '.join(view_cmd))
+            print('[I] ' + ' '.join(view_cmd))
         p2 = subprocess.Popen(view_cmd, stdout=subprocess.PIPE)
         if VERBOSE:
             print('[I] Temporary BAM file has been generated')
@@ -540,7 +540,7 @@ def bamming(in_sam, out_bam, memory, tmp_path, TIME, VERBOSE):
                 with tmp_bam:
                     sort_cmd += ['-', tmp_bam.name[:-4]]
                     if VERBOSE:
-                        print('[C] ' + ' '.join(sort_cmd))
+                        print('[I] ' + ' '.join(sort_cmd))
                     p3 = subprocess.Popen(sort_cmd, stdin=p2.stdout, stdout=tmp_bam)
                     p3.wait() # Wait until previous process has finished its computation (otherwise there will be error raised by Samtools)
                     if VERBOSE:
@@ -551,7 +551,7 @@ def bamming(in_sam, out_bam, memory, tmp_path, TIME, VERBOSE):
                 sort_cmd += ['-', out_bam[:-4]]
                 # Note that in "out_bam[:-4]" we cut the extension because the Samtools command requires only the prefix name (without the file extension) 
                 if VERBOSE:
-                    print('[C] ' + ' '.join(sort_cmd))
+                    print('[I] ' + ' '.join(sort_cmd))
                 with open(out_bam, mode='w') as obam:
                     p3 = subprocess.Popen(sort_cmd, stdin=p2.stdout, stdout=obam)
                     p3.wait() # Wait until previous process has finished its computation (otherwise there will be error raised by Samtools)
@@ -625,14 +625,14 @@ def mapping(input_pair, is_multi_file, clade, out_bam, min_length, max_numof_mis
                 decompress_cmd = ['fastq-dump', '-Z', '--split-spot']
             decompress_cmd.append(input_path)
             if VERBOSE:
-                print('[C] ' + ' '.join(decompress_cmd))
+                print('[I] ' + ' '.join(decompress_cmd))
             p0 = subprocess.Popen(decompress_cmd, stdout=subprocess.PIPE)
         
         # 1st command: bowtie2 --very-sensitive --no-unal -x <SPECIE> -U <INPUT PATH> -p <NUMBER OF PROCESSORS>
         bowtie2_cmd = [ 'bowtie2', '--very-sensitive', '--no-unal', '-x', clade, '-U', '-' if is_multi_file else input_path,
                         ] + ([] if int(numof_proc) < 2 else ['-p', str(numof_proc)])
         if VERBOSE:
-            print('[C] ' + ' '.join(bowtie2_cmd))
+            print('[I] ' + ' '.join(bowtie2_cmd))
             
         if is_multi_file:
             p1 = subprocess.Popen(bowtie2_cmd, stdin=p0.stdout, stdout=subprocess.PIPE)
@@ -931,9 +931,7 @@ def main():
     # PLATFORM: to know if the program is running on Windows or Unix
     PLATFORM = sys.platform.lower()[0:3]
 
-    
-    if VERBOSE:
-        print('STEP 1. Checking software...')
+    print('\nSTEP 1. Checking software...')
     bowtie2, samtools = check_installed_tools(args['clade'], VERBOSE, PLATFORM)
     if args['input_format'] == SRA:
         check_fastqdump(VERBOSE, PLATFORM)
@@ -965,7 +963,7 @@ def main():
     else:
         if VERBOSE:
             TIME = time_message(TIME, 'Program initialization completed.')
-            print('STEP 2. Mapping into BAM file...')
+        print('\nSTEP 2. Mapping into BAM file...')
         # if -f FASTQ_TAR_BZ2 or -f FASTQ_TAR_GZ or -f FASTQ_SRA, then the input file is an archive
         MULTI = args['input'][1] in ARCHIVE_FORMATS
         # Call mapping
@@ -973,8 +971,7 @@ def main():
         sorted_bam_file = mapping_outcome[1]
         isTemp = True if mapping_outcome[0] == TEMPORARY_FILE else False
 
-    if VERBOSE:
-        print('STEP 3. Piling up...')
+    print('\nSTEP 3. Piling up...')
     
     if args['tmp'] == None:
         tmp_csv__readsfile = tempfile.NamedTemporaryFile(delete=False, prefix='panphlan_', suffix='.csv')
