@@ -357,12 +357,22 @@ def get_pangenome_file(bowtie2_indexes_dir, clade, VERBOSE):
     '''
     Get the pangenome file for the considered specie
     '''
-    try:
-        pangenome = find(clade + '_pangenome.csv', '.')
-        return pangenome[0]
-    except Exception:
+    pangenome = find('*' + clade + '_pangenome.csv', bowtie2_indexes_dir)
+    if len(pangenome) > 1:
+        message = '[W] More than one matchable pangenome is found! '
+        if VERBOSE:
+            message += '\n    Files are: '
+            message += ', '.join(pangenome)
+            message += '\n    '
+        message += 'Choose file "' + pangenome[0] + '". If not good, please resolve manually the problem.'
+        print(message) 
+    elif len(pangenome) < 1:
         sys.stderr.write('[E] Cannot find the pangenome file for ' + clade + ' in directory ' + bowtie2_indexes_dir)
         sys.exit(PANGENOME_ERROR_CODE)
+    else:
+        print('Pangenome file is "' + pangenome[0] + '".')
+    return pangenome[0]
+
             
 # -----------------------------------------------------------------------------
 
@@ -749,23 +759,24 @@ def check_bowtie2(clade, VERBOSE=False, PLATFORM='lin'):
     bt2_indexes = []
     if bowtie2: # check for bowtie2 index directory BOWTIE2_INDEXES
         try: 
-            bowtie2_indexes_dir = os.environ['BOWTIE2_INDEXES']
-            bt2_indexes = find(clade + '.[1-4].bt2', bowtie2_indexes_dir)
-            bt2_indexes.extend( find(clade + '.rev.[1-2].bt2', bowtie2_indexes_dir) )
-            if not len(bt2_indexes) == 6:
-                raise IOError
-
-        # $BOWTIE2_INDEXES not defined in os.environment or indexes files (.bt2) for clade are not found
-        except (KeyError, IOError) as err:
             bowtie2_indexes_dir = '.'
-            bt2_indexes = find(clade + '.[1-4].bt2', '.')
-            bt2_indexes.extend( find(clade + '.rev.[1-2].bt2', '.') )
+            bt2_indexes = find('*' + clade + '.[1-4].bt2', '.')
+            bt2_indexes.extend( find('*' + clade + '.rev.[1-2].bt2', '.') )
             if not len(bt2_indexes) == 6:
-                sys.stderr.write('[E] Bowtie2 index files (*.bt2) are not found!\n')
-                sys.exit(INDEXES_NOT_FOUND_ERROR)
-            else:
-                bowtie2_indexes_dir = os.path.dirname(bt2_indexes[0]) + '/'
-
+                # $BOWTIE2_INDEXES not defined in os.environment or indexes files (.bt2) for clade are not found
+                bowtie2_indexes_dir = os.environ['BOWTIE2_INDEXES']
+                bt2_indexes = find('*' + clade + '.[1-4].bt2', bowtie2_indexes_dir)
+                bt2_indexes.extend( find('*' + clade + '.rev.[1-2].bt2', bowtie2_indexes_dir) )
+                if not len(bt2_indexes) == 6:
+                    raise IOError
+        except KeyError:
+            print('[E] Environment variable BOWTIE2_INDEXES is not defined! Indexes and pangenome not foundable.')
+            sys.exit(INDEXES_NOT_FOUND_ERROR)
+        except IOError:
+            print('[E] Bowtie2 index files (*.bt2) are not found!')
+            sys.exit(INDEXES_NOT_FOUND_ERROR)
+        
+        bowtie2_indexes_dir = os.path.dirname(bt2_indexes[0]) + '/'
         if VERBOSE:
             print('[I] BOWTIE2_INDEXES in ' + str(bowtie2_indexes_dir))
 
