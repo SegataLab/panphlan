@@ -123,7 +123,7 @@ def show_error_message(error):
 
 def time_message(start_time, message):
     current_time = time.time()
-    print('[T] ' + message + ' Execution time: ' + str(round(current_time - start_time, 2)) + ' seconds.')
+    print('[I] ' + message + ' Execution time: ' + str(round(current_time - start_time, 2)) + ' seconds.')
     return current_time
 
 
@@ -630,7 +630,9 @@ def mapping(input_pair, is_multi_file, clade, out_bam, min_length, max_numof_mis
         # 1st command: bowtie2 --very-sensitive --no-unal -x <SPECIE> -U <INPUT PATH> -p <NUMBER OF PROCESSORS>
         bowtie2_cmd = [ 'bowtie2', '--very-sensitive', '--no-unal', '-x', clade, '-U', '-' if is_multi_file else input_path,
                         ] + ([] if int(numof_proc) < 2 else ['-p', str(numof_proc)])
-        if VERBOSE:
+        if not VERBOSE:
+            bowtie2_cmd.append('--quiet')
+        else:
             print('[I] ' + ' '.join(bowtie2_cmd))
             
         if is_multi_file:

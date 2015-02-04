@@ -141,7 +141,7 @@ def show_error_message(error):
 
 def time_message(start_time, message):
     current_time = time.time()
-    print('[T] ' + message + ' Execution time: ' + str(round(current_time - start_time, 2)) + ' seconds.')
+    print('[I] ' + message + ' Execution time: ' + str(round(current_time - start_time, 2)) + ' seconds.')
     return current_time
 
 

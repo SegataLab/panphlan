@@ -84,7 +84,7 @@ def show_error_message(error):
 
 def time_message(start_time, message):
     current_time = time.time()
-    print('[T] ' + message + ' Execution time: ' + str(round(current_time - start_time, 2)) + ' seconds.')
+    print('[I] ' + message + ' Execution time: ' + str(round(current_time - start_time, 2)) + ' seconds.')
     return current_time
 
 # ------------------------------------------------------------------------------
@@ -131,10 +131,12 @@ def create_bt2_indexes(fna_folder, clade, output_path, tmp_path, TIME, VERBOSE):
 
             try:
                 # Check generated files
-                build_cmd = ['bowtie2-inspect', '-n', clade]
-                if VERBOSE:
-                    print('[I] bowtie2-inspect -n ' + clade)
-                p6 = subprocess.Popen(build_cmd)
+                inspect_cmd = ['bowtie2-inspect', '-n', clade]
+                if not VERBOSE:
+                    inspect_cmd.append('--verbose')
+                else:
+                    print('[I] ' + ' '.join(inspect_cmd))
+                p6 = subprocess.Popen(inspect_cmd)
                 p6.wait()
 
                 os.unlink(tmp_fna.name)
@@ -393,7 +395,9 @@ def clustering(sorted_merged_ffn, identity, clade, output_path, tmp_path, KEEP_U
         clust_cmd = ['usearch7', '--cluster_smallmem', sorted_merged_ffn, '--id', str(identity),
                     '--maxaccepts', '32', '--maxrejects', '128', '--wordlength', '3', '--strand', 'both',
                     '--uc', merged_uc.name, '--centroids', centroids_ffn]
-        if VERBOSE:
+        if not VERBOSE:
+            clust_cmd.append('--quiet')
+        else:
             print('[I] ' + ' '.join(clust_cmd))
         p3 = subprocess.Popen(clust_cmd)
         p3.wait()
@@ -455,7 +459,9 @@ def merging(ffn_folder, tmp_path, TIME, VERBOSE):
             with tmp_sorted_ffn:
                 # 2nd command: usearch7 -sortbylength merged_file.ffn -output merged_file.sorted.ffn -minseqlength 1
                 sort_cmd = ['usearch7', '--sortbylength', tmp_ffn.name, '--output', tmp_sorted_ffn.name, '--minseqlength', '1']
-                if VERBOSE:
+                if not VERBOSE:
+                    sort_cmd.append('--quiet')
+                else:
                     print('[I] ' + ' '.join(sort_cmd))
                 p2 = subprocess.Popen(sort_cmd)
                 p2.wait()
