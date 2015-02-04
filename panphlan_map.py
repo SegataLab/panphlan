@@ -357,7 +357,7 @@ def get_pangenome_file(bowtie2_indexes_dir, clade, VERBOSE):
     '''
     Get the pangenome file for the considered specie
     '''
-    pangenome = find('*' + clade + '_pangenome.csv', bowtie2_indexes_dir)
+    pangenome = find(clade + '_pangenome.csv', bowtie2_indexes_dir)
     if len(pangenome) > 1:
         message = '[W] More than one matchable pangenome is found! '
         if VERBOSE:
@@ -760,13 +760,13 @@ def check_bowtie2(clade, VERBOSE=False, PLATFORM='lin'):
     if bowtie2: # check for bowtie2 index directory BOWTIE2_INDEXES
         try: 
             bowtie2_indexes_dir = '.'
-            bt2_indexes = find('*' + clade + '.[1-4].bt2', '.')
-            bt2_indexes.extend( find('*' + clade + '.rev.[1-2].bt2', '.') )
+            bt2_indexes = find(clade + '.[1-4].bt2', '.')
+            bt2_indexes.extend( find(clade + '.rev.[1-2].bt2', '.') )
             if not len(bt2_indexes) == 6:
                 # $BOWTIE2_INDEXES not defined in os.environment or indexes files (.bt2) for clade are not found
                 bowtie2_indexes_dir = os.environ['BOWTIE2_INDEXES']
-                bt2_indexes = find('*' + clade + '.[1-4].bt2', bowtie2_indexes_dir)
-                bt2_indexes.extend( find('*' + clade + '.rev.[1-2].bt2', bowtie2_indexes_dir) )
+                bt2_indexes = find(clade + '.[1-4].bt2', bowtie2_indexes_dir)
+                bt2_indexes.extend( find(clade + '.rev.[1-2].bt2', bowtie2_indexes_dir) )
                 if not len(bt2_indexes) == 6:
                     raise IOError
         except KeyError:
