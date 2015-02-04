@@ -353,27 +353,16 @@ def build_pangenome_dicts(pangenome_file, TIME, VERBOSE):
 
 # -----------------------------------------------------------------------------
 
-def find_pangenome_file(bowtie2_indexes_dir, clade, VERBOSE):
+def get_pangenome_file(bowtie2_indexes_dir, clade, VERBOSE):
     '''
-    Search (and possibly find) the pangenome file for the considered specie
+    Get the pangenome file for the considered specie
     '''
-    attempt = bowtie2_indexes_dir + clade + '_pangenome.csv'
-    if os.path.exists(attempt):
-        if VERBOSE:
-            print('[I] Pangenome file found at ' + attempt)
-        return attempt
-    else:
-        attempt = ''
-        pattern = clade + '*' + '_pangenome.csv'
-        pangenome = find(pattern, '.')
-        if len(pangenome) == 1:
-            attempt = os.path.dirname(pangenome[0]) + '/'
-            if VERBOSE:
-                print('[I] Pangenome file found at ' + pangenome[0])
-            return pangenome[0]
-        else:
-            sys.stderr.write('[E] Cannot find the pangenome file for ' + clade)
-            sys.exit(PANGENOME_ERROR_CODE)
+    try:
+        pangenome = find(clade + '_pangenome.csv', '.')
+        return pangenome[0]
+    except Exception:
+        sys.stderr.write('[E] Cannot find the pangenome file for ' + clade + ' in directory ' + bowtie2_indexes_dir)
+        sys.exit(PANGENOME_ERROR_CODE)
             
 # -----------------------------------------------------------------------------
 
@@ -728,7 +717,7 @@ def check_samtools(VERBOSE = False, PLATFORM = 'lin'):
         elif PLATFORM == WINDOWS:
             samtools = subprocess.Popen(['where', 'samtools'], stdout=subprocess.PIPE).communicate()[0]
         if VERBOSE:
-            print('[I] Samtools is already installed in the system in path ' + str(samtools))
+            print('[I] Samtools is already installed in the system in path ' + str(samtools.strip()))
     except Exception as err:
         show_error_message(err)
         sys.exit(UNINSTALLED_ERROR_CODE)
@@ -768,7 +757,7 @@ def check_bowtie2(clade, VERBOSE=False, PLATFORM='lin'):
 
         # $BOWTIE2_INDEXES not defined in os.environment or indexes files (.bt2) for clade are not found
         except (KeyError, IOError) as err:
-            bowtie2_indexes_dir = ''
+            bowtie2_indexes_dir = '.'
             bt2_indexes = find(clade + '.[1-4].bt2', '.')
             bt2_indexes.extend( find(clade + '.rev.[1-2].bt2', '.') )
             if not len(bt2_indexes) == 6:
@@ -920,6 +909,7 @@ def check_args():
 # -----------------------------------------------------------------------------
 
 def main():
+    print('\nSTEP 0. Initialization...')
     TIME = time.time()
     TOTAL_TIME = time.time()
 
@@ -933,15 +923,13 @@ def main():
 
     print('\nSTEP 1. Checking software...')
     bowtie2, samtools = check_installed_tools(args['clade'], VERBOSE, PLATFORM)
+    indexes_folder = bowtie2[1]
+    pangenome_file = get_pangenome_file(indexes_folder, args['clade'], VERBOSE)
     if args['input_format'] == SRA:
         check_fastqdump(VERBOSE, PLATFORM)
-    indexes_folder = bowtie2[1]
-    pangenome_file = find_pangenome_file(indexes_folder, args['clade'], VERBOSE)
 
     sorted_bam_file = ''
     isTemp = False
-    if VERBOSE:
-        TIME = time_message(TIME, 'Program initialization completed.')
     
     # If the input is a BAM file...
     if args['input'][1] == BAM:
@@ -961,8 +949,6 @@ def main():
     # If the input file is something different from a BAM file...
     # (this includes more cases: FASTQ, compressed file, multi-file archive, stdin)
     else:
-        if VERBOSE:
-            TIME = time_message(TIME, 'Program initialization completed.')
         print('\nSTEP 2. Mapping into BAM file...')
         # if -f FASTQ_TAR_BZ2 or -f FASTQ_TAR_GZ or -f FASTQ_SRA, then the input file is an archive
         MULTI = args['input'][1] in ARCHIVE_FORMATS

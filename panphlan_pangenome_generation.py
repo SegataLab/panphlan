@@ -52,7 +52,6 @@ class PanPhlAnGenParser(ArgumentParser):
         ArgumentParser.__init__(self)
         self.add_argument('--i_ffn',        metavar='INPUT_FFN_FOLDER',     type=str,   required=True,  help='Folder containing the .ffn files, i.e. the files of gene sequences of all the genomes for pangenome generation.')
         self.add_argument('--i_fna',        metavar='INPUT_FNA_FOLDER',     type=str,   required=True,  help='Folder containing the .fna files, i.e. the files of genomes sequences for Bowtie2 indexes generation.')
-        #self.add_argument('--i_uc',         metavar='INPUT_UC_FILE',        type=str,                   help='ONLY FOR TESTING. Give in input the clusters .txt/.uc .')
         self.add_argument('-c','--clade',   metavar='CLADE_NAME',           type=str,   required=True,  help='Name of the specie to consider, i.e. the basename of the index for the reference genome used by Bowtie2 to align reads.')
         self.add_argument('-o','--output',  metavar='OUTPUT_FOLDER',        type=str,   required=True,  help='Directory where to store the produced files (six .bt2 files for Bowtie2 indexes, one .csv file for the pangenome).')
         self.add_argument('--th',           metavar='IDENTITY_PERCENATGE',  type=float, default=95.0,   help='Threshold of gene sequence similarity (in percentage). Default value is 95.0 %.')
@@ -641,20 +640,13 @@ def check_args():
     if VERBOSE:
         print('[I] Temporary folder: ' + args['tmp'])
 
-    # Check --------------------------------------------------------------------
-    # ipath = args['i_uc']
-    # if not ipath == None:
-    #     args['i_uc'] = (ipath[-1], ipath)
-    # else:
-    #     args['i_uc'] = ('', ipath)
-    # print('[I] ' + str(args['i_uc']))
-
     return args
 
 
 # ------------------------------------------------------------------------------
 
 def main():
+    print('\nSTEP 0. Initialization...')
     TOTAL_TIME = time.time()
 
     # Check options correctness
@@ -665,18 +657,7 @@ def main():
     TIME = time.time()
 
     merged_txt = ''
-    extension = os.path.splitext(args['i_uc'][0])[1].replace('.', '')
-
-    # if args['i_uc'][0] == TXT:
-    #     print('SKIPPING STEPS 1 AND 2...')
-    #     merged_txt = args['i_uc'][1]
-
-    # if args['i_uc'][0] == UC:
-    #     print('SKIPPING STEPS 1 AND 2, proceeding with .txt conversion...')
-    #     merged_txt = args['output'] + 'merged.txt'
-    #     TIME = conversion(args['i_uc'][1], merged_txt, TIME, VERBOSE)
-
-    # else:
+    
     # Check if software is installed
     if VERBOSE:
         print('\nSTEP 1. Checking software...')

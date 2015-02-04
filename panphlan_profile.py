@@ -1323,6 +1323,7 @@ def check_args():
 # -----------------------------------------------------------------------------
 
 def main():
+    print('\nSTEP 0. Initialization...')
     TOTAL_TIME = time.time()
     TIME = time.time()
 
@@ -1331,9 +1332,6 @@ def main():
     VERBOSE = args['verbose']
     INTERACTIVE = args['interactive']
     ADD_STRAINS = args['add_strains']
-    # PROJECT_NAME = get_project_name(args['o_dna'])
-    # if VERBOSE:
-    #     print('[I] Project name: ' + PROJECT_NAME)
     RNASEQ = True if args['sample_pairs'] else False
 
     # From file to dicts
