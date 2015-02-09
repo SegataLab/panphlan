@@ -183,8 +183,9 @@ def correct_output_name(opath, clade, VERBOSE):
                 if VERBOSE:
                     print('[I] Created path for genes abundance output file: ' + folders)
 
-        pieces = opath.split('/')
-        name = pieces[-1]
+        #pieces = opath.split('/')
+        #name = pieces[-1]
+        name = opath[opath.rfind('/')+1:] # Franz-style yolo
 
         # Remove extension if it refers to compressed format (e.g. SAMPLENAME.csv.bz2 --> SAMPLENAME.csv)
         for ext in COMPRESSED_FORMATS:
@@ -194,7 +195,7 @@ def correct_output_name(opath, clade, VERBOSE):
                 break
 
         # If output path does not end in ".csv", then add
-        if '.' not in name.split('/')[-1]:
+        if '.' + CSV not in name:
             name = name + '.' + CSV
 
         # Add <clade> if not present (e.g. SAMPLENAME.csv --> SAMPLENAME_clade.csv)
@@ -216,7 +217,7 @@ def correct_output_name(opath, clade, VERBOSE):
         name = name.replace('__', '_')
         name = name.replace(clade, '')
 
-        opath = '' if folders == '' else folders + '/'
+        opath = '' if folders else folders + '/'
         opath += name
         if VERBOSE:
             print('[W] Corrected output path "' + old_path + '" in "' + opath + '"')
