@@ -173,7 +173,7 @@ def correct_output_name(opath, clade, VERBOSE):
         c) -o ERR260216_ecoli12.csv (normal case, keep like it was)
     '''
     old_path = opath
-    cladestring = '_' + clade
+    cladestring = '_' + clade.replace('panphlan_', '')
     try:
         if opath == None:
             opath = ''

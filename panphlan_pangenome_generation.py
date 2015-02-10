@@ -21,6 +21,8 @@ __date__    = '3 February 2015'
 from argparse import ArgumentParser
 from collections import defaultdict
 import os, subprocess, sys, tempfile, time
+from Bio import SeqIO
+from Bio.SeqRecord import SeqRecord
     
 # Operating systems
 LINUX                   = 'lin'
@@ -196,24 +198,18 @@ def get_gene_locations(ffn_folder, genloc_txt):
 
     NB. Need of Biopython module
     '''
-    from Bio import SeqIO
-    from Bio.SeqRecord import SeqRecord
-
     # { GENE : ( CONTIG, FROM, TO ) }
     gene2loc = defaultdict(tuple)
-    
-    with open(genloc_txt, mode='w') as fid:
-        for root, dirs, files in os.walk(ffn_folder):
-            for f in files:
-                for r in SeqIO.parse(open(ffn_folder + f, mode='r'), 'fasta'): # A .ffn file is a FASTA file
-                    # Through SeqIO, automatially parse the .ffn file and extract the information
-                    pos1 = int(r.id.split(':')[1].split('-')[0].replace('c',''))
-                    pos2 = int(r.id.split(':')[1].split('-')[-1].replace('c',''))
-                    contig = r.id.split(':')[0]
-                    # Automatically assign to 'from' the min value, and to 'to' the max, even if panphlan_map check the order and switch them if inverted
-                    start, stop = min(pos1, pos2), max(pos1, pos2)
-                    gene2loc[r.id] = (str(contig), start, stop)
-                    fid.write(r.id + '\t' + str(contig) + '\t' + str(start) + '\t' + str(stop) + '\n')
+    for root, dirs, files in os.walk(ffn_folder):
+        for f in files:
+            for r in SeqIO.parse(open(ffn_folder + f, mode='r'), 'fasta'): # A .ffn file is a FASTA file
+                # Through SeqIO, automatially parse the .ffn file and extract the information
+                pos1 = int(r.id.split(':')[1].split('-')[0].replace('c',''))
+                pos2 = int(r.id.split(':')[1].split('-')[-1].replace('c',''))
+                contig = r.id.split(':')[0]
+                # Automatically assign to 'from' the min value, and to 'to' the max, even if panphlan_map check the order and switch them if inverted
+                start, stop = min(pos1, pos2), max(pos1, pos2)
+                gene2loc[r.id] = (str(contig), start, stop)
     return gene2loc
 
 
@@ -224,25 +220,21 @@ def get_contigs(fna_folder, contig_txt):
     Map each genome to its own set of contigs
     NB. Use Biopython
     '''
-    from Bio import SeqIO
     # { CONTIG : GENOME }
     genome2contigs = defaultdict(set)
-
-    with open(contig_txt, mode='w') as fid:
-        for root, dirs, files in os.walk(fna_folder):
-            for f in files:
-                # Check that the file extension is 'fna'
-                extension = os.path.splitext(f)[1].replace('.', '')
-                if extension == FNA:
-                    genome = f.split('.')[0].split('/')[-1]
-                    ltot = 0
-                    s = ''
-                    for r in SeqIO.parse(open(fna_folder + f, mode='r'), 'fasta'):
-                        l = len(r.seq)
-                        ltot += l
-                        s = s + "\t" + r.id
-                        genome2contigs[genome].add(r.id)
-                    fid.write(genome + '\t' + str(ltot) + s + '\n')
+    for root, dirs, files in os.walk(fna_folder):
+        for f in files:
+            # Check that the file extension is 'fna'
+            extension = os.path.splitext(f)[1].replace('.', '')
+            if extension == FNA:
+                genome = f.split('.')[0].split('/')[-1]
+                ltot = 0
+                s = ''
+                for r in SeqIO.parse(open(fna_folder + f, mode='r'), 'fasta'):
+                    l = len(r.seq)
+                    ltot += l
+                    s = s + "\t" + r.id
+                    genome2contigs[genome].add(r.id)
     return genome2contigs
 
 
@@ -253,7 +245,6 @@ def gene2genome_mapping(ffn_folder, VERBOSE):
     Map each gene to its own genome
     NB. Use Biopython
     '''
-    from Bio import SeqIO
     gene2genome = {}
 
     for root, dirs, files in os.walk(ffn_folder):
@@ -311,7 +302,7 @@ def pangenome_generation(ffn_folder, fna_folder, merged_txt, clade, output_path,
 # ------------------------------------------------------------------------------
 
 def family_of(index):
-    return 'g' + str(format(index, '05d'))
+    return 'g' + str(format(index, '06d'))
 
 def familydictization(merged_txt, VERBOSE):
     '''
@@ -322,8 +313,8 @@ def familydictization(merged_txt, VERBOSE):
 
     Gene family is named as 'g<NUM OF LINE IN THE FILE>'
     EX.
-        line 1    ==> family 'g00001'
-        line 317  ==> family 'g00317'
+        line 1    ==> family 'g000001'
+        line 317  ==> family 'g000317'
     '''
     gene2family = {}
     numof_line = 0 
@@ -339,9 +330,6 @@ def familydictization(merged_txt, VERBOSE):
                 gene2family[line.strip()] = family
     if VERBOSE:
         print('[I] Pangenome contains ' + str(len(gene2family)) + ' genes, clustered in ' + str(numof_line) + ' gene families.')
-        # with open('families.txt', mode='w') as f:
-        #     for g in gene2family:
-        #         f.write(gene2family[g] + '\t' + g + '\n')
     return gene2family
 
 
@@ -399,7 +387,8 @@ def clustering(sorted_merged_ffn, identity, clade, output_path, tmp_path, KEEP_U
             clust_cmd.append('--quiet')
         else:
             print('[I] ' + ' '.join(clust_cmd))
-        p3 = subprocess.Popen(clust_cmd)
+        # p3 = subprocess.Popen(clust_cmd)
+        p3 = subprocess.call(clust_cmd)
         p3.wait()
         if VERBOSE:
             print('[I] Clustering has been done.')
@@ -567,7 +556,7 @@ def check_bowtie2(VERBOSE, PLATFORM='lin'):
         bowtie2_version = subprocess.Popen(['bowtie2', '--version'], stdout=subprocess.PIPE).communicate()[0]
         bowtie2_version = bowtie2_version.split()[2]
         if VERBOSE:
-            print('[I] Bowtie2 is already installed in the system with version ' + str(bowtie2_version) + ' in path ' + str(bowtie2))
+            print('[I] Bowtie2 is already installed in the system with version ' + str(bowtie2_version) + ' in path ' + str(bowtie2).strip())
     
     except Exception as err:
         show_error_message(err)
@@ -681,6 +670,7 @@ def main():
     if VERBOSE:
         print('\nSTEP 3. Getting pangenome file...')
     TIME = pangenome_generation(args['i_ffn'], args['i_fna'], merged_txt, args['clade'], args['output'], TIME, VERBOSE)
+    os.remove(merged_txt) # This file is not useful anymore, and if users want to keep these information, they have the .uc file
     # Get Bowtie2 indexes
     TIME = create_bt2_indexes(args['i_fna'], args['clade'], args['output'], args['tmp'], TIME, VERBOSE)
 
