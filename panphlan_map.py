@@ -196,7 +196,6 @@ def correct_output_name(opath, clade, VERBOSE):
                     name = name[:-len(ext)] # Delete extension
                     break
             ext = name[name.find('.')+1:]
-            print('>>> ' + ext)
             if not ext == CSV: 
                 name = name[:-len(ext)] + CSV # Replace extension with "csv"
         else:
