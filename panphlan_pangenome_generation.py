@@ -191,7 +191,7 @@ def combining(gene2loc, gene2family, gene2genome, output_path, clade, TIME, VERB
 
 # ------------------------------------------------------------------------------
 
-def get_gene_locations(ffn_folder, genloc_txt):
+def get_gene_locations(ffn_folder):
     '''
     Read the .ffn files in order to generate a dictionary that map each gene to its location in its genome
     Produce a .txt file with the locations and return a dictionary {gene:(contig,from,to)}
@@ -215,7 +215,7 @@ def get_gene_locations(ffn_folder, genloc_txt):
 
 # ------------------------------------------------------------------------------
 
-def get_contigs(fna_folder, contig_txt):
+def get_contigs(fna_folder):
     '''
     Map each genome to its own set of contigs
     NB. Use Biopython
@@ -286,9 +286,9 @@ def pangenome_generation(ffn_folder, fna_folder, merged_txt, clade, output_path,
     if VERBOSE:
         print('[I] Get gene locations, gene families, contigs and genomes for each gene.')
     gene2family = familydictization(merged_txt, VERBOSE)
-    gene2loc = get_gene_locations(ffn_folder, output_path + 'panphlan_' + clade + '_genloc.txt')
+    gene2loc = get_gene_locations(ffn_folder)
     gene2genome = gene2genome_mapping(ffn_folder, VERBOSE)
-    genome2contigs = get_contigs(fna_folder, output_path + 'panphlan_' + clade + '_contigs.txt')
+    genome2contigs = get_contigs(fna_folder)
     
     # Create the pangenome
     combining(gene2loc, gene2family, gene2genome, output_path, clade, TIME, VERBOSE)
