@@ -173,6 +173,7 @@ def correct_output_name(opath, clade, VERBOSE):
         c) -o ERR260216_ecoli12.csv (normal case, keep like it was)
     '''
     old_path = opath
+    cladestring = '_' + clade
     try:
         if opath == None:
             opath = ''
@@ -188,36 +189,40 @@ def correct_output_name(opath, clade, VERBOSE):
         name = opath[opath.rfind('/')+1:] # Franz-style yolo
 
         # Remove extension if it refers to compressed format (e.g. SAMPLENAME.csv.bz2 --> SAMPLENAME.csv)
-        for ext in COMPRESSED_FORMATS:
-            ext = '.' + ext
-            if name.endswith(ext):
-                name = name[:-len(ext)]
-                break
-
-        # If output path does not end in ".csv", then add
-        if '.' + CSV not in name:
-            name = name + '.' + CSV
+        if '.' in name:
+            for ext in COMPRESSED_FORMATS:
+                ext = '.' + ext
+                if name.endswith(ext):
+                    name = name[:-len(ext)] # Delete extension
+                    break
+            ext = name[name.find('.')+1:]
+            print('>>> ' + ext)
+            if not ext == CSV: 
+                name = name[:-len(ext)] + CSV # Replace extension with "csv"
+        else:
+            name += '.' + CSV
 
         # Add <clade> if not present (e.g. SAMPLENAME.csv --> SAMPLENAME_clade.csv)
         if clade.startswith('panphlan_'):
             clade = clade.replace('panphlan', '')
         if not clade in name:
             w = name.split('.')
-            name = w[0] + '_' + clade + '.' + w[1]
+            name = w[0] + cladestring + '.' + w[1]
         else:
             # Move <clade> at end (e.g. clade_SAMPLENAME.csv --> SAMPLENAME_clade.csv)
-            if not os.path.splitext(name)[0].endswith('_' + clade):
+            if not os.path.splitext(name)[0].endswith(cladestring):
                 w = name.split('.')
                 w[0] = w[0].replace(clade, '')
-                name = w[0] + '_' + clade + '.' + w[1]
+                name = w[0] + cladestring + '.' + w[1]
 
         # Bad bad bad bad bad solution :(
+        # TODO it needs to be fixed in a close future
         clade = clade.replace('_', '') + '_'
         name = name.replace('/_', '/')
         name = name.replace('__', '_')
         name = name.replace(clade, '')
 
-        opath = '' if folders else folders + '/'
+        opath = '' if not folders else folders + '/'
         opath += name
         if VERBOSE:
             print('[W] Corrected output path "' + old_path + '" in "' + opath + '"')
