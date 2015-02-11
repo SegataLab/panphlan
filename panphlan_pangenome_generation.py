@@ -338,7 +338,6 @@ def familydictization(merged_txt, VERBOSE):
 def conversion(merged_uc, merged_txt, TIME, VERBOSE):
     '''
     Convert the UC file into a TXT file
-
     See also: http://drive5.com/usearch/manual/ucout.html
     '''
     # Dictionarization of the UC file's content
@@ -353,7 +352,7 @@ def conversion(merged_uc, merged_txt, TIME, VERBOSE):
     # Printing in the TXT file
     with open(merged_txt, mode='w') as otxt:
         # k is the centroid gene, v is a gene of the its cluster
-        for index, (k,v) in   enumerate( sorted(uc2cl.items(), key=lambda x:str(x[0])) ,1): # clusters are sorted by centroid-IDs; added index starting at 1    
+        for index, (k,v) in enumerate(sorted(uc2cl.items(), key=lambda x:str(x[0])) ,1): # clusters are sorted by centroid-IDs; added index starting at 1    
             # Each line of the clusters .txt file is composed by: GENE_FAMILY | CENTROID_GENE | GENE | ... | GENE
             otxt.write(family_of(index) + '\t' + '\t'.join([k] + sorted(list(v))) + '\n') # Intra-line sorting
     
@@ -387,8 +386,7 @@ def clustering(sorted_merged_ffn, identity, clade, output_path, tmp_path, KEEP_U
             clust_cmd.append('--quiet')
         else:
             print('[I] ' + ' '.join(clust_cmd))
-        # p3 = subprocess.Popen(clust_cmd)
-        p3 = subprocess.call(clust_cmd)
+        p3 = subprocess.Popen(clust_cmd)
         p3.wait()
         if VERBOSE:
             print('[I] Clustering has been done.')
