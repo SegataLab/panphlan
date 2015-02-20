@@ -23,6 +23,9 @@ from collections import defaultdict
 from random import randint
 import fnmatch, numpy, operator, os, subprocess, sys, time
 
+# Formula's constants
+CONST_C         = 10
+
 # Pangenome CSV file constants
 FAMILY_INDEX    = 0
 GENE_INDEX      = 1
@@ -1433,7 +1436,7 @@ def main():
     if RNASEQ:
         if VERBOSE:
             print('\nSTEP 8. Indexing RNA samples...')
-        rna_seq(args['o_rna'], sample2family2dnaidx, dna_samples_covs, dna_sample2family2presence, sample2accepted, rna_id_list, rna_samples_covs, args['rna_max_zeros'], args['sample_pairs'], args['i_dna'][COVERAGES_KEY], args['i_rna'], families, 10, args['np'], args['nan'], args['clade'], TIME, VERBOSE)
+        rna_seq(args['o_rna'], sample2family2dnaidx, dna_samples_covs, dna_sample2family2presence, sample2accepted, rna_id_list, rna_samples_covs, args['rna_max_zeros'], args['sample_pairs'], args['i_dna'][COVERAGES_KEY], args['i_rna'], families, CONST_C, args['np'], args['nan'], args['clade'], TIME, VERBOSE)
 
     end_program(time.time() - TOTAL_TIME) 
 

@@ -38,9 +38,10 @@ UC                      = 'uc'
 INTERRUPTION_MESSAGE    = '[E] Execution has been manually halted.\n'
 
 # Error codes
-INEXISTENCE_ERROR_CODE      =  1 # File or folder does not exist
-UNINSTALLED_ERROR_CODE      =  2 # Software is not installed
-INTERRUPTION_ERROR_CODE     =  7 # Computation has been manually halted
+INEXISTENCE_ERROR_CODE      = 1 # File or folder does not exist
+UNINSTALLED_ERROR_CODE      = 2 # Software is not installed
+FILEFORMAT_ERROR_CODE       = 3 # FFN file content not in NCBI format
+INTERRUPTION_ERROR_CODE     = 7 # Computation has been manually halted
 
 # ------------------------------------------------------------------------------
 # INTERNAL CLASSES
@@ -191,7 +192,7 @@ def combining(gene2loc, gene2family, gene2genome, output_path, clade, TIME, VERB
 
 # ------------------------------------------------------------------------------
 
-def get_gene_locations(ffn_folder):
+def get_gene_locations(ffn_folder, VERBOSE):
     '''
     Read the .ffn files in order to generate a dictionary that map each gene to its location in its genome
     Produce a .txt file with the locations and return a dictionary {gene:(contig,from,to)}
@@ -204,12 +205,18 @@ def get_gene_locations(ffn_folder):
         for f in files:
             for r in SeqIO.parse(open(ffn_folder + f, mode='r'), 'fasta'): # A .ffn file is a FASTA file
                 # Through SeqIO, automatially parse the .ffn file and extract the information
-                pos1 = int(r.id.split(':')[1].split('-')[0].replace('c',''))
-                pos2 = int(r.id.split(':')[1].split('-')[-1].replace('c',''))
-                contig = r.id.split(':')[0]
-                # Automatically assign to 'from' the min value, and to 'to' the max, even if panphlan_map check the order and switch them if inverted
-                start, stop = min(pos1, pos2), max(pos1, pos2)
-                gene2loc[r.id] = (str(contig), start, stop)
+                try:
+                    pos1 = int(r.id.split(':')[1].split('-')[0].replace('c',''))
+                    pos2 = int(r.id.split(':')[1].split('-')[-1].replace('c',''))
+                    contig = r.id.split(':')[0]
+                    # Automatically assign to 'from' the min value, and to 'to' the max, even if panphlan_map check the order and switch them if inverted
+                    start, stop = min(pos1, pos2), max(pos1, pos2)
+                    gene2loc[r.id] = (str(contig), start, stop)
+                except IndexError as err:
+                    print('[E] File content does not follow the format defined by NCBI. Impossible to process the data.\n')
+                    if VERBOSE:
+                        print('    Gene name must contain the gene location. If this information is not available, PanPhlAn is not able to build the pangenome.')
+                    sys.exit(FILEFORMAT_ERROR_CODE)
     return gene2loc
 
 
@@ -286,7 +293,7 @@ def pangenome_generation(ffn_folder, fna_folder, merged_txt, clade, output_path,
     if VERBOSE:
         print('[I] Get gene locations, gene families, contigs and genomes for each gene.')
     gene2family = familydictization(merged_txt, VERBOSE)
-    gene2loc = get_gene_locations(ffn_folder)
+    gene2loc = get_gene_locations(ffn_folder, VERBOSE)
     gene2genome = gene2genome_mapping(ffn_folder, VERBOSE)
     genome2contigs = get_contigs(fna_folder)
     
