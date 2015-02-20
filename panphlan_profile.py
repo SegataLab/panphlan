@@ -428,7 +428,7 @@ def rna_seq(out_channel, sample2family2dnaidx, dna_sample2family2cov, dna_sample
 
     # Define
     sample2family2median_norm = defaultdict(dict)
-    rna_samples = sorted(rna_samples)
+    rna_samples.sort()
     sample2zeroes = defaultdict(tuple)
     median = defaultdict(float)
 
@@ -483,7 +483,7 @@ def rna_seq(out_channel, sample2family2dnaidx, dna_sample2family2cov, dna_sample
                 sample2family2log_norm[dna_sample][f] = 0.0 if v == 0.0 else (numpy.log2(v) / c) + 1.0
 
     # Print
-    rnaseq_accepted_samples = sorted(rnaseq_accepted_samples)
+    rnaseq_accepted_samples.sort()
     rnaseq_accepted_ids = [sample_name(s, clade) for s in rnaseq_accepted_samples]
     if not out_channel == '':
         with open(out_channel, mode='w') as csv:
