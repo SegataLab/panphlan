@@ -20,13 +20,15 @@ You can find the instruction for downloading and installing PanPhlAn in the [Wik
 * install Python v. 2.6, 2.7 or 3.x (and Biopython module) in your system
 * download PanPhlAn from this repository and install it in your system
 
-### Do you have some question? ###
+### Mailing list ###
 
-If you have question, please contact the following:
+For questions and to keep up to date with information you can join our mailing list: panphlan-users@googlegroups.com
 
-* Nicola Segata ( nicola.segata@unitn.it ), principal investigator
-* Thomas Tolio ( thomas.tolio@unitn.it ), programmer
-* Matthias Scholz ( matthias.scholz@unitn.it ), programmer and researcher
+The list is managed by
+
+* Nicola Segata, principal investigator
+* Thomas Tolio, programmer
+* Matthias Scholz, researcher
 
 ----
 
