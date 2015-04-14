@@ -22,7 +22,9 @@ You can find the instruction for downloading and installing PanPhlAn in the [Wik
 
 ### Mailing list ###
 
-For questions and to keep up to date with information you can join our mailing list: [panphlan-users@googlegroups.com](mailto:panphlan-users@googlegroups.com)
+For questions and to keep up to date with information you can join our mailing list: [PanPhlAn-users](https://groups.google.com/forum/#!forum/panphlan-users) 
+
+Or, you can directly write your question to [panphlan-users@googlegroups.com](mailto:panphlan-users@googlegroups.com)
 
 The list is managed by
 
