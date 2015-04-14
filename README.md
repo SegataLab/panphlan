@@ -28,9 +28,11 @@ Or, you can directly write your question to [panphlan-users@googlegroups.com](ma
 
 The list is managed by
 
-* Nicola Segata, principal investigator
-* Thomas Tolio, programmer
 * Matthias Scholz, researcher
+* Thomas Tolio, programmer
+* Nicola Segata, principal investigator
+
+PanPhlAn is a project of the [Computational Metagenomics Lab at CIBIO](http://cibiocm.bitbucket.org/), University of Trento, Italy
 
 ----
 
