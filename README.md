@@ -20,7 +20,7 @@ You can find the instruction for downloading and installing PanPhlAn in the [Wik
 * install Python v. 2.6, 2.7 or 3.x (and Biopython module) in your system
 * download PanPhlAn from this repository and install it in your system
 
-### Mailing list ###
+### Mailing list / discussion group ###
 
 For questions and to keep up to date with information you can join our mailing list: [PanPhlAn-users](https://groups.google.com/forum/#!forum/panphlan-users) 
 
@@ -47,6 +47,8 @@ Pangenome generation:
     --i_ffn FFN_FOLDER/ --i_fna FNA_FOLDER/ --clade CLADE --output OUTPUT_FOLDER/
     [--tmp TEMP_FILES_FOLDER/] [--uc] [--th UCLUST_PERC_IDENTITY] [--verbose]
 ```
+[Pre-processed pangenome databases for download](https://www.dropbox.com/sh/unzh79u5zelr3g1/AABMP8WtsqwENTm1IhRms_Bta/public_indexes_v14?dl=0) are provided for more than 400 species.
+
 
 Gene abundances mapping:
 
