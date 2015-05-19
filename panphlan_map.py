@@ -3,19 +3,24 @@
 from __future__ import with_statement 
 
 # ==============================================================================
-# PanPhlAn v0.9: PANgenome-based PHyLogenomic ANalysis
-#                for taxonomic classification of metagenomic data
+# PanPhlAn v1.0: PANgenome-based PHyLogenomic ANalysis
+#                for detecting and characterizing strains in metagenomic samples
 #
-# Authors: Thomas Tolio (thomas.tolio@unitn.it)
-#          @TODO future contributors
+# Authors:  Matthias Scholz, algorithm design
+#           Thomas Tolio, programmer
+#           Nicola Segata, principal investigator
 #
-# Please type "./panphlan_map.py -h" for usage help
+# PanPhlAn is a project of the Computational Metagenomics Lab at CIBIO,
+# University of Trento, Italy
 #
+# For help type "./panphlan_map.py -h"
+#
+# https://bitbucket.org/CibioCM/panphlan
 # ==============================================================================
 
-__author__  = 'Thomas Tolio (thomas.tolio@studenti.unitn.it)'
+__author__  = 'Thomas Tolio, Matthias Scholz, Nicola Segata (panphlan-users@googlegroups.com)'
 __version__ = '1.0'
-__date__    = '3 February 2015'
+__date__    = '5 May 2015'
 
 # Imports
 from argparse import ArgumentParser
@@ -98,6 +103,8 @@ class PanPhlAnParser(ArgumentParser):
         self.add_argument('--readLength',           metavar='READS_LENGTH',                 type=int,   default=80,                                     help='Minimum read length.')
         self.add_argument('--tmp',                  metavar='TEMP_FOLDER',                  type=str,                                                   help='Alternative folder for temporary files.')
         self.add_argument('--verbose',              action='store_true',                                                                                help='Defines if the standard output must be verbose or not.')
+        self.add_argument('-v', '--version',        action='version',   version="PanPhlAn version "+__version__+"\t("+__date__+")",                     help='Prints the current PanPhlAn version and exits.')
+
 
 # ------------------------------------------------------------------------------
 # MINOR FUNCTIONS
@@ -927,11 +934,11 @@ def check_args():
 # -----------------------------------------------------------------------------
 
 def main():
+    args = check_args()
+    
     print('\nSTEP 0. Initialization...')
     TIME = time.time()
     TOTAL_TIME = time.time()
-
-    args = check_args()
 
     # VERBOSE: needed as a flag for verbose messaging
     VERBOSE = args['verbose']

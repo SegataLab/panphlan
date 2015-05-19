@@ -3,19 +3,24 @@
 from __future__ import with_statement 
 
 # ==============================================================================
-# PanPhlAn v0.9: PANgenome-based PHyLogenomic ANalysis
-#                for taxonomic classification of metagenomic data
+# PanPhlAn v1.0: PANgenome-based PHyLogenomic ANalysis
+#                for detecting and characterizing strains in metagenomic samples
 #
-# Authors: Thomas Tolio (thomas.tolio@unitn.it)
-#          @TODO future contributors
+# Authors:  Matthias Scholz, algorithm design
+#           Thomas Tolio, programmer
+#           Nicola Segata, principal investigator
 #
-# Please type "./panphlan_profile.py" for usage help
+# PanPhlAn is a project of the Computational Metagenomics Lab at CIBIO,
+# University of Trento, Italy
 #
+# For help type "./panphlan_map.py -h"
+#
+# https://bitbucket.org/CibioCM/panphlan
 # ==============================================================================
 
-__author__  = 'Thomas Tolio (thomas.tolio@studenti.unitn.it)'
+__author__  = 'Thomas Tolio, Matthias Scholz, Nicola Segata (panphlan-users@googlegroups.com)'
 __version__ = '1.0'
-__date__    = '3 February 2015'
+__date__    = '5 May 2015'
 
 # Imports
 from argparse import ArgumentParser
@@ -105,7 +110,7 @@ class PanPhlAnJoinParser(ArgumentParser):
         self.add_argument('--min_coverage',             metavar='MIN_COVERAGE_MEDIAN',          type=float, default=COVERAGE_TH,            help='Median coverage threshold to filtering criteria: a sample must have a median coverage >= this value to pass the filtering.')
         self.add_argument('--left_max',                 metavar='LEFT_MAX',                     type=float, default=LEFT_TH,                help='Left threshold value to do not overcome for sample goodness.')
         self.add_argument('--right_min',                metavar='RIGHT_MIN',                    type=float, default=RIGHT_TH,               help='Right threshold value to overcome for sample goodness.')
-        self.add_argument('--rna_max_zeros',            metavar='RNA_MAX_ZEROES',               type=float, default=RNA_MAX_ZERO_TH,        help='Max accepted percent of zero coveraged gene-families (default: <10%).')
+        self.add_argument('--rna_max_zeros',            metavar='RNA_MAX_ZEROES',               type=float, default=RNA_MAX_ZERO_TH,        help='Max accepted percent of zero coveraged gene-families (default: <10 %%).')
         self.add_argument('--strain_similarity_perc',   metavar='SIMILARITY_PERCENTAGE',        type=float, default=SIMILARITY_TH,          help='Minimum threshold (percentage) for genome size to accept the strain.')
         self.add_argument('--np',                       metavar='NON_PRESENCE_TOKEN',           type=str,   default='NP',                   help='User-defined symbol (or string) to map non-present genes.')
         self.add_argument('--nan',                      metavar='NOT_A_NUMBER_TOKEN',           type=str,   default='NaN',                  help='User-defined symbol (or string) to map multicopy and unknown genes.')
@@ -118,6 +123,7 @@ class PanPhlAnJoinParser(ArgumentParser):
         self.add_argument('--add_strains',              action='store_true',                                                                help='Add strain presence/absence (0,1) matrix to presence/absence (0,1) sample matrix.')
         self.add_argument('--interactive',              action='store_true',                                                                help='Force the plots to be not automatically saved in files and so showed in interactive mode.')
         self.add_argument('--verbose',                  action='store_true',                                                                help='Defines if the standard output must be verbose or not.')
+        self.add_argument('-v', '--version',            action='version',   version="PanPhlAn version "+__version__+"\t("+__date__+")",     help='Prints the current PanPhlAn version and exits.')
 
 
 # ------------------------------------------------------------------------------
@@ -1326,11 +1332,11 @@ def check_args():
 # -----------------------------------------------------------------------------
 
 def main():
+    args = check_args()    
+        
     print('\nSTEP 0. Initialization...')
     TOTAL_TIME = time.time()
     TIME = time.time()
-
-    args = check_args()
 
     VERBOSE = args['verbose']
     INTERACTIVE = args['interactive']

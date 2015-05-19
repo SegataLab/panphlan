@@ -3,14 +3,19 @@
 from __future__ import with_statement 
 
 # ==============================================================================
-# PanPhlAn v0.9: PANgenome-based PHyLogenomic ANalysis
-#                for taxonomic classification of metagenomic data
+# PanPhlAn v1.0: PANgenome-based PHyLogenomic ANalysis
+#                for detecting and characterizing strains in metagenomic samples
 #
-# Authors: Thomas Tolio (thomas.tolio@unitn.it)
-#          @TODO future contributors
+# Authors:  Matthias Scholz, algorithm design
+#           Thomas Tolio, programmer
+#           Nicola Segata, principal investigator
 #
-# Please type "./panphlan_pangenome_generation.py -h" for usage help
+# PanPhlAn is a project of the Computational Metagenomics Lab at CIBIO,
+# University of Trento, Italy
 #
+# For help type "./panphlan_map.py -h"
+#
+# https://bitbucket.org/CibioCM/panphlan
 # ==============================================================================
 
 __author__  = 'Thomas Tolio (thomas.tolio@studenti.unitn.it)'
@@ -53,14 +58,15 @@ class PanPhlAnGenParser(ArgumentParser):
     '''
     def __init__(self):
         ArgumentParser.__init__(self)
-        self.add_argument('--i_ffn',        metavar='INPUT_FFN_FOLDER',     type=str,   required=True,  help='Folder containing the .ffn files, i.e. the files of gene sequences of all the genomes for pangenome generation.')
-        self.add_argument('--i_fna',        metavar='INPUT_FNA_FOLDER',     type=str,   required=True,  help='Folder containing the .fna files, i.e. the files of genomes sequences for Bowtie2 indexes generation.')
-        self.add_argument('-c','--clade',   metavar='CLADE_NAME',           type=str,   required=True,  help='Name of the specie to consider, i.e. the basename of the index for the reference genome used by Bowtie2 to align reads.')
-        self.add_argument('-o','--output',  metavar='OUTPUT_FOLDER',        type=str,   required=True,  help='Directory where to store the produced files (six .bt2 files for Bowtie2 indexes, one .csv file for the pangenome).')
-        self.add_argument('--th',           metavar='IDENTITY_PERCENATGE',  type=float, default=95.0,   help='Threshold of gene sequence similarity (in percentage). Default value is 95.0 %.')
-        self.add_argument('--tmp',          metavar='TEMP_FOLDER',          type=str,                   help='Alternative folder for temporary files.')
-        self.add_argument('--uc',           action='store_true',                                        help='Defines if to keep usearch7 output (mainly centroids.ffn and the pangenome-clusters)')
-        self.add_argument('--verbose',      action='store_true',                                        help='Defines if the standard output must be verbose or not.')
+        self.add_argument('--i_ffn',         metavar='INPUT_FFN_FOLDER',     type=str,   required=True,  help='Folder containing the .ffn files, i.e. the files of gene sequences of all the genomes for pangenome generation.')
+        self.add_argument('--i_fna',         metavar='INPUT_FNA_FOLDER',     type=str,   required=True,  help='Folder containing the .fna files, i.e. the files of genomes sequences for Bowtie2 indexes generation.')
+        self.add_argument('-c','--clade',    metavar='CLADE_NAME',           type=str,   required=True,  help='Name of the specie to consider, i.e. the basename of the index for the reference genome used by Bowtie2 to align reads.')
+        self.add_argument('-o','--output',   metavar='OUTPUT_FOLDER',        type=str,   required=True,  help='Directory where to store the produced files (six .bt2 files for Bowtie2 indexes, one .csv file for the pangenome).')
+        self.add_argument('--th',            metavar='IDENTITY_PERCENATGE',  type=float, default=95.0,   help='Threshold of gene sequence similarity (in percentage). Default value is 95.0 %%.')
+        self.add_argument('--tmp',           metavar='TEMP_FOLDER',          type=str,                   help='Alternative folder for temporary files.')
+        self.add_argument('--uc',            action='store_true',                                        help='Defines if to keep usearch7 output (mainly centroids.ffn and the pangenome-clusters)')
+        self.add_argument('--verbose',       action='store_true',                                        help='Defines if the standard output must be verbose or not.')
+        self.add_argument('-v', '--version', action='version',   version="PanPhlAn version "+__version__+"\t("+__date__+")", help='Prints the current PanPhlAn version and exits.')
 
 
 # ------------------------------------------------------------------------------
@@ -646,14 +652,14 @@ def check_args():
 # ------------------------------------------------------------------------------
 
 def main():
-    print('\nSTEP 0. Initialization...')
-    TOTAL_TIME = time.time()
-
     # Check options correctness
     args = check_args()
     VERBOSE = args['verbose']
     KEEP_UC = args['uc']
     PLATFORM = sys.platform.lower()[0:3]
+    
+    print('\nSTEP 0. Initialization...')
+    TOTAL_TIME = time.time()
     TIME = time.time()
 
     merged_txt = ''
