@@ -18,9 +18,9 @@ from __future__ import with_statement
 # https://bitbucket.org/CibioCM/panphlan
 # ==============================================================================
 
-__author__  = 'Thomas Tolio (thomas.tolio@studenti.unitn.it)'
-__version__ = '1.0'
-__date__    = '3 February 2015'
+__author__  = 'Thomas Tolio, Matthias Scholz, Nicola Segata (panphlan-users@googlegroups.com)'
+__version__ = '1.01'
+__date__    = '5 May 2015'
 
 # Imports
 from argparse import ArgumentParser
@@ -28,6 +28,7 @@ from collections import defaultdict
 import os, subprocess, sys, tempfile, time
 from Bio import SeqIO
 from Bio.SeqRecord import SeqRecord
+from fnmatch import fnmatch
     
 # Operating systems
 LINUX                   = 'lin'
@@ -200,29 +201,48 @@ def combining(gene2loc, gene2family, gene2genome, output_path, clade, TIME, VERB
 
 def get_gene_locations(ffn_folder, VERBOSE):
     '''
-    Read the .ffn files in order to generate a dictionary that map each gene to its location in its genome
-    Produce a .txt file with the locations and return a dictionary {gene:(contig,from,to)}
-
-    NB. Need of Biopython module
+    Get gene locations: Read all .ffn files to extract start and stop location from gene-name,
+    If location cannot be extracted from gene-name: use blast to map genes against their genomes. 
+    
+    Gene-locations are returned as dictionary {gene:(contig,start,stop)
+    
+    Requires: Biopython module and BLASTn
     '''
-    # { GENE : ( CONTIG, FROM, TO ) }
     gene2loc = defaultdict(tuple)
-    for root, dirs, files in os.walk(ffn_folder):
-        for f in files:
-            for r in SeqIO.parse(open(ffn_folder + f, mode='r'), 'fasta'): # A .ffn file is a FASTA file
-                # Through SeqIO, automatially parse the .ffn file and extract the information
-                try:
+    genefiles = [f for f in os.listdir(ffn_folder) if fnmatch(f,'*.'+FFN)]
+    for f in genefiles:
+        path_genefile_ffn = ffn_folder + f
+        path_genomefile_fna = fna_folder + f.replace('.'+FFN,'.'+FNA)
+        if not os.path.exists(path_genomefile_fna):
+            print('[W] Cannot find genome-file:\n    ' + path_genomefile_fna)
+            print('    Excluding corresponding genes of file: ' + f)
+        else:
+            try: # extract gene-location from geneIDs
+                if VERBOSE:
+                    print('[I] '+f+': Extract gene-location from geneIDs')
+                for r in SeqIO.parse(open(path_genefile_ffn, mode='r'), 'fasta'): 
+                    # extract gene-locations from gi-gene-IDs, examples
+                    #   gi|545636471|ref|NC_022443.1|:3480-3965
+                    #   gi|387779217|ref|NC_017349.1|:789327-789398,789400-790437
                     pos1 = int(r.id.split(':')[1].split('-')[0].replace('c',''))
                     pos2 = int(r.id.split(':')[1].split('-')[-1].replace('c',''))
                     contig = r.id.split(':')[0]
-                    # Automatically assign to 'from' the min value, and to 'to' the max, even if panphlan_map check the order and switch them if inverted
-                    start, stop = min(pos1, pos2), max(pos1, pos2)
+                    start, stop = min(pos1, pos2), max(pos1, pos2) # to always have start < stop
                     gene2loc[r.id] = (str(contig), start, stop)
-                except IndexError as err:
-                    print('[E] File content does not follow the format defined by NCBI. Impossible to process the data.\n')
-                    if VERBOSE:
-                        print('    Gene name must contain the gene location. If this information is not available, PanPhlAn is not able to build the pangenome.')
-                    sys.exit(FILEFORMAT_ERROR_CODE)
+            except IndexError as err: # alternatively, run BLASTn to get locations
+                if VERBOSE:
+                    print('    Extraction from geneID failt, using BLASTn to map genes against their genomes')
+                blast_outfmt = '6 qseqid sseqid pident qlen length mismatch gapopen sstart send evalue bitscore'
+                blast_cmd = ['blastn','-query',path_genefile_ffn,'-subject',path_genomefile_fna,'-outfmt',blast_outfmt,'-evalue','1e-50','-perc_identity','99']
+                p = subprocess.Popen(blast_cmd, stdout=subprocess.PIPE)
+                for line in p.stdout:
+                    qseqid, sseqid, pident, qlen, length, mismatch, gapopen, sstart, send, evalue, bitscore = line.strip().split('\t')
+                    if int(length) > 0.97 * int(qlen): # accept only almost full length match
+                        start, stop = min(int(sstart), int(send)), max(int(sstart), int(send)) 
+                        geneID      = qseqid
+                        contigID    = sseqid
+                        if geneID not in gene2loc: # take only first entry (best blast hit)
+                            gene2loc[geneID] = (str(contigID), start, stop)
     return gene2loc
 
 
