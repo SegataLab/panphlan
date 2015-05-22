@@ -461,21 +461,38 @@ def merging(ffn_folder, tmp_path, TIME, VERBOSE):
         tmp_sorted_ffn = tempfile.NamedTemporaryFile(delete=False, prefix='panphlan_', suffix='.sorted.ffn', dir=tmp_path)
     try:
         with tmp_ffn:
-            # 1st command: cat INPUT_FOLDER/*.ffn > merged_file.ffn
-            cat_cmd = ['cat']
-            for root, dirs, files in os.walk(ffn_folder):
-                for f in files:
-                    # Check that the extension is '.ffn'
-                    extension = os.path.splitext(f)[1].replace('.', '')
-                    if extension == FFN:
-                        cat_cmd.append(ffn_folder + f)
-            # NB. It seems that we need to declare explicitly all the ffn files becuase Popen with the '*.ffn' does not work
+            # 1st command: cat GENE_SEQ_FOLDER/*.ffn > merged_file.ffn
+            cat_cmd = ['cat'] # same as for bowtie2, but based on gene.ffn files 
+            genefiles = [f for f in os.listdir(ffn_folder) if fnmatch(f,'*.'+FFN)]
+            for f in genefiles:
+                path_genefile_ffn = ffn_folder + f
+                path_genomefile_fna = fna_folder + f.replace('.'+FFN,'.'+FNA)
+                if not os.path.exists(path_genomefile_fna):
+                    print('[W] Cannot find genome-file:\n    ' + path_genomefile_fna)
+                    print('    Excluding corresponding genes of file: ' + f + ' from usearch7 clustering')
+                else:
+                    cat_cmd.append(path_genefile_ffn)
             if VERBOSE:
                 print('[C] ' + ' '.join(cat_cmd) + ' > ' + tmp_ffn.name)
             p1 = subprocess.Popen(cat_cmd, stdout=tmp_ffn)
             p1.wait()
             if VERBOSE:
                 print('[I] FFN files have been merged into one.')
+
+            #cat_cmd = ['cat']
+            #for root, dirs, files in os.walk(ffn_folder):
+            #    for f in files:
+            #        # Check that the extension is '.ffn'
+            #        extension = os.path.splitext(f)[1].replace('.', '')
+            #        if extension == FFN:
+            #            cat_cmd.append(ffn_folder + f)
+            ## NB. It seems that we need to declare explicitly all the ffn files becuase Popen with the '*.ffn' does not work
+            #if VERBOSE:
+            #    print('[C] ' + ' '.join(cat_cmd) + ' > ' + tmp_ffn.name)
+            #p1 = subprocess.Popen(cat_cmd, stdout=tmp_ffn)
+            #p1.wait()
+            #if VERBOSE:
+            #    print('[I] FFN files have been merged into one.')
 
         try:
             with tmp_sorted_ffn:
