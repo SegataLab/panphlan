@@ -538,7 +538,7 @@ def check_biopython(VERBOSE):
     try:
         output = __import__('Bio')
         if VERBOSE:
-            print('[I] Biopython module is already installedin the system.')
+            print('[I] Biopython module is installed in the system.')
             return output
     except ImportError as err:
         show_error_message(err)
@@ -558,11 +558,12 @@ def check_usearch7(VERBOSE, PLATFORM='lin'):
     '''
     try:
         if PLATFORM == LINUX:
-            output = subprocess.Popen(['usearch7','--version'], stdout=subprocess.PIPE).communicate()[0]
+            usearch7_path = subprocess.Popen(['which','usearch7'], stdout=subprocess.PIPE).communicate()[0]
         elif PLATFORM == WINDOWS:
-            output = subprocess.Popen(['usearch7','--version'], stdout=subprocess.PIPE).communicate()[0]
-    
-    except Exception as err:
+            usearch7_path = subprocess.Popen(['where','usearch7'], stdout=subprocess.PIPE).communicate()[0]
+        usearch7_version = subprocess.Popen(['usearch7','--version'], stdout=subprocess.PIPE).communicate()[0]
+        usearch7_version = usearch7_version.split()[1]
+    except OSError as err:
         show_error_message(err)
         print('\n[E] Please, install Usearch 7.\n')
         if VERBOSE:
@@ -572,8 +573,8 @@ def check_usearch7(VERBOSE, PLATFORM='lin'):
         sys.exit(UNINSTALLED_ERROR_CODE)
 
     if VERBOSE:
-        print('[I] Usearch v.7 is already installed in the system.')
-
+        print('[I] Usearch v.7 is installed in the system, version: ' + str(usearch7_version) + ', path: ' + str(usearch7_path).strip())
+    
 
 # ------------------------------------------------------------------------------
 
@@ -589,9 +590,8 @@ def check_bowtie2(VERBOSE, PLATFORM='lin'):
         bowtie2_version = subprocess.Popen(['bowtie2', '--version'], stdout=subprocess.PIPE).communicate()[0]
         bowtie2_version = bowtie2_version.split()[2]
         if VERBOSE:
-            print('[I] Bowtie2 is already installed in the system with version ' + str(bowtie2_version) + ' in path ' + str(bowtie2).strip())
-    
-    except Exception as err:
+            print('[I] Bowtie2 is installed in the system, version: ' + str(bowtie2_version) + ', path: ' + str(bowtie2).strip())
+    except OSError as err:
         show_error_message(err)
         print('\n[E] Please, install Bowtie2.\n')
         if VERBOSE:
@@ -599,6 +599,30 @@ def check_bowtie2(VERBOSE, PLATFORM='lin'):
             print('    computation. Moreover, after having generated the six index files, Bowtie2 checks')
             print('    them extracting information to show.')
         sys.exit(UNINSTALLED_ERROR_CODE)
+
+# ------------------------------------------------------------------------------
+
+def check_blastn(VERBOSE, PLATFORM='lin'):
+    '''
+    Check if BLASTn is installed in the system
+    '''
+    try:
+        if PLATFORM == LINUX:
+            blastn_path = subprocess.Popen(['which','blastn'], stdout=subprocess.PIPE).communicate()[0]
+        elif PLATFORM == WINDOWS:
+            blastn_path = subprocess.Popen(['where','blastn'], stdout=subprocess.PIPE).communicate()[0]
+        blastn_version = subprocess.Popen(['blastn','-version'], stdout=subprocess.PIPE).communicate()[0]
+        blastn_version = blastn_version.split()[1]
+    except OSError as err:
+        show_error_message(err)
+        print('\n[E] Please, install BLASTn.\n')
+        if VERBOSE:
+            print('    BLASTn is required to get gene-locations by mapping genes against genomes.')
+        sys.exit(UNINSTALLED_ERROR_CODE)
+
+    if VERBOSE:
+        print('[I] BLASTn is installed in the system, version: ' + str(blastn_version) + ', path: ' + str(blastn_path).strip())
+    
 
 # ------------------------------------------------------------------------------
 
@@ -688,10 +712,11 @@ def main():
     
     # Check if software is installed
     if VERBOSE:
-        print('\nSTEP 1. Checking software...')
-    # bowtie2 = check_bowtie2(VERBOSE, PLATFORM)
-    usearch7 = check_usearch7(VERBOSE, PLATFORM)
-    biopython = check_biopython(VERBOSE)
+        print('\nSTEP 1. Checking required software installations...')
+    blastn = check_blastn(VERBOSE, PLATFORM) # to map genes against genomes
+    bowtie2 = check_bowtie2(VERBOSE, PLATFORM) # index generation
+    usearch7 = check_usearch7(VERBOSE, PLATFORM) # get gene-family cluster
+    biopython = check_biopython(VERBOSE) # get geneIDs and contigIDs from ffn/fna files
 
     # Get gene families cluster
     if VERBOSE:
