@@ -235,7 +235,7 @@ def get_gene_locations(ffn_folder, fna_folder, VERBOSE):
                 if VERBOSE:
                     print('    Extraction from geneID failt, using BLASTn to map genes against their genomes')
                 blast_outfmt = '6 qseqid sseqid pident qlen length mismatch gapopen sstart send evalue bitscore'
-                blast_cmd = ['blastn','-query',path_genefile_ffn,'-subject',path_genomefile_fna,'-outfmt',blast_outfmt,'-evalue','1e-50','-perc_identity','99']
+                blast_cmd = ['blastn','-query',path_genefile_ffn,'-subject',path_genomefile_fna,'-outfmt',blast_outfmt,'-evalue','1e-40','-perc_identity','99']
                 p = subprocess.Popen(blast_cmd, stdout=subprocess.PIPE)
                 for line in p.stdout:
                     qseqid, sseqid, pident, qlen, length, mismatch, gapopen, sstart, send, evalue, bitscore = line.strip().split('\t')
