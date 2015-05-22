@@ -447,7 +447,7 @@ def clustering(sorted_merged_ffn, identity, clade, output_path, tmp_path, KEEP_U
 
 # ------------------------------------------------------------------------------
 
-def merging(ffn_folder, tmp_path, TIME, VERBOSE):
+def merging(ffn_folder, fna_folder, tmp_path, TIME, VERBOSE):
     '''
     Merge all the FFN files into a unique one, and then sort it by length
     '''
@@ -528,14 +528,14 @@ def merging(ffn_folder, tmp_path, TIME, VERBOSE):
 
 # ------------------------------------------------------------------------------
 
-def gene_families_clustering(ffn_folder, identity_threshold_perc, clade, output_path, tmp_path, KEEP_UC, TIME, VERBOSE):
+def gene_families_clustering(ffn_folder, fna_folder, identity_threshold_perc, clade, output_path, tmp_path, KEEP_UC, TIME, VERBOSE):
     '''
     
     NB. If KEEP_UC, then <clusters>.uc is a file written in the output directory.
         Otherwise, <clusters>.uc is a temp file (in /tmp), deleted at the end of the computation
     '''
     # Merge & Sort
-    TIME, tmp_sorted_ffn = merging(ffn_folder, tmp_path, TIME, VERBOSE)
+    TIME, tmp_sorted_ffn = merging(ffn_folder, fna_folder, tmp_path, TIME, VERBOSE)
     # Cluster
     tmp_uc, TIME = clustering(tmp_sorted_ffn.name, identity_threshold_perc / 100.0, clade, output_path, tmp_path, KEEP_UC, TIME, VERBOSE)
     # Convert
@@ -738,7 +738,7 @@ def main():
     # Get gene families cluster
     if VERBOSE:
         print('\nSTEP 2. Getting gene families cluster...')
-    merged_txt, TIME = gene_families_clustering(args['i_ffn'], args['th'], args['clade'], args['output'], args['tmp'], KEEP_UC, TIME, VERBOSE)
+    merged_txt, TIME = gene_families_clustering(args['i_ffn'], args['i_fna'], args['th'], args['clade'], args['output'], args['tmp'], KEEP_UC, TIME, VERBOSE)
     # end else
 
     # Get pangenome file
