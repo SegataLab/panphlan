@@ -101,14 +101,14 @@ def time_message(start_time, message):
 # MAJOR FUNCTIONS
 # ------------------------------------------------------------------------------
 
-def create_bt2_indexes(fna_folder, clade, output_path, tmp_path, TIME, VERBOSE):
+def create_bt2_indexes(ffn_folder, fna_folder, clade, output_path, tmp_path, TIME, VERBOSE):
     '''
-    Call the build function of Bowtie2 to create the indexes for the given specie and check them
+    Call the build function of Bowtie2 to create the indexes for a given species
     
-    Ex.
-        cat /banche_dati/sharedCM/genomes/ecoli/*.fna > genomes.fna
-        bowtie2-build genomes.fna panphlan_ecoli
-        bowtie2-inspect -n panphlan_ecoli
+    Merge all genomes into a single file and run bowtie2-build 
+        cat /ecoli_genomes_2014/*.fna > genomes.fna
+        bowtie2-build genomes.fna panphlan_ecoli14
+        bowtie2-inspect -n panphlan_ecoli14
     '''
     # tmp_fna == genomes.fna
     try:
@@ -118,14 +118,16 @@ def create_bt2_indexes(fna_folder, clade, output_path, tmp_path, TIME, VERBOSE):
         else:
             tmp_fna = tempfile.NamedTemporaryFile(delete=False, prefix='panphlan_', suffix='.fna', dir=tmp_path)
 
-
         cat_cmd = ['cat']
-        for root, dirs, files in os.walk(fna_folder):
-            for f in files:
-                # Check that the extension is '.fna'
-                extension = os.path.splitext(f)[1].replace('.', '')
-                if extension == FNA:
-                    cat_cmd.append(fna_folder + f)
+        genomefiles = [f for f in os.listdir(fna_folder) if fnmatch(f,'*.'+FNA)]
+        for f in genomefiles:
+            path_genomefile_fna = fna_folder + f
+            path_genefile_ffn = ffn_folder + f.replace('.'+FNA,'.'+FFN)
+            if not os.path.exists(path_genefile_ffn):
+                print('[W] Cannot find gene-file:\n    ' + path_genefile_ffn)
+                print('    Excluding genome ' + f + ' from bowtie2 index')
+            else:
+                cat_cmd.append(path_genomefile_fna)
         if VERBOSE:
             print('[C] ' + ' '.join(cat_cmd) + ' > ' + tmp_fna.name)
         p4 = subprocess.Popen(cat_cmd, stdout=tmp_fna)
@@ -199,7 +201,7 @@ def combining(gene2loc, gene2family, gene2genome, output_path, clade, TIME, VERB
 
 # ------------------------------------------------------------------------------
 
-def get_gene_locations(ffn_folder, VERBOSE):
+def get_gene_locations(ffn_folder, fna_folder, VERBOSE):
     '''
     Get gene locations: Read all .ffn files to extract start and stop location from gene-name,
     If location cannot be extracted from gene-name: use blast to map genes against their genomes. 
@@ -319,7 +321,7 @@ def pangenome_generation(ffn_folder, fna_folder, merged_txt, clade, output_path,
     if VERBOSE:
         print('[I] Get gene locations, gene families, contigs and genomes for each gene.')
     gene2family = familydictization(merged_txt, VERBOSE)
-    gene2loc = get_gene_locations(ffn_folder, VERBOSE)
+    gene2loc = get_gene_locations(ffn_folder, fna_folder, VERBOSE)
     gene2genome = gene2genome_mapping(ffn_folder, VERBOSE)
     genome2contigs = get_contigs(fna_folder)
     
@@ -703,7 +705,7 @@ def main():
     TIME = pangenome_generation(args['i_ffn'], args['i_fna'], merged_txt, args['clade'], args['output'], TIME, VERBOSE)
     os.remove(merged_txt) # This file is not useful anymore, and if users want to keep these information, they have the .uc file
     # Get Bowtie2 indexes
-    TIME = create_bt2_indexes(args['i_fna'], args['clade'], args['output'], args['tmp'], TIME, VERBOSE)
+    TIME = create_bt2_indexes(args['i_ffn'], args['i_fna'], args['clade'], args['output'], args['tmp'], TIME, VERBOSE)
 
     end_program(time.time() - TOTAL_TIME)
 
