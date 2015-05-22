@@ -755,19 +755,22 @@ def check_bowtie2(clade, VERBOSE=False, PLATFORM='lin'):
     Check if Bowtie2 is alread installed in the system
     '''
     try: # bowtie2 installed?
-        output = ''
         if PLATFORM == LINUX:
-            output = subprocess.Popen(['which', 'bowtie2'], stdout=subprocess.PIPE).communicate()[0]
+            bowtie2 = subprocess.Popen(['which', 'bowtie2'], stdout=subprocess.PIPE).communicate()[0]
         elif PLATFORM == WINDOWS:
-            output = subprocess.Popen(['where', 'bowtie2'], stdout=subprocess.PIPE).communicate()[0]
-        bowtie2 = output[0:-1] # empty if not exist
-        output = subprocess.Popen(['bowtie2', '--version'], stdout=subprocess.PIPE).communicate()[0]
-        bowtie2_version = output.split()[2]
+            bowtie2 = subprocess.Popen(['where', 'bowtie2'], stdout=subprocess.PIPE).communicate()[0]
+        bowtie2_version = subprocess.Popen(['bowtie2', '--version'], stdout=subprocess.PIPE).communicate()[0]
+        bowtie2_version = bowtie2_version.split()[2]
         if VERBOSE:
-            print('[I] Bowtie2 is already installed in the system with version ' + str(bowtie2_version) + ' in path ' + str(bowtie2))
-            
+            print('[I] Bowtie2 is already installed in the system with version ' + str(bowtie2_version) + ' in path ' + str(bowtie2).strip())
+    
     except Exception as err:
         show_error_message(err)
+        print('\n[E] Please, install Bowtie2.\n')
+        if VERBOSE:
+            print('    Bowtie2 is necessary to generate the specie indexes to use in further PanPhlAn')
+            print('    computation. Moreover, after having generated the six index files, Bowtie2 checks')
+            print('    them extracting information to show.')
         sys.exit(UNINSTALLED_ERROR_CODE)
     
     bt2_indexes = []

@@ -536,9 +536,9 @@ def check_usearch7(VERBOSE, PLATFORM='lin'):
     '''
     try:
         if PLATFORM == LINUX:
-            output = subprocess.Popen(['which', 'usearch7'], stdout=subprocess.PIPE).communicate()[0]
+            output = subprocess.Popen(['usearch7','--version'], stdout=subprocess.PIPE).communicate()[0]
         elif PLATFORM == WINDOWS:
-            output = subprocess.Popen(['where', 'usearch7'], stdout=subprocess.PIPE).communicate()[0]
+            output = subprocess.Popen(['usearch7','--version'], stdout=subprocess.PIPE).communicate()[0]
     
     except Exception as err:
         show_error_message(err)
@@ -591,7 +591,7 @@ def check_args():
     # Check: FFN_FOLDER --------------------------------------------------------
     ipath = args['i_ffn']
     if not os.path.exists(ipath):
-        show_error_message(err)
+        show_error_message('Input folder -i_ffn does not exist.')
         sys.exit(INEXISTENCE_ERROR_CODE)
         
     ipath = os.path.abspath(ipath)
@@ -603,7 +603,7 @@ def check_args():
     # Check: FNA_FOLDER --------------------------------------------------------
     ipath = args['i_fna']
     if not os.path.exists(ipath):
-        show_error_message(err)
+        show_error_message('Input folder -i_fna does not exist.')
         sys.exit(INEXISTENCE_ERROR_CODE)
 
     ipath = os.path.abspath(ipath)
@@ -667,7 +667,7 @@ def main():
     # Check if software is installed
     if VERBOSE:
         print('\nSTEP 1. Checking software...')
-    bowtie2 = check_bowtie2(VERBOSE, PLATFORM)
+    # bowtie2 = check_bowtie2(VERBOSE, PLATFORM)
     usearch7 = check_usearch7(VERBOSE, PLATFORM)
     biopython = check_biopython(VERBOSE)
 
