@@ -217,7 +217,7 @@ def get_gene_locations(ffn_folder, fna_folder, VERBOSE):
         path_genomefile_fna = fna_folder + f.replace('.'+FFN,'.'+FNA)
         if not os.path.exists(path_genomefile_fna):
             print('[W] Cannot find genome-file:\n    ' + path_genomefile_fna)
-            print('    Excluding corresponding genes of file: ' + f)
+            print('    Excluding corresponding genes of file: ' + f + ' from BLASTn mapping')
         else:
             try: # extract gene-location from geneIDs
                 if VERBOSE:
@@ -257,19 +257,20 @@ def get_contigs(fna_folder):
     '''
     # { CONTIG : GENOME }
     genome2contigs = defaultdict(set)
-    for root, dirs, files in os.walk(fna_folder):
-        for f in files:
-            # Check that the file extension is 'fna'
-            extension = os.path.splitext(f)[1].replace('.', '')
-            if extension == FNA:
-                genome = f.split('.')[0].split('/')[-1]
-                ltot = 0
-                s = ''
-                for r in SeqIO.parse(open(fna_folder + f, mode='r'), 'fasta'):
-                    l = len(r.seq)
-                    ltot += l
-                    s = s + "\t" + r.id
-                    genome2contigs[genome].add(r.id)
+    genomefiles = [f for f in os.listdir(fna_folder) if fnmatch(f,'*.'+FNA)]
+    # for root, dirs, files in os.walk(fna_folder):
+    for f in genomefiles:
+        # Check that the file extension is 'fna'
+        extension = os.path.splitext(f)[1].replace('.', '')
+        if extension == FNA:
+            genome = f.split('.')[0].split('/')[-1]
+            ltot = 0
+            s = ''
+            for r in SeqIO.parse(open(fna_folder + f, mode='r'), 'fasta'):
+                l = len(r.seq)
+                ltot += l
+                s = s + "\t" + r.id
+                genome2contigs[genome].add(r.id)
     return genome2contigs
 
 
@@ -281,18 +282,17 @@ def gene2genome_mapping(ffn_folder, VERBOSE):
     NB. Use Biopython
     '''
     gene2genome = {}
-
-    for root, dirs, files in os.walk(ffn_folder):
-        for f in files:
-            # Check that the file extension is 'ffn'
-            extension = os.path.splitext(f)[1].replace('.', '')
-            if extension == FFN:
-                genome = f[:-4]
-                print('[I] Genome ' + genome + '...\r')
-                for seq_record in SeqIO.parse(open(ffn_folder + f, mode='r'), 'fasta'):
-                    # Take the record ID as the name of the gene, and add it to the list of genes for this genome
-                    gene2genome[seq_record.id] = genome
-
+    genefiles = [f for f in os.listdir(ffn_folder) if fnmatch(f,'*.'+FFN)]
+    # for root, dirs, files in os.walk(ffn_folder):
+    for f in genefiles:
+        # Check that the file extension is 'ffn'
+        extension = os.path.splitext(f)[1].replace('.', '')
+        if extension == FFN:
+            genome = f[:-4]
+            # print('[I] Genome ' + genome + '...\r') # shows also excluded files
+            for seq_record in SeqIO.parse(open(ffn_folder + f, mode='r'), 'fasta'):
+                # Take the record ID as the name of the gene, and add it to the list of genes for this genome
+                gene2genome[seq_record.id] = genome
     return gene2genome
 
 
