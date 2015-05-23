@@ -639,7 +639,27 @@ def check_blastn(VERBOSE, PLATFORM='lin'):
 
     if VERBOSE:
         print('[I] BLASTn is installed in the system, version: ' + str(blastn_version) + ', path: ' + str(blastn_path).strip())
-    
+
+# ------------------------------------------------------------------------------
+
+def check_genomes(ffn_folder, fna_folder, VERBOSE):
+    '''
+    Check if genome.fna files are present and calculate expected runtime
+    '''
+    # to do: could be used to detect genome-gene file mismatch in the beginning,
+    #        returning corrected genefiles,genomefiles list to use in other functions
+    #
+    genomefiles = [f for f in os.listdir(fna_folder) if fnmatch(f,'*.'+FNA)]
+    genefiles   = [f for f in os.listdir(ffn_folder) if fnmatch(f,'*.'+FFN)]
+    if len(genomefiles)==0:
+        print('\n[E] Cannot find any genome.fna file in folder:\n    ' + fna_folder)
+        print('    Genome files need to end with .fna\n')
+        sys.exit('Missing genome files') 
+    else:
+        print('\nExpected runtime: ' + str(len(genomefiles)*10) + ' minutes (10 min per genome)')
+        if not VERBOSE:
+            print('Use option --verbose to display progress information.')
+    return genomefiles, genefiles
 
 # ------------------------------------------------------------------------------
 
@@ -721,11 +741,16 @@ def main():
     KEEP_UC = args['uc']
     PLATFORM = sys.platform.lower()[0:3]
     
-    print('\nSTEP 0. Initialization...')
+    genomefiles, genefiles = check_genomes(args['i_ffn'], args['i_fna'], VERBOSE)
+    if VERBOSE:
+        print('\nSTEP 0. Initialization...')
+    
     TOTAL_TIME = time.time()
     TIME = time.time()
 
     merged_txt = ''
+    
+    
     
     # Check if software is installed
     if VERBOSE:
