@@ -47,7 +47,7 @@ Pangenome generation:
     --i_ffn FFN_FOLDER/ --i_fna FNA_FOLDER/ --clade CLADE --output OUTPUT_FOLDER/
     [--tmp TEMP_FILES_FOLDER/] [--uc] [--th UCLUST_PERC_IDENTITY] [--verbose]
 ```
-[Pre-processed pangenome databases for download](https://www.dropbox.com/sh/unzh79u5zelr3g1/AABMP8WtsqwENTm1IhRms_Bta/public_indexes_v14?dl=0) are provided for more than 400 species.
+[Pre-processed pangenome databases for download](https://bitbucket.org/CibioCM/panphlan/wiki/Pangenome%20databases) are provided for more than 400 species.
 
 
 Gene abundances mapping:
