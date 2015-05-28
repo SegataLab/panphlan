@@ -29,6 +29,7 @@ import os, subprocess, sys, tempfile, time
 from Bio import SeqIO
 from Bio.SeqRecord import SeqRecord
 from fnmatch import fnmatch
+import re # for gene genome mapping
     
 # Operating systems
 LINUX                   = 'lin'
@@ -204,11 +205,11 @@ def combining(gene2loc, gene2family, gene2genome, output_path, clade, TIME, VERB
 def get_gene_locations(ffn_folder, fna_folder, VERBOSE):
     '''
     Get gene locations: Read all .ffn files to extract start and stop location from gene-name,
-    If location cannot be extracted from gene-name: use blast to map genes against their genomes. 
+    If location cannot be extracted from gene-name, use a blast-like mapping of genes against their genomes. 
     
-    Gene-locations are returned as dictionary {gene:(contig,start,stop)
+    Gene-locations are returned as dictionary {geneID:(contig,start,stop)}
     
-    Requires: Biopython module and BLASTn
+    Requires: Biopython module
     '''
     gene2loc = defaultdict(tuple)
     genefiles = [f for f in os.listdir(ffn_folder) if fnmatch(f,'*.'+FFN)]
@@ -231,20 +232,48 @@ def get_gene_locations(ffn_folder, fna_folder, VERBOSE):
                     contig = r.id.split(':')[0]
                     start, stop = min(pos1, pos2), max(pos1, pos2) # to always have start < stop
                     gene2loc[r.id] = (str(contig), start, stop)
-            except IndexError as err: # alternatively, run BLASTn to get locations
+            except IndexError as err: # alternatively, run BLAST-like python gene-genome mapping to get locations
                 if VERBOSE:
-                    print('    Extraction from geneID failt, using BLASTn to map genes against their genomes')
-                blast_outfmt = '6 qseqid sseqid pident qlen length mismatch gapopen sstart send evalue bitscore'
-                blast_cmd = ['blastn','-query',path_genefile_ffn,'-subject',path_genomefile_fna,'-outfmt',blast_outfmt,'-evalue','1e-40','-perc_identity','99']
-                p = subprocess.Popen(blast_cmd, stdout=subprocess.PIPE)
-                for line in p.stdout:
-                    qseqid, sseqid, pident, qlen, length, mismatch, gapopen, sstart, send, evalue, bitscore = line.strip().split('\t')
-                    if int(length) > 0.97 * int(qlen): # accept only almost full length match
-                        start, stop = min(int(sstart), int(send)), max(int(sstart), int(send)) 
-                        geneID      = qseqid
-                        contigID    = sseqid
-                        if geneID not in gene2loc: # take only first entry (best blast hit)
-                            gene2loc[geneID] = (str(contigID), start, stop)
+                    print('    Extraction from geneID failt, map gene-sequences against genome')
+                gene2multiloc = {} # tmp-dict for all hits, including sets of multiple gene locations
+                # read genome sequence
+                contignames = []
+                contigseqs = []
+                for c in SeqIO.parse(open(path_genomefile_fna, mode='r'), 'fasta'):
+                    contignames.append(c.id)
+                    contigseqs.append(str(c.seq))
+                # loop over gene sequences
+                for g in SeqIO.parse(open(path_genefile_ffn, mode='r'), 'fasta'):
+                    gene2multiloc[g.id] = [] # append, to join hits of all contigs
+                    for (cn,cseq) in zip(contignames,contigseqs):
+                        loc=(m.start() for m in re.finditer(str(g.seq)+'|'+str(g.seq.reverse_complement()),cseq))
+                        for s in loc:  # genes can have multiple hits
+                            gene2multiloc[g.id].append((cn,s+1,s+len(g))) # geneID:[(contigID, start, stop),(contigID, start, stop),...]
+                # convert single hits into final dict
+                for k, v in gene2multiloc.items():
+                    if len(v)==0:
+                        print('gene: ' + k)
+                        print('[W] gene sequence does not match genome sequence')
+                        del gene2multiloc[k]
+                    elif len(v)==1: 
+                        gene2loc[k]=gene2multiloc[k][0]
+                        del gene2multiloc[k]
+                # handle remaining multiple gene hits (multi-copy genes)
+                unique_gene_loc=[] # get unique sets of multi-copy gene locations
+                for k, v in gene2multiloc.items():
+                    if v not in unique_gene_loc:
+                        unique_gene_loc.append(v)
+                unique_geneIDsets=[] # get all geneIDs that hit to same location-set   
+                for i in unique_gene_loc:
+                    geneIDset=[]
+                    for k, v in gene2multiloc.items():
+                        if v==i:
+                            geneIDset.append(k)   
+                    unique_geneIDsets.append(geneIDset)    
+                # add multi-copy genes to gene2loc dictionary (assign to each multi-copy geneID a different location)    
+                for geneIDset,locSet in zip(unique_geneIDsets,unique_gene_loc):
+                    for g,c in zip(geneIDset,locSet):    
+                        gene2loc[g]=c
     return gene2loc
 
 
@@ -555,7 +584,7 @@ def check_biopython(VERBOSE):
     try:
         output = __import__('Bio')
         if VERBOSE:
-            print('[I] Biopython module is installed in the system.')
+            print('[I] Biopython module is installed.')
             return output
     except ImportError as err:
         show_error_message(err)
@@ -571,7 +600,7 @@ def check_biopython(VERBOSE):
 
 def check_usearch7(VERBOSE, PLATFORM='lin'):
     '''
-    Check if Usearch 7 is already installed in the system
+    Check if Usearch 7 is already installed
     '''
     try:
         if PLATFORM == LINUX:
@@ -590,14 +619,14 @@ def check_usearch7(VERBOSE, PLATFORM='lin'):
         sys.exit(UNINSTALLED_ERROR_CODE)
 
     if VERBOSE:
-        print('[I] Usearch v.7 is installed in the system, version: ' + str(usearch7_version) + ', path: ' + str(usearch7_path).strip())
+        print('[I] Usearch v.7 is installed, version: ' + str(usearch7_version) + ', path: ' + str(usearch7_path).strip())
     
 
 # ------------------------------------------------------------------------------
 
 def check_bowtie2(VERBOSE, PLATFORM='lin'):
     '''
-    Check if Bowtie2 is already installed in the system
+    Check if Bowtie2 is already installed
     '''
     try:
         if PLATFORM == LINUX:
@@ -607,7 +636,7 @@ def check_bowtie2(VERBOSE, PLATFORM='lin'):
         bowtie2_version = subprocess.Popen(['bowtie2', '--version'], stdout=subprocess.PIPE).communicate()[0]
         bowtie2_version = bowtie2_version.split()[2]
         if VERBOSE:
-            print('[I] Bowtie2 is installed in the system, version: ' + str(bowtie2_version) + ', path: ' + str(bowtie2).strip())
+            print('[I] Bowtie2 is installed, version: ' + str(bowtie2_version) + ', path: ' + str(bowtie2).strip())
     except OSError as err:
         show_error_message(err)
         print('\n[E] Please, install Bowtie2.\n')
@@ -621,7 +650,7 @@ def check_bowtie2(VERBOSE, PLATFORM='lin'):
 
 def check_blastn(VERBOSE, PLATFORM='lin'):
     '''
-    Check if BLASTn is installed in the system
+    Check if BLASTn is installed
     '''
     try:
         if PLATFORM == LINUX:
@@ -638,7 +667,7 @@ def check_blastn(VERBOSE, PLATFORM='lin'):
         sys.exit(UNINSTALLED_ERROR_CODE)
 
     if VERBOSE:
-        print('[I] BLASTn is installed in the system, version: ' + str(blastn_version) + ', path: ' + str(blastn_path).strip())
+        print('[I] BLASTn is installed, version: ' + str(blastn_version) + ', path: ' + str(blastn_path).strip())
 
 # ------------------------------------------------------------------------------
 
@@ -656,7 +685,7 @@ def check_genomes(ffn_folder, fna_folder, VERBOSE):
         print('    Genome files need to end with .fna\n')
         sys.exit('Missing genome files') 
     else:
-        print('\nExpected runtime: ' + str(len(genomefiles)*10) + ' minutes (10 min per genome)')
+        print('\nExpected runtime: ' + str(len(genomefiles)*20) + ' minutes (20 min per genome)')
         if not VERBOSE:
             print('Use option --verbose to display progress information.')
     return genomefiles, genefiles
@@ -755,7 +784,7 @@ def main():
     # Check if software is installed
     if VERBOSE:
         print('\nSTEP 1. Checking required software installations...')
-    blastn = check_blastn(VERBOSE, PLATFORM) # to map genes against genomes
+    # blastn = check_blastn(VERBOSE, PLATFORM) # to map genes against genomes
     bowtie2 = check_bowtie2(VERBOSE, PLATFORM) # index generation
     usearch7 = check_usearch7(VERBOSE, PLATFORM) # get gene-family cluster
     biopython = check_biopython(VERBOSE) # get geneIDs and contigIDs from ffn/fna files
