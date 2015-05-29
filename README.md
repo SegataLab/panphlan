@@ -2,43 +2,48 @@
 
 ----
 
-## General info
+## PanPhlAn
 
-PanPhlAn is a complete framework for strain-level metagenomic profiling. PanPhlAn is written in Python and works with versions 2.6, 2.7 and 3.x.
+#### Pangenome-based Phylogenomic Analysis 
 
-PanPhlAn is composed of three different modules (executable programs), which would define a computational pipeline:
+PanPhlAn is a strain-level metagenomic profiling tool
+for identifying the gene composition and *in-vivo* transcriptional activity of individual strains
+in metagenomic samples. PanPhlAn’s ability for strain-tracking and functional analysis of unknown
+pathogens makes it an efficient tool for culture-free infectious outbreak epidemiology and
+microbial population studies.
 
-* `panphlan_pangenome_generation.py`, to create the pangenome of a bacterial species starting from the DNA sequences of many genomes;
-* `panphlan_map.py`, to map each gene to its abundance in a given input metagenomic sample;
-* `panphlan_profile.py`, to execute a metagenomic/-transcriptomic profiling of the species in many metagenomic samples.
+PanPhlAn is written in Python and covers the three main tasks:
 
-You can find the instruction for downloading and installing PanPhlAn in the [Wiki](https://bitbucket.org/CibioCM/panphlan/wiki/Home) page of the project, but briefly what you need to do is the following:
+* `panphlan_pangenome_generation.py`, to create the pangenome database of a bacterial species
+* `panphlan_map.py`, to profile each metagenomic sample by mapping it against the species specific database
+* `panphlan_profile.py`, to merge and process the mapping results for getting the final gene presence/absence and transcriptional matrices
 
-* install Usearch 7 in your system
-* install Bowtie2 in your system
-* install Samtools in your system
-* install Python v. 2.6, 2.7 or 3.x (and Biopython module) in your system
-* download PanPhlAn from this repository and install it in your system
+PanPhlAn runs under Ubuntu/Linux and requires the following software tools to be installed on your system:
 
-### Mailing list / discussion group ###
+* Usearch 7
+* Bowtie2 
+* Samtools
+* Python version 2.6, 2.7 or 3.x (including the Biopython module) 
 
-For questions and to keep up to date with information you can join our mailing list: [PanPhlAn-users](https://groups.google.com/forum/#!forum/panphlan-users) 
+For more information, see our [wiki](https://bitbucket.org/CibioCM/panphlan/wiki).
+
+### User support ###
+
+For questions and to keep up to date with information you can join our [email-based group and discussion forum](https://groups.google.com/forum/#!forum/panphlan-users) 
 
 Or, you can directly write your question to [panphlan-users@googlegroups.com](mailto:panphlan-users@googlegroups.com)
 
-The list is managed by
+The user group is managed by
 
-* Matthias Scholz, researcher
+* Matthias Scholz, algorithm design
 * Thomas Tolio, programmer
 * Nicola Segata, principal investigator
 
-PanPhlAn is a project of the [Computational Metagenomics Lab at CIBIO](http://cibiocm.bitbucket.org/), University of Trento, Italy
+[PanPhlAn](http://cibiocm.bitbucket.org/tools/panphlan.html) is a project of the [Computational Metagenomics Lab at CIBIO](http://cibiocm.bitbucket.org/), University of Trento, Italy
 
 ----
 
 ## PanPhlAn modules usages
-
-Here follows the usage of the three PanPhlAn modules.
 
 Pangenome generation:
 
@@ -81,10 +86,8 @@ Metagenomic/-transcriptomic profiling:
 ```
 
 
-Learn to use PanPhlAn reading this useful [tutorial](https://bitbucket.org/CibioCM/panphlan/wiki/Tutorial) we wrote for the beginners!
+To find out more about how to use PanPhlAn, read our [User Tutorial](https://bitbucket.org/CibioCM/panphlan/wiki/Tutorial).
 
-Or rather [know more](https://bitbucket.org/CibioCM/panphlan/wiki/Home) about PanPhlAn pipeline reading this technical guide.
+Or, to learn more about the algorithm behind PanPhlAn, read our [Technical Guide](https://bitbucket.org/CibioCM/panphlan/wiki/Home).
 
 ----
-
-[Learn Markdown](https://bitbucket.org/tutorials/markdowndemo)
