@@ -2,7 +2,7 @@
 
 ----
 
-## PanPhlAn
+## PanPhlAn - strain detection and characterization
 
 #### Pangenome-based Phylogenomic Analysis 
 
