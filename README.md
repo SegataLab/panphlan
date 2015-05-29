@@ -20,9 +20,9 @@ PanPhlAn is written in Python and covers the three main tasks:
 
 PanPhlAn runs under Ubuntu/Linux and requires the following software tools to be installed on your system:
 
-* Usearch 7
 * Bowtie2 
 * Samtools
+* Usearch 7 (only if you want to generate your own species database)
 * Python version 2.6, 2.7 or 3.x (including the Biopython module) 
 
 For more information, see our [wiki](https://bitbucket.org/CibioCM/panphlan/wiki).
