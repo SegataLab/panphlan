@@ -250,14 +250,19 @@ def get_gene_locations(ffn_folder, fna_folder, VERBOSE):
                         for s in loc:  # genes can have multiple hits
                             gene2multiloc[g.id].append((cn,s+1,s+len(g))) # geneID:[(contigID, start, stop),(contigID, start, stop),...]
                 # convert single hits into final dict
+                delKeys=[] 
                 for k, v in gene2multiloc.items():
                     if len(v)==0:
                         print('gene: ' + k)
                         print('[W] gene sequence does not match genome sequence')
-                        del gene2multiloc[k]
+                        delKeys.append(k)
+                        # del gene2multiloc[k] # cannot del during iteration: Python3 RuntimeError: dictionary changed size during iteration
                     elif len(v)==1: 
                         gene2loc[k]=gene2multiloc[k][0]
-                        del gene2multiloc[k]
+                        delKeys.append(k)
+                        # del gene2multiloc[k]
+                for k in delKeys: # remove empty or single hits, keep multiple hits
+                    del gene2multiloc[k]
                 # handle remaining multiple gene hits (multi-copy genes)
                 unique_gene_loc=[] # get unique sets of multi-copy gene locations
                 for k, v in gene2multiloc.items():
