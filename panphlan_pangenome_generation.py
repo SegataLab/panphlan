@@ -26,10 +26,18 @@ __date__    = '28 May 2015'
 from argparse import ArgumentParser
 from collections import defaultdict
 import os, subprocess, sys, tempfile, time
-# from Bio import SeqIO
-# from Bio.SeqRecord import SeqRecord
 from fnmatch import fnmatch
 import re # for gene genome mapping
+
+try:
+    from Bio import SeqIO
+    from Bio.SeqRecord import SeqRecord
+except ImportError as err:
+    print('\n[E]',err) 
+    print('\n[E] Please install Biopython.')
+    print('    The "Bio" module is required for extracting gene locations')
+    print('    by mapping genes against their genome.\n')
+    sys.exit(2)
     
 # Operating systems
 LINUX                   = 'lin'
@@ -88,7 +96,7 @@ def show_interruption_message():
 
 
 def show_error_message(error):
-    sys.stderr.write('[E] Execution has encountered an error!\n')
+    sys.stderr.write('\n[E] Execution has encountered an error!\n')
     sys.stderr.write('    ' + str(error) + '\n')
 
 
@@ -580,6 +588,7 @@ def gene_families_clustering(ffn_folder, fna_folder, identity_threshold_perc, cl
 def check_biopython(VERBOSE):
     '''
     Check if the Bio module (Biopython) is installed
+    Does not work locally, needs to be checked in the beginning globally
     '''
     try:
         # output = __import__('Bio')
@@ -613,7 +622,7 @@ def check_usearch7(VERBOSE, PLATFORM='lin'):
         show_error_message(err)
         print('\n[E] Please, install Usearch 7\n    download from: http://drive5.com/usearch/')
         if VERBOSE:
-            print('    Usearch 7 is required to cluster gene sequences into gene-family cluster')
+            print('    Usearch 7 is required to merge gene sequences into gene-family cluster.\n')
         sys.exit(UNINSTALLED_ERROR_CODE)
 
     if VERBOSE:
@@ -639,9 +648,7 @@ def check_bowtie2(VERBOSE, PLATFORM='lin'):
         show_error_message(err)
         print('\n[E] Please, install Bowtie2.\n')
         if VERBOSE:
-            print('    Bowtie2 is necessary to generate the species indexes to use in further PanPhlAn')
-            print('    computation. Moreover, after having generated the six index files, Bowtie2 checks')
-            print('    them extracting information to show.')
+            print('    Bowtie2 is used to generate the .bt2 index files required in panphlan_map.py\n')
         sys.exit(UNINSTALLED_ERROR_CODE)
 
 # ------------------------------------------------------------------------------
@@ -798,7 +805,7 @@ def main():
     if VERBOSE:
         print('\nSTEP 1. Checking required software installations...')
     # blastn = check_blastn(VERBOSE, PLATFORM) # to map genes against genomes; replaced by python sequence comparison
-    biopython = check_biopython(VERBOSE) # get geneIDs and contigIDs from ffn/fna files
+    # biopython = check_biopython(VERBOSE) # get geneIDs and contigIDs from ffn/fna files
     bowtie2   = check_bowtie2(VERBOSE, PLATFORM) # index generation
     usearch7  = check_usearch7(VERBOSE, PLATFORM) # get gene-family cluster
     
