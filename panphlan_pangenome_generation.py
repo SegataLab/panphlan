@@ -438,7 +438,7 @@ def clustering(sorted_merged_ffn, identity, clade, output_path, tmp_path, KEEP_U
             merged_uc = tempfile.NamedTemporaryFile(delete=False, prefix='panphlan_usearch7_', suffix='.uc')
         else:
             merged_uc = tempfile.NamedTemporaryFile(delete=False, prefix='panphlan_usearch7_', suffix='.uc', dir=tmp_path)
-    centroids_ffn = output_path + 'usearch7_' + clade + '_centroids.ffn'
+    centroids_ffn = output_path + 'panphlan_' + clade + '_centroids.ffn'
     # 3rd command: usearch7 -cluster_smallmem merged_file.sorted.ffn -id 0.95 -maxaccepts 32 -maxrejects 128 -wordlength 3 -strand both -uc merged_file.uc
     try:
         clust_cmd = ['usearch7', '--cluster_smallmem', sorted_merged_ffn, '--id', str(identity),
