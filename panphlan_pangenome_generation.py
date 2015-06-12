@@ -26,8 +26,8 @@ __date__    = '28 May 2015'
 from argparse import ArgumentParser
 from collections import defaultdict
 import os, subprocess, sys, tempfile, time
-from Bio import SeqIO
-from Bio.SeqRecord import SeqRecord
+# from Bio import SeqIO
+# from Bio.SeqRecord import SeqRecord
 from fnmatch import fnmatch
 import re # for gene genome mapping
     
@@ -582,17 +582,17 @@ def check_biopython(VERBOSE):
     Check if the Bio module (Biopython) is installed
     '''
     try:
-        output = __import__('Bio')
+        # output = __import__('Bio')
+        from Bio import SeqIO
+        from Bio.SeqRecord import SeqRecord
         if VERBOSE:
             print('[I] Biopython module is installed.')
-            return output
     except ImportError as err:
         show_error_message(err)
-        print('\n[E] Please, install Biopython.\n')
+        print('\n[E] Please install Biopython.')
         if VERBOSE:
-            print('    The "Bio" module is necessary to efficiently build the mapping between a')
-            print('    gene and its location in the genome (location is a tuple with contig,')
-            print('    staring position and ending position).')
+            print('    The "Bio" module is required for extracting gene locations')
+            print('    by mapping genes against their genome.')
         sys.exit(UNINSTALLED_ERROR_CODE)
 
 
@@ -600,22 +600,20 @@ def check_biopython(VERBOSE):
 
 def check_usearch7(VERBOSE, PLATFORM='lin'):
     '''
-    Check if Usearch 7 is already installed
+    Check if Usearch 7 is installed
     '''
     try:
         if PLATFORM == LINUX:
-            usearch7_path = subprocess.Popen(['which','usearch7'], stdout=subprocess.PIPE).communicate()[0]
+            usearch7_path = subprocess.Popen(['which','usearch7'], stdout=subprocess.PIPE).communicate()[0].decode('utf-8')
         elif PLATFORM == WINDOWS:
-            usearch7_path = subprocess.Popen(['where','usearch7'], stdout=subprocess.PIPE).communicate()[0]
-        usearch7_version = subprocess.Popen(['usearch7','--version'], stdout=subprocess.PIPE).communicate()[0]
+            usearch7_path = subprocess.Popen(['where','usearch7'], stdout=subprocess.PIPE).communicate()[0].decode('utf-8')
+        usearch7_version = subprocess.Popen(['usearch7','--version'], stdout=subprocess.PIPE).communicate()[0].decode('utf-8')
         usearch7_version = usearch7_version.split()[1]
     except OSError as err:
         show_error_message(err)
-        print('\n[E] Please, install Usearch 7.\n')
+        print('\n[E] Please, install Usearch 7\n    download from: http://drive5.com/usearch/')
         if VERBOSE:
-            print('    Usearch 7  is necessary to efficiently cluster sequences by similarity, in')
-            print('    order to group genes in functional families. Gene families will be useful')
-            print('    for further computation in PanPhlAn.')
+            print('    Usearch 7 is required to cluster gene sequences into gene-family cluster')
         sys.exit(UNINSTALLED_ERROR_CODE)
 
     if VERBOSE:
@@ -630,10 +628,10 @@ def check_bowtie2(VERBOSE, PLATFORM='lin'):
     '''
     try:
         if PLATFORM == LINUX:
-            bowtie2 = subprocess.Popen(['which', 'bowtie2'], stdout=subprocess.PIPE).communicate()[0]
+            bowtie2 = subprocess.Popen(['which', 'bowtie2'], stdout=subprocess.PIPE).communicate()[0].decode('utf-8')
         elif PLATFORM == WINDOWS:
-            bowtie2 = subprocess.Popen(['where', 'bowtie2'], stdout=subprocess.PIPE).communicate()[0]
-        bowtie2_version = subprocess.Popen(['bowtie2', '--version'], stdout=subprocess.PIPE).communicate()[0]
+            bowtie2 = subprocess.Popen(['where', 'bowtie2'], stdout=subprocess.PIPE).communicate()[0].decode('utf-8')
+        bowtie2_version = subprocess.Popen(['bowtie2', '--version'], stdout=subprocess.PIPE).communicate()[0].decode('utf-8')
         bowtie2_version = bowtie2_version.split()[2]
         if VERBOSE:
             print('[I] Bowtie2 is installed, version: ' + str(bowtie2_version) + ', path: ' + str(bowtie2).strip())
@@ -641,7 +639,7 @@ def check_bowtie2(VERBOSE, PLATFORM='lin'):
         show_error_message(err)
         print('\n[E] Please, install Bowtie2.\n')
         if VERBOSE:
-            print('    Bowtie2 is necessary to generate the specie indexes to use in further PanPhlAn')
+            print('    Bowtie2 is necessary to generate the species indexes to use in further PanPhlAn')
             print('    computation. Moreover, after having generated the six index files, Bowtie2 checks')
             print('    them extracting information to show.')
         sys.exit(UNINSTALLED_ERROR_CODE)
@@ -654,10 +652,10 @@ def check_blastn(VERBOSE, PLATFORM='lin'):
     '''
     try:
         if PLATFORM == LINUX:
-            blastn_path = subprocess.Popen(['which','blastn'], stdout=subprocess.PIPE).communicate()[0]
+            blastn_path = subprocess.Popen(['which','blastn'], stdout=subprocess.PIPE).communicate()[0].decode('utf-8')
         elif PLATFORM == WINDOWS:
-            blastn_path = subprocess.Popen(['where','blastn'], stdout=subprocess.PIPE).communicate()[0]
-        blastn_version = subprocess.Popen(['blastn','-version'], stdout=subprocess.PIPE).communicate()[0]
+            blastn_path = subprocess.Popen(['where','blastn'], stdout=subprocess.PIPE).communicate()[0].decode('utf-8')
+        blastn_version = subprocess.Popen(['blastn','-version'], stdout=subprocess.PIPE).communicate()[0].decode('utf-8')
         blastn_version = blastn_version.split()[1]
     except OSError as err:
         show_error_message(err)
@@ -698,7 +696,7 @@ def check_genomes(ffn_folder, fna_folder, VERBOSE):
             genefiles.remove(f)
 
     if len(genomefiles)==0:
-        print('\n[E] Cannot find any pair of genome-gene files having the same filename: genome.fna gene.ffn')
+        print('\n[E] Cannot find any genome-gene pair of .fna .fnn files having the same filename: ID.fna ID.ffn')
         sys.exit('Missing genome-gene file pairs')
 
     # add full path to genefile list        
@@ -731,7 +729,7 @@ def check_args():
     if not ipath[-1] ==  '/':
         args['i_ffn'] = ipath + '/'
     if VERBOSE:
-        print('[I] Input FFN folder is ' + args['i_ffn'])
+        print('[I] Input gene FFN folder: ' + args['i_ffn'])
 
     # Check: FNA_FOLDER --------------------------------------------------------
     ipath = args['i_fna']
@@ -743,11 +741,11 @@ def check_args():
     if not ipath[-1] ==  '/':
         args['i_fna'] = ipath + '/'
     if VERBOSE:
-        print('[I] Input FNA folder is ' + args['i_fna'])
+        print('[I] Input genome FNA folder: ' + args['i_fna'])
 
     # Check: CLADE -------------------------------------------------------------
     if VERBOSE:
-        print('[I] Clade is ' + args['clade'])
+        print('[I] Clade or species name: ' + args['clade'])
 
     # Check: IDENTITY_PERCENATGE -----------------------------------------------
     identity_threshold_perc = args['th']
@@ -757,7 +755,7 @@ def check_args():
             print('[I] Invalid value for identity threshold percentage. Default value (95.0 %) has been set.')
     else:
         if VERBOSE:
-            print('[I] Identity threshold percentage is ' + str(args['th']) + ' %.')
+            print('[I] Identity threshold percentage: ' + str(args['th']) + ' %.')
 
     # Check: OUTPUT_FOLDER -----------------------------------------------------
     opath = args['output']
@@ -767,7 +765,7 @@ def check_args():
         os.makedirs(opath)
     args['output'] = opath
     if VERBOSE:
-        print('[I] Output file: ' + args['output'])
+        print('[I] Output folder: ' + args['output'])
 
     # Check: TEMP_FOLDER ------------------------------------------------------
     tmp_path = args['tmp']
@@ -791,28 +789,24 @@ def main():
     KEEP_UC = args['uc']
     PLATFORM = sys.platform.lower()[0:3]
     
-    pathgenomefiles, pathgenefiles = check_genomes(args['i_ffn'], args['i_fna'], VERBOSE)
-    if VERBOSE:
-        print('\nSTEP 0. Initialization...')
-    
     TOTAL_TIME = time.time()
     TIME = time.time()
 
     merged_txt = ''
     
-    
-    
     # Check if software is installed
     if VERBOSE:
         print('\nSTEP 1. Checking required software installations...')
-    # blastn = check_blastn(VERBOSE, PLATFORM) # to map genes against genomes
-    bowtie2 = check_bowtie2(VERBOSE, PLATFORM) # index generation
-    usearch7 = check_usearch7(VERBOSE, PLATFORM) # get gene-family cluster
+    # blastn = check_blastn(VERBOSE, PLATFORM) # to map genes against genomes; replaced by python sequence comparison
     biopython = check_biopython(VERBOSE) # get geneIDs and contigIDs from ffn/fna files
+    bowtie2   = check_bowtie2(VERBOSE, PLATFORM) # index generation
+    usearch7  = check_usearch7(VERBOSE, PLATFORM) # get gene-family cluster
+    
 
     # Get gene families cluster
     if VERBOSE:
         print('\nSTEP 2. Getting gene families cluster...')
+    pathgenomefiles, pathgenefiles = check_genomes(args['i_ffn'], args['i_fna'], VERBOSE)    
     merged_txt, TIME = gene_families_clustering(args['i_ffn'], args['i_fna'], args['th'], args['clade'], args['output'], args['tmp'], KEEP_UC, TIME, VERBOSE)
     # end else
 
