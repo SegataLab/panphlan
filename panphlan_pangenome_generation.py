@@ -213,6 +213,8 @@ def get_gene_locations(pathgenomefiles, pathgenefiles, VERBOSE):
     '''
     gene2loc = defaultdict(tuple)
     for (genomefile, genefile) in zip(pathgenomefiles,pathgenefiles):
+        print('[I] genomefile: ' + genomefile)
+        print('[I] genefile: ' + genefile)
         try: # extract gene-location from geneIDs
             if VERBOSE:
                 print('[I] ' + genefile + ': Extract gene-location from geneIDs')
@@ -700,8 +702,8 @@ def check_genomes(ffn_folder, fna_folder, VERBOSE):
         sys.exit('Missing genome-gene file pairs')
 
     # add full path to genefile list        
-    pathgenomefiles = [os.path.join(fna_folder,f) for f in genomefiles]
-    pathgenefiles   = [os.path.join(ffn_folder,f) for f in genefiles]   
+    pathgenomefiles = sorted([os.path.join(fna_folder,f) for f in genomefiles])
+    pathgenefiles   = sorted([os.path.join(ffn_folder,f) for f in genefiles])   
 
     print('\nExpected runtime: ' + str(len(genomefiles)*20) + ' minutes (20 min per genome)')
     if not VERBOSE:
