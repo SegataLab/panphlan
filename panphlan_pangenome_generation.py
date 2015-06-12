@@ -202,7 +202,7 @@ def combining(gene2loc, gene2family, gene2genome, output_path, clade, TIME, VERB
 
 # ------------------------------------------------------------------------------
 
-def get_gene_locations(ffn_folder, fna_folder, VERBOSE):
+def get_gene_locations(pathgenomefiles, pathgenefiles, VERBOSE):
     '''
     Get gene locations: Read all .ffn files to extract start and stop location from gene-name,
     If location cannot be extracted from gene-name, use a blast-like mapping of genes against their genomes. 
@@ -212,73 +212,66 @@ def get_gene_locations(ffn_folder, fna_folder, VERBOSE):
     Requires: Biopython module
     '''
     gene2loc = defaultdict(tuple)
-    genefiles = [f for f in os.listdir(ffn_folder) if fnmatch(f,'*.'+FFN)]
-    for f in genefiles:
-        path_genefile_ffn = ffn_folder + f
-        path_genomefile_fna = fna_folder + f.replace('.'+FFN,'.'+FNA)
-        if not os.path.exists(path_genomefile_fna):
-            print('[W] Cannot find genome-file:\n    ' + path_genomefile_fna)
-            print('    Excluding corresponding genes of file: ' + f + ' from BLASTn mapping')
-        else:
-            try: # extract gene-location from geneIDs
-                if VERBOSE:
-                    print('[I] '+f+': Extract gene-location from geneIDs')
-                for r in SeqIO.parse(open(path_genefile_ffn, mode='r'), 'fasta'): 
-                    # extract gene-locations from gi-gene-IDs, examples
-                    #   gi|545636471|ref|NC_022443.1|:3480-3965
-                    #   gi|387779217|ref|NC_017349.1|:789327-789398,789400-790437
-                    pos1 = int(r.id.split(':')[1].split('-')[0].replace('c',''))
-                    pos2 = int(r.id.split(':')[1].split('-')[-1].replace('c',''))
-                    contig = r.id.split(':')[0]
-                    start, stop = min(pos1, pos2), max(pos1, pos2) # to always have start < stop
-                    gene2loc[r.id] = (str(contig), start, stop)
-            except IndexError as err: # alternatively, run BLAST-like python gene-genome mapping to get locations
-                if VERBOSE:
-                    print('    Extraction from geneID failt, map gene-sequences against genome')
-                gene2multiloc = {} # tmp-dict for all hits, including sets of multiple gene locations
-                # read genome sequence
-                contignames = []
-                contigseqs = []
-                for c in SeqIO.parse(open(path_genomefile_fna, mode='r'), 'fasta'):
-                    contignames.append(c.id)
-                    contigseqs.append(str(c.seq))
-                # loop over gene sequences
-                for g in SeqIO.parse(open(path_genefile_ffn, mode='r'), 'fasta'):
-                    gene2multiloc[g.id] = [] # append, to join hits of all contigs
-                    for (cn,cseq) in zip(contignames,contigseqs):
-                        loc=(m.start() for m in re.finditer(str(g.seq)+'|'+str(g.seq.reverse_complement()),cseq))
-                        for s in loc:  # genes can have multiple hits
-                            gene2multiloc[g.id].append((cn,s+1,s+len(g))) # geneID:[(contigID, start, stop),(contigID, start, stop),...]
-                # convert single hits into final dict
-                delKeys=[] 
+    for (genomefile, genefile) in zip(pathgenomefiles,pathgenefiles):
+        try: # extract gene-location from geneIDs
+            if VERBOSE:
+                print('[I] '+f+': Extract gene-location from geneIDs')
+            for r in SeqIO.parse(open(genefile, mode='r'), 'fasta'): 
+                # extract gene-locations from gi-gene-IDs, examples
+                #   gi|545636471|ref|NC_022443.1|:3480-3965
+                #   gi|387779217|ref|NC_017349.1|:789327-789398,789400-790437
+                pos1 = int(r.id.split(':')[1].split('-')[0].replace('c',''))
+                pos2 = int(r.id.split(':')[1].split('-')[-1].replace('c',''))
+                contig = r.id.split(':')[0]
+                start, stop = min(pos1, pos2), max(pos1, pos2) # to always have start < stop
+                gene2loc[r.id] = (str(contig), start, stop)
+        except IndexError as err: # alternatively, run BLAST-like python gene-genome mapping to get locations
+            if VERBOSE:
+                print('    Extraction from geneID failt, map gene-sequences against genome')
+            gene2multiloc = {} # tmp-dict for all hits, including sets of multiple gene locations
+            # read genome sequence
+            contignames = []
+            contigseqs = []
+            for c in SeqIO.parse(open(genomefile, mode='r'), 'fasta'):
+                contignames.append(c.id)
+                contigseqs.append(str(c.seq))
+            # loop over gene sequences
+            for g in SeqIO.parse(open(genefile, mode='r'), 'fasta'):
+                gene2multiloc[g.id] = [] # append, to join hits of all contigs
+                for (cn,cseq) in zip(contignames,contigseqs):
+                    loc=(m.start() for m in re.finditer(str(g.seq)+'|'+str(g.seq.reverse_complement()),cseq))
+                    for s in loc:  # genes can have multiple hits
+                        gene2multiloc[g.id].append((cn,s+1,s+len(g))) # geneID:[(contigID, start, stop),(contigID, start, stop),...]
+            # convert single hits into final dict
+            delKeys=[] 
+            for k, v in gene2multiloc.items():
+                if len(v)==0:
+                    print('gene: ' + k)
+                    print('[W] gene sequence does not match genome sequence')
+                    delKeys.append(k)
+                    # del gene2multiloc[k] # cannot del during iteration: Python3 RuntimeError: dictionary changed size during iteration
+                elif len(v)==1: 
+                    gene2loc[k]=gene2multiloc[k][0]
+                    delKeys.append(k)
+                    # del gene2multiloc[k]
+            for k in delKeys: # remove empty or single hits, keep multiple hits
+                del gene2multiloc[k]
+            # handle remaining multiple gene hits (multi-copy genes)
+            unique_gene_loc=[] # get unique sets of multi-copy gene locations
+            for k, v in gene2multiloc.items():
+                if v not in unique_gene_loc:
+                    unique_gene_loc.append(v)
+            unique_geneIDsets=[] # get all geneIDs that hit to same location-set   
+            for i in unique_gene_loc:
+                geneIDset=[]
                 for k, v in gene2multiloc.items():
-                    if len(v)==0:
-                        print('gene: ' + k)
-                        print('[W] gene sequence does not match genome sequence')
-                        delKeys.append(k)
-                        # del gene2multiloc[k] # cannot del during iteration: Python3 RuntimeError: dictionary changed size during iteration
-                    elif len(v)==1: 
-                        gene2loc[k]=gene2multiloc[k][0]
-                        delKeys.append(k)
-                        # del gene2multiloc[k]
-                for k in delKeys: # remove empty or single hits, keep multiple hits
-                    del gene2multiloc[k]
-                # handle remaining multiple gene hits (multi-copy genes)
-                unique_gene_loc=[] # get unique sets of multi-copy gene locations
-                for k, v in gene2multiloc.items():
-                    if v not in unique_gene_loc:
-                        unique_gene_loc.append(v)
-                unique_geneIDsets=[] # get all geneIDs that hit to same location-set   
-                for i in unique_gene_loc:
-                    geneIDset=[]
-                    for k, v in gene2multiloc.items():
-                        if v==i:
-                            geneIDset.append(k)   
-                    unique_geneIDsets.append(geneIDset)    
-                # add multi-copy genes to gene2loc dictionary (assign to each multi-copy geneID a different location)    
-                for geneIDset,locSet in zip(unique_geneIDsets,unique_gene_loc):
-                    for g,c in zip(geneIDset,locSet):    
-                        gene2loc[g]=c
+                    if v==i:
+                        geneIDset.append(k)   
+                unique_geneIDsets.append(geneIDset)    
+            # add multi-copy genes to gene2loc dictionary (assign to each multi-copy geneID a different location)    
+            for geneIDset,locSet in zip(unique_geneIDsets,unique_gene_loc):
+                for g,c in zip(geneIDset,locSet):    
+                    gene2loc[g]=c
     return gene2loc
 
 
@@ -332,7 +325,7 @@ def gene2genome_mapping(ffn_folder, VERBOSE):
 
 # ------------------------------------------------------------------------------
 
-def pangenome_generation(ffn_folder, fna_folder, merged_txt, clade, output_path, TIME, VERBOSE):
+def pangenome_generation(pathgenomefiles, pathgenefiles, ffn_folder, fna_folder, merged_txt, clade, output_path, TIME, VERBOSE):
     '''
     TODO
     
@@ -354,9 +347,9 @@ def pangenome_generation(ffn_folder, fna_folder, merged_txt, clade, output_path,
 
     if VERBOSE:
         print('[I] Get gene locations, gene families, contigs and genomes for each gene.')
-    gene2family = familydictization(merged_txt, VERBOSE)
-    gene2loc = get_gene_locations(ffn_folder, fna_folder, VERBOSE)
-    gene2genome = gene2genome_mapping(ffn_folder, VERBOSE)
+    gene2family    = familydictization(merged_txt, VERBOSE)
+    gene2loc       = get_gene_locations(pathgenomefiles, pathgenefiles, VERBOSE)
+    gene2genome    = gene2genome_mapping(ffn_folder, VERBOSE)
     genome2contigs = get_contigs(fna_folder)
     
     # Create the pangenome
@@ -678,7 +671,7 @@ def check_blastn(VERBOSE, PLATFORM='lin'):
 
 def check_genomes(ffn_folder, fna_folder, VERBOSE):
     '''
-    Check if genome.fna files are present and calculate expected runtime
+    Check if genome files and .fna .fnn pairs are present and calculate expected runtime
     '''
     genomefiles = [f for f in os.listdir(fna_folder) if fnmatch(f,'*.'+FNA)]
     genefiles   = [f for f in os.listdir(ffn_folder) if fnmatch(f,'*.'+FFN)]
@@ -824,7 +817,7 @@ def main():
     # Get pangenome file
     if VERBOSE:
         print('\nSTEP 3. Getting pangenome file...')
-    TIME = pangenome_generation(args['i_ffn'], args['i_fna'], merged_txt, args['clade'], args['output'], TIME, VERBOSE)
+    TIME = pangenome_generation(pathgenomefiles, pathgenefiles, args['i_ffn'], args['i_fna'], merged_txt, args['clade'], args['output'], TIME, VERBOSE)
     os.remove(merged_txt) # This file is not useful anymore, and if users want to keep these information, they have the .uc file
     # Get Bowtie2 indexes
     TIME = create_bt2_indexes(args['i_ffn'], args['i_fna'], args['clade'], args['output'], args['tmp'], TIME, VERBOSE)
