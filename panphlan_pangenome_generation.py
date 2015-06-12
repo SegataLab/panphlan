@@ -215,7 +215,7 @@ def get_gene_locations(pathgenomefiles, pathgenefiles, VERBOSE):
     for (genomefile, genefile) in zip(pathgenomefiles,pathgenefiles):
         try: # extract gene-location from geneIDs
             if VERBOSE:
-                print('[I] '+f+': Extract gene-location from geneIDs')
+                print('[I] ' + genefile + ': Extract gene-location from geneIDs')
             for r in SeqIO.parse(open(genefile, mode='r'), 'fasta'): 
                 # extract gene-locations from gi-gene-IDs, examples
                 #   gi|545636471|ref|NC_022443.1|:3480-3965
