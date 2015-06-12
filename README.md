@@ -14,7 +14,7 @@ microbial population studies.
 
 PanPhlAn is written in Python and covers the three main tasks:
 
-* `panphlan_pangenome_generation.py`, to create the pangenome database of a bacterial species
+* [`panphlan_pangenome_generation.py`](https://bitbucket.org/CibioCM/panphlan/wiki/panphlan_pangenome_generation), to create the pangenome database of a bacterial species
 * `panphlan_map.py`, to profile each metagenomic sample by mapping it against the species specific database
 * `panphlan_profile.py`, to merge and process the mapping results for getting the final gene presence/absence and transcriptional matrices
 
