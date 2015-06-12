@@ -428,7 +428,7 @@ def conversion(merged_uc, merged_txt, TIME, VERBOSE):
 def clustering(sorted_merged_ffn, identity, clade, output_path, tmp_path, KEEP_UC, TIME, VERBOSE):
     '''
     Group gene sequence in clusters by similarity
-    Default similarity is 95%
+    Default similarity threshold is 95%
     '''
     merged_uc_name = output_path + 'usearch7_' + clade + '_cluster.uc'
     if KEEP_UC:
