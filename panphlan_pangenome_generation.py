@@ -57,6 +57,7 @@ INEXISTENCE_ERROR_CODE      = 1 # File or folder does not exist
 UNINSTALLED_ERROR_CODE      = 2 # Software is not installed
 FILEFORMAT_ERROR_CODE       = 3 # FFN file content not in NCBI format
 INTERRUPTION_ERROR_CODE     = 7 # Computation has been manually halted
+NONUNIQUEGENE_ERROR_CODE    = 4 # More than one gene of identical geneID over the complete genome set
 
 # ------------------------------------------------------------------------------
 # INTERNAL CLASSES
@@ -328,7 +329,13 @@ def gene2genome_mapping(pathgenefiles, VERBOSE):
         print('    Genome: ' + genome)
         for seq_record in SeqIO.parse(open(f, mode='r'), 'fasta'):
             # if not in dict, else error
-            gene2genome[seq_record.id] = genome
+            if seq_record.id not in gene2genome:    # add only if not in dictionary already
+                gene2genome[seq_record.id] = genome
+            else:
+                print('\n[E] Error: non-unique gene identifier.')
+                print('    following gene-ID appears multiple times in the genome set')
+                print('    ' + seq_record.id + '\n')
+                sys.exit(NONUNIQUEGENE_ERROR_CODE)
     return gene2genome
 
 
