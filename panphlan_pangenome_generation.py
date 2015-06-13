@@ -569,28 +569,6 @@ def gene_families_clustering(ffn_folder, fna_folder, identity_threshold_perc, cl
 
 # ------------------------------------------------------------------------------
 
-def check_biopython(VERBOSE):
-    '''
-    Check if the Bio module (Biopython) is installed
-    Does not work locally, needs to be checked in the beginning globally
-    '''
-    try:
-        # output = __import__('Bio')
-        from Bio import SeqIO
-        from Bio.SeqRecord import SeqRecord
-        if VERBOSE:
-            print('[I] Biopython module is installed.')
-    except ImportError as err:
-        show_error_message(err)
-        print('\n[E] Please install Biopython.')
-        if VERBOSE:
-            print('    The "Bio" module is required for extracting gene locations')
-            print('    by mapping genes against their genome.')
-        sys.exit(UNINSTALLED_ERROR_CODE)
-
-
-# ------------------------------------------------------------------------------
-
 def check_usearch7(VERBOSE, PLATFORM='lin'):
     '''
     Check if Usearch 7 is installed
@@ -790,7 +768,6 @@ def main():
     if VERBOSE:
         print('\nSTEP 1. Checking required software installations...')
     # blastn = check_blastn(VERBOSE, PLATFORM) # to map genes against genomes; replaced by python sequence comparison
-    # biopython = check_biopython(VERBOSE) # get geneIDs and contigIDs from ffn/fna files
     bowtie2   = check_bowtie2(VERBOSE, PLATFORM) # index generation
     usearch7  = check_usearch7(VERBOSE, PLATFORM) # get gene-family cluster
     
