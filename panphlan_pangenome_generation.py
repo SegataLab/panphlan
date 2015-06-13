@@ -111,7 +111,7 @@ def time_message(start_time, message):
 # MAJOR FUNCTIONS
 # ------------------------------------------------------------------------------
 
-def create_bt2_indexes(ffn_folder, fna_folder, clade, output_path, tmp_path, TIME, VERBOSE):
+def create_bt2_indexes(pathgenomefiles, clade, output_path, tmp_path, TIME, VERBOSE):
     '''
     Call the build function of Bowtie2 to create the indexes for a given species
     
@@ -120,24 +120,12 @@ def create_bt2_indexes(ffn_folder, fna_folder, clade, output_path, tmp_path, TIM
         bowtie2-build genomes.fna panphlan_ecoli14
         bowtie2-inspect -n panphlan_ecoli14
     '''
-    # tmp_fna == genomes.fna
     try:
-
-        if tmp_path == None:
-            tmp_fna = tempfile.NamedTemporaryFile(delete=False, prefix='panphlan_', suffix='.fna')
-        else:
-            tmp_fna = tempfile.NamedTemporaryFile(delete=False, prefix='panphlan_', suffix='.fna', dir=tmp_path)
+        tmp_fna = tempfile.NamedTemporaryFile(delete=False, prefix='panphlan_', suffix='.fna', dir=tmp_path)
 
         cat_cmd = ['cat']
-        genomefiles = [f for f in os.listdir(fna_folder) if fnmatch(f,'*.'+FNA)]
-        for f in genomefiles:
-            path_genomefile_fna = fna_folder + f
-            path_genefile_ffn = ffn_folder + f.replace('.'+FNA,'.'+FFN)
-            if not os.path.exists(path_genefile_ffn):
-                print('[W] Cannot find gene-file:\n    ' + path_genefile_ffn)
-                print('    Excluding genome ' + f + ' from bowtie2 index')
-            else:
-                cat_cmd.append(path_genomefile_fna)
+        for f in pathgenomefiles:
+            cat_cmd.append(f)
         if VERBOSE:
             print('[C] ' + ' '.join(cat_cmd) + ' > ' + tmp_fna.name)
         p4 = subprocess.Popen(cat_cmd, stdout=tmp_fna)
@@ -282,7 +270,7 @@ def get_gene_locations(pathgenomefiles, pathgenefiles, VERBOSE):
                 unique_geneIDsets.append(geneIDset)    
             # add multi-copy genes to gene2loc dictionary (assign to each multi-copy geneID a different location)    
             for geneIDset,locSet in zip(unique_geneIDsets,unique_gene_loc):
-                for g,c in zip(sorted(geneIDset),sorted(locSet)):    
+                for g,c in zip(sorted(geneIDset),sorted(locSet)): # sorted: to get indentical results in python 2 and 3   
                     gene2loc[g]=c
     return gene2loc
 
@@ -642,6 +630,7 @@ def check_blastn(VERBOSE, PLATFORM='lin'):
 def check_genomes(ffn_folder, fna_folder, VERBOSE):
     '''
     Check if genome files and .fna .fnn pairs are present and calculate expected runtime
+    Result are lists of correct genome and gene file pairs 
     '''
     genomefiles = [f for f in os.listdir(fna_folder) if fnmatch(f,'*.'+FNA)]
     genefiles   = [f for f in os.listdir(ffn_folder) if fnmatch(f,'*.'+FFN)]
@@ -785,7 +774,7 @@ def main():
     TIME = pangenome_generation(pathgenomefiles, pathgenefiles, merged_txt, args['clade'], args['output'], TIME, VERBOSE)
     os.remove(merged_txt) # This file is not useful anymore, and if users want to keep these information, they have the .uc file
     # Get Bowtie2 indexes
-    TIME = create_bt2_indexes(args['i_ffn'], args['i_fna'], args['clade'], args['output'], args['tmp'], TIME, VERBOSE)
+    TIME = create_bt2_indexes(pathgenomefiles, args['clade'], args['output'], args['tmp'], TIME, VERBOSE)
 
     end_program(time.time() - TOTAL_TIME)
 
