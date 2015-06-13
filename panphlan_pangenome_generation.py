@@ -654,17 +654,19 @@ def check_genomes(ffn_folder, fna_folder, VERBOSE):
             print('    Excluding corresponding genes of file: ' + f + ' from pangenome database')    
             genefiles.remove(f)
 
+    if VERBOSE:
+        print('[I] Total number of genomes (genome.fna gene.ffn file pairs): ' + str(len(genomefiles)))
     if len(genomefiles)==0:
         print('\n[E] Cannot find any genome-gene pair of .fna .fnn files having the same filename: ID.fna ID.ffn')
         sys.exit('Missing genome-gene file pairs')
 
     # add full path to genefile list        
     pathgenomefiles = sorted([os.path.join(fna_folder,f) for f in genomefiles])
-    pathgenefiles   = sorted([os.path.join(ffn_folder,f) for f in genefiles])   
-
-    print('\nExpected runtime: ' + str(len(genomefiles)*20) + ' minutes (20 min per genome)')
+    pathgenefiles   = sorted([os.path.join(ffn_folder,f) for f in genefiles])
+    
+    print('\nExpected runtime: ' + str(len(genomefiles)*20) + ' minutes (start time: ' + time.strftime("%b %d %Y %H:%M") + ')\n')
     if not VERBOSE:
-        print('Use option --verbose to display progress information.')
+        print('Use option --verbose to display progress information.\n')
 
     return pathgenomefiles, pathgenefiles
 
@@ -672,7 +674,7 @@ def check_genomes(ffn_folder, fna_folder, VERBOSE):
 
 def check_args():
     '''
-    Check if the input arguments respect the rules of usage
+    Check input arguments
     '''
     parser = PanPhlAnGenParser()
     args = vars(parser.parse_args())
