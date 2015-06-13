@@ -221,11 +221,12 @@ def get_gene_locations(pathgenomefiles, pathgenefiles, VERBOSE):
     '''
     gene2loc = defaultdict(tuple)
     for (genomefile, genefile) in zip(pathgenomefiles,pathgenefiles):
-        print('[I] genomefile: ' + genomefile)
-        print('[I] genefile: ' + genefile)
+        if VERBOSE:
+            print('[I] genomefile: ' + genomefile)
+            print('    genefile: '   + genefile)
         try: # extract gene-location from geneIDs
             if VERBOSE:
-                print('[I] ' + genefile + ': Extract gene-location from geneIDs')
+                print('    Extract gene-location from geneIDs')
             for r in SeqIO.parse(open(genefile, mode='r'), 'fasta'): 
                 # extract gene-locations from gi-gene-IDs, examples
                 #   gi|545636471|ref|NC_022443.1|:3480-3965
@@ -256,8 +257,8 @@ def get_gene_locations(pathgenomefiles, pathgenefiles, VERBOSE):
             delKeys=[] 
             for k, v in gene2multiloc.items():
                 if len(v)==0:
-                    print('gene: ' + k)
                     print('[W] gene sequence does not match genome sequence')
+                    print('    geneID: ' + k)
                     delKeys.append(k)
                     # del gene2multiloc[k] # cannot del during iteration: Python3 RuntimeError: dictionary changed size during iteration
                 elif len(v)==1: 
@@ -280,7 +281,7 @@ def get_gene_locations(pathgenomefiles, pathgenefiles, VERBOSE):
                 unique_geneIDsets.append(geneIDset)    
             # add multi-copy genes to gene2loc dictionary (assign to each multi-copy geneID a different location)    
             for geneIDset,locSet in zip(unique_geneIDsets,unique_gene_loc):
-                for g,c in zip(geneIDset,locSet):    
+                for g,c in zip(sorted(geneIDset),sorted(locSet)):    
                     gene2loc[g]=c
     return gene2loc
 
