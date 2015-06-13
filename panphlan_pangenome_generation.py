@@ -289,29 +289,22 @@ def get_gene_locations(pathgenomefiles, pathgenefiles, VERBOSE):
 
 # ------------------------------------------------------------------------------
 
-def get_contigs(fna_folder):
+def get_contigs(pathgenomefiles):
     '''
-    Map each genome to its own set of contigs
-    NB. Use Biopython
+    Map each genome (filename) to its contig-set
+    Function not used?? Maybe because contig-name is already included in gene-location (contig,start,stop)
+    
+    requires Biopython (Bio module)
     '''
-    # { CONTIG : GENOME }
+    # { genome : contig-set }
     genome2contigs = defaultdict(set)
-    genomefiles = [f for f in os.listdir(fna_folder) if fnmatch(f,'*.'+FNA)]
-    # for root, dirs, files in os.walk(fna_folder):
-    for f in genomefiles:
-        # Check that the file extension is 'fna'
-        extension = os.path.splitext(f)[1].replace('.', '')
-        if extension == FNA:
-            genome = f.split('.')[0].split('/')[-1]
-            ltot = 0
-            s = ''
-            for r in SeqIO.parse(open(fna_folder + f, mode='r'), 'fasta'):
-                l = len(r.seq)
-                ltot += l
-                s = s + "\t" + r.id
-                genome2contigs[genome].add(r.id)
+    print('[I] Get genome-contigset list (dict)')
+    for f in pathgenomefiles:
+        genome = os.path.basename(f).split('.')[0] # get genome filename without extension
+        print('    Genome: ' + genome)
+        for r in SeqIO.parse(open(f, mode='r'), 'fasta'):
+            genome2contigs[genome].add(r.id)
     return genome2contigs
-
 
 # ------------------------------------------------------------------------------
 
@@ -321,7 +314,7 @@ def gene2genome_mapping(pathgenefiles, VERBOSE):
     
     requires Biopython (Bio module)
     '''
-    # {geneID:genomefilename}
+    # {geneID : genomefilename}
     gene2genome = {}
     print('[I] Get gene-genome list (dict)')
     for f in pathgenefiles:
@@ -341,7 +334,7 @@ def gene2genome_mapping(pathgenefiles, VERBOSE):
 
 # ------------------------------------------------------------------------------
 
-def pangenome_generation(pathgenomefiles, pathgenefiles, ffn_folder, fna_folder, merged_txt, clade, output_path, TIME, VERBOSE):
+def pangenome_generation(pathgenomefiles, pathgenefiles, merged_txt, clade, output_path, TIME, VERBOSE):
     '''
     TODO
     
@@ -366,7 +359,7 @@ def pangenome_generation(pathgenomefiles, pathgenefiles, ffn_folder, fna_folder,
     gene2family    = familydictization(merged_txt, VERBOSE)
     gene2loc       = get_gene_locations(pathgenomefiles, pathgenefiles, VERBOSE)
     gene2genome    = gene2genome_mapping(pathgenefiles, VERBOSE)
-    genome2contigs = get_contigs(fna_folder)
+    genome2contigs = get_contigs(pathgenomefiles)
     
     # Create the pangenome
     combining(gene2loc, gene2family, gene2genome, output_path, clade, TIME, VERBOSE)
@@ -522,21 +515,6 @@ def merging(ffn_folder, fna_folder, tmp_path, TIME, VERBOSE):
             if VERBOSE:
                 print('[I] FFN files have been merged into one.')
 
-            #cat_cmd = ['cat']
-            #for root, dirs, files in os.walk(ffn_folder):
-            #    for f in files:
-            #        # Check that the extension is '.ffn'
-            #        extension = os.path.splitext(f)[1].replace('.', '')
-            #        if extension == FFN:
-            #            cat_cmd.append(ffn_folder + f)
-            ## NB. It seems that we need to declare explicitly all the ffn files becuase Popen with the '*.ffn' does not work
-            #if VERBOSE:
-            #    print('[C] ' + ' '.join(cat_cmd) + ' > ' + tmp_ffn.name)
-            #p1 = subprocess.Popen(cat_cmd, stdout=tmp_ffn)
-            #p1.wait()
-            #if VERBOSE:
-            #    print('[I] FFN files have been merged into one.')
-
         try:
             with tmp_sorted_ffn:
                 # 2nd command: usearch7 -sortbylength merged_file.ffn -output merged_file.sorted.ffn -minseqlength 1
@@ -662,6 +640,7 @@ def check_bowtie2(VERBOSE, PLATFORM='lin'):
 def check_blastn(VERBOSE, PLATFORM='lin'):
     '''
     Check if BLASTn is installed
+    Not used, since we use python string comparison to map gene sequences against their genomes 
     '''
     try:
         if PLATFORM == LINUX:
@@ -826,7 +805,7 @@ def main():
     # Get pangenome file
     if VERBOSE:
         print('\nSTEP 3. Getting pangenome file...')
-    TIME = pangenome_generation(pathgenomefiles, pathgenefiles, args['i_ffn'], args['i_fna'], merged_txt, args['clade'], args['output'], TIME, VERBOSE)
+    TIME = pangenome_generation(pathgenomefiles, pathgenefiles, merged_txt, args['clade'], args['output'], TIME, VERBOSE)
     os.remove(merged_txt) # This file is not useful anymore, and if users want to keep these information, they have the .uc file
     # Get Bowtie2 indexes
     TIME = create_bt2_indexes(args['i_ffn'], args['i_fna'], args['clade'], args['output'], args['tmp'], TIME, VERBOSE)
