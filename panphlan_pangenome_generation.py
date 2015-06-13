@@ -239,7 +239,7 @@ def get_gene_locations(pathgenomefiles, pathgenefiles, VERBOSE):
             for g in SeqIO.parse(open(genefile, mode='r'), 'fasta'):
                 gene2multiloc[g.id] = [] # append, to join hits of all contigs
                 for (cn,cseq) in zip(contignames,contigseqs):
-                    loc=(m.start() for m in re.finditer(str(g.seq)+'|'+str(g.seq.reverse_complement()),cseq))
+                    loc=(m.start() for m in re.finditer(str(g.seq)+'|'+str(g.seq.reverse_complement()), cseq, re.IGNORECASE))
                     for s in loc:  # genes can have multiple hits
                         gene2multiloc[g.id].append((cn,s+1,s+len(g))) # geneID:[(contigID, start, stop),(contigID, start, stop),...]
             # convert single hits into final dict
