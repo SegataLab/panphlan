@@ -314,23 +314,21 @@ def get_contigs(fna_folder):
 
 # ------------------------------------------------------------------------------
 
-def gene2genome_mapping(ffn_folder, VERBOSE):
+def gene2genome_mapping(pathgenefiles, VERBOSE):
     '''
-    Map each gene to its own genome
-    NB. Use Biopython
+    Map each gene to its genome (genome-filename)
+    
+    requires Biopython (Bio module)
     '''
+    # {geneID:genomefilename}
     gene2genome = {}
-    genefiles = [f for f in os.listdir(ffn_folder) if fnmatch(f,'*.'+FFN)]
-    # for root, dirs, files in os.walk(ffn_folder):
-    for f in genefiles:
-        # Check that the file extension is 'ffn'
-        extension = os.path.splitext(f)[1].replace('.', '')
-        if extension == FFN:
-            genome = f[:-4]
-            # print('[I] Genome ' + genome + '...\r') # shows also excluded files
-            for seq_record in SeqIO.parse(open(ffn_folder + f, mode='r'), 'fasta'):
-                # Take the record ID as the name of the gene, and add it to the list of genes for this genome
-                gene2genome[seq_record.id] = genome
+    print('[I] Get gene-genome list (dict)')
+    for f in pathgenefiles:
+        genome = os.path.basename(f).split('.')[0] # get genome filename without extension
+        print('    Genome: ' + genome)
+        for seq_record in SeqIO.parse(open(f, mode='r'), 'fasta'):
+            # if not in dict, else error
+            gene2genome[seq_record.id] = genome
     return gene2genome
 
 
@@ -360,7 +358,7 @@ def pangenome_generation(pathgenomefiles, pathgenefiles, ffn_folder, fna_folder,
         print('[I] Get gene locations, gene families, contigs and genomes for each gene.')
     gene2family    = familydictization(merged_txt, VERBOSE)
     gene2loc       = get_gene_locations(pathgenomefiles, pathgenefiles, VERBOSE)
-    gene2genome    = gene2genome_mapping(ffn_folder, VERBOSE)
+    gene2genome    = gene2genome_mapping(pathgenefiles, VERBOSE)
     genome2contigs = get_contigs(fna_folder)
     
     # Create the pangenome
