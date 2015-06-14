@@ -630,6 +630,10 @@ def check_genomes(ffn_folder, fna_folder, VERBOSE):
     pathgenomefiles = sorted([os.path.join(fna_folder,f) for f in genomefiles])
     pathgenefiles   = sorted([os.path.join(ffn_folder,f) for f in genefiles])
     
+    # check usearch7 cluster depends on file order?
+    pathgenomefiles = [ pathgenomefiles[i] for i in [2,1,0,3]]
+    pathgenefiles   = [ pathgenefiles[i]   for i in [2,1,0,3]]
+    
     print('\nExpected runtime: ' + str(len(genomefiles)*20) + ' minutes (start time: ' + time.strftime("%b %d %Y %H:%M") + ')\n')
     if not VERBOSE:
         print('Use option --verbose to display progress information.\n')
