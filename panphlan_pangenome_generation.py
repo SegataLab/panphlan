@@ -471,31 +471,20 @@ def clustering(sorted_merged_ffn, identity, clade, output_path, tmp_path, KEEP_U
 
 # ------------------------------------------------------------------------------
 
-def merging(ffn_folder, fna_folder, tmp_path, TIME, VERBOSE):
+def merging(pathgenefiles, tmp_path, TIME, VERBOSE):
     '''
-    Merge all the FFN files into a unique one, and then sort it by length
+    Merge all the gene-sequence FFN files into a unique one, then sort by length
     '''
-    # NB. Here we are sure that ffn_folder finishes with a '/'
-    # Create a temporary file for merging FFNs
-    if tmp_path == None:
-        tmp_ffn = tempfile.NamedTemporaryFile(delete=False, prefix='panphlan_', suffix='.ffn')
-        tmp_sorted_ffn = tempfile.NamedTemporaryFile(delete=False, prefix='panphlan_', suffix='.sorted.ffn')
-    else:
-        tmp_ffn = tempfile.NamedTemporaryFile(delete=False, prefix='panphlan_', suffix='.ffn', dir=tmp_path)
-        tmp_sorted_ffn = tempfile.NamedTemporaryFile(delete=False, prefix='panphlan_', suffix='.sorted.ffn', dir=tmp_path)
+    
+    tmp_ffn        = tempfile.NamedTemporaryFile(delete=False, prefix='panphlan_', suffix='.ffn',        dir=tmp_path)
+    tmp_sorted_ffn = tempfile.NamedTemporaryFile(delete=False, prefix='panphlan_', suffix='.sorted.ffn', dir=tmp_path)
+        
     try:
         with tmp_ffn:
-            # 1st command: cat GENE_SEQ_FOLDER/*.ffn > merged_file.ffn
+            # cat genefiles.ffn > merged_file.ffn
             cat_cmd = ['cat'] # same as for bowtie2, but based on gene.ffn files 
-            genefiles = [f for f in os.listdir(ffn_folder) if fnmatch(f,'*.'+FFN)]
-            for f in genefiles:
-                path_genefile_ffn = ffn_folder + f
-                path_genomefile_fna = fna_folder + f.replace('.'+FFN,'.'+FNA)
-                if not os.path.exists(path_genomefile_fna):
-                    print('[W] Cannot find genome-file:\n    ' + path_genomefile_fna)
-                    print('    Excluding corresponding genes of file: ' + f + ' from usearch7 clustering')
-                else:
-                    cat_cmd.append(path_genefile_ffn)
+            for f in pathgenefiles:
+                cat_cmd.append(f)
             if VERBOSE:
                 print('[C] ' + ' '.join(cat_cmd) + ' > ' + tmp_ffn.name)
             p1 = subprocess.Popen(cat_cmd, stdout=tmp_ffn)
@@ -505,7 +494,7 @@ def merging(ffn_folder, fna_folder, tmp_path, TIME, VERBOSE):
 
         try:
             with tmp_sorted_ffn:
-                # 2nd command: usearch7 -sortbylength merged_file.ffn -output merged_file.sorted.ffn -minseqlength 1
+                # usearch7 -sortbylength merged_file.ffn -output merged_file.sorted.ffn -minseqlength 1
                 sort_cmd = ['usearch7', '--sortbylength', tmp_ffn.name, '--output', tmp_sorted_ffn.name, '--minseqlength', '1']
                 if not VERBOSE:
                     sort_cmd.append('--quiet')
@@ -537,14 +526,14 @@ def merging(ffn_folder, fna_folder, tmp_path, TIME, VERBOSE):
 
 # ------------------------------------------------------------------------------
 
-def gene_families_clustering(ffn_folder, fna_folder, identity_threshold_perc, clade, output_path, tmp_path, KEEP_UC, TIME, VERBOSE):
+def gene_families_clustering(pathgenefiles, identity_threshold_perc, clade, output_path, tmp_path, KEEP_UC, TIME, VERBOSE):
     '''
     
     NB. If KEEP_UC, then <clusters>.uc is a file written in the output directory.
         Otherwise, <clusters>.uc is a temp file (in /tmp), deleted at the end of the computation
     '''
     # Merge & Sort
-    TIME, tmp_sorted_ffn = merging(ffn_folder, fna_folder, tmp_path, TIME, VERBOSE)
+    TIME, tmp_sorted_ffn = merging(pathgenefiles, tmp_path, TIME, VERBOSE)
     # Cluster
     tmp_uc, TIME = clustering(tmp_sorted_ffn.name, identity_threshold_perc / 100.0, clade, output_path, tmp_path, KEEP_UC, TIME, VERBOSE)
     # Convert
@@ -601,29 +590,6 @@ def check_bowtie2(VERBOSE, PLATFORM='lin'):
             print('    Bowtie2 is used to generate the .bt2 index files required in panphlan_map.py\n')
         sys.exit(UNINSTALLED_ERROR_CODE)
 
-# ------------------------------------------------------------------------------
-
-def check_blastn(VERBOSE, PLATFORM='lin'):
-    '''
-    Check if BLASTn is installed
-    Not used, since we use python string comparison to map gene sequences against their genomes 
-    '''
-    try:
-        if PLATFORM == LINUX:
-            blastn_path = subprocess.Popen(['which','blastn'], stdout=subprocess.PIPE).communicate()[0].decode('utf-8')
-        elif PLATFORM == WINDOWS:
-            blastn_path = subprocess.Popen(['where','blastn'], stdout=subprocess.PIPE).communicate()[0].decode('utf-8')
-        blastn_version = subprocess.Popen(['blastn','-version'], stdout=subprocess.PIPE).communicate()[0].decode('utf-8')
-        blastn_version = blastn_version.split()[1]
-    except OSError as err:
-        show_error_message(err)
-        print('\n[E] Please, install BLASTn.\n')
-        if VERBOSE:
-            print('    BLASTn is required to get gene-locations by mapping genes against genomes.')
-        sys.exit(UNINSTALLED_ERROR_CODE)
-
-    if VERBOSE:
-        print('[I] BLASTn is installed, version: ' + str(blastn_version) + ', path: ' + str(blastn_path).strip())
 
 # ------------------------------------------------------------------------------
 
@@ -758,24 +724,22 @@ def main():
     # Check if software is installed
     if VERBOSE:
         print('\nSTEP 1. Checking required software installations...')
-    # blastn = check_blastn(VERBOSE, PLATFORM) # to map genes against genomes; replaced by python sequence comparison
-    bowtie2   = check_bowtie2(VERBOSE, PLATFORM) # index generation
-    usearch7  = check_usearch7(VERBOSE, PLATFORM) # get gene-family cluster
+    bowtie2   = check_bowtie2(VERBOSE, PLATFORM)  # for generating .bt2 index files
+    usearch7  = check_usearch7(VERBOSE, PLATFORM) # for getting gene-family cluster
     
+    # check input genome and gene files
+    pathgenomefiles, pathgenefiles = check_genomes(args['i_ffn'], args['i_fna'], VERBOSE)    
 
     # Get gene families cluster
     if VERBOSE:
-        print('\nSTEP 2. Getting gene families cluster...')
-    pathgenomefiles, pathgenefiles = check_genomes(args['i_ffn'], args['i_fna'], VERBOSE)    
-    merged_txt, TIME = gene_families_clustering(args['i_ffn'], args['i_fna'], args['th'], args['clade'], args['output'], args['tmp'], KEEP_UC, TIME, VERBOSE)
-    # end else
+        print('\nSTEP 2. Generating gene families cluster...')
+    merged_txt, TIME = gene_families_clustering(pathgenefiles, args['th'], args['clade'], args['output'], args['tmp'], KEEP_UC, TIME, VERBOSE)
 
-    # Get pangenome file
+    # Get pangenome and bowtie2 index file
     if VERBOSE:
         print('\nSTEP 3. Getting pangenome file...')
     TIME = pangenome_generation(pathgenomefiles, pathgenefiles, merged_txt, args['clade'], args['output'], TIME, VERBOSE)
-    os.remove(merged_txt) # This file is not useful anymore, and if users want to keep these information, they have the .uc file
-    # Get Bowtie2 indexes
+    os.remove(merged_txt) # information of this file can be found in the .uc file
     TIME = create_bt2_indexes(pathgenomefiles, args['clade'], args['output'], args['tmp'], TIME, VERBOSE)
 
     end_program(time.time() - TOTAL_TIME)
