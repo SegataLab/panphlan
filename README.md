@@ -35,9 +35,9 @@ Or, you can directly write your question to [panphlan-users@googlegroups.com](ma
 
 The user group is managed by
 
-* Matthias Scholz, algorithm design
-* Thomas Tolio, programmer
-* Nicola Segata, principal investigator
+* [Matthias Scholz](http://www.matthias-scholz.de/), algorithm design
+* [Thomas Tolio](https://www.linkedin.com/in/thomastolio), programmer
+* [Nicola Segata](http://segatalab.cibio.unitn.it/), principal investigator
 
 [PanPhlAn](http://segatalab.cibio.unitn.it/tools/panphlan/) is a project of the [Computational Metagenomics Lab at CIBIO](http://segatalab.cibio.unitn.it/), University of Trento, Italy
 
