@@ -44,9 +44,9 @@ MIN_NONPRESENT_TH   = 0.05
 PRESENT_TH          = 0.5
 MIN_PRESENT_TH      = 0.10
 MIN_MULTICOPY_TH    = 0.15
-LEFT_TH             = 1.18
-RIGHT_TH            = 0.82
-COVERAGE_TH         = 5.0
+LEFT_TH             = 1.25 # v1.0: 1.18 strain presence/absence filter (plateau curve) 
+RIGHT_TH            = 0.75 # v1.0: 0.82
+COVERAGE_TH         = 2.0  # v1.0: 5.0
 RNA_MAX_ZERO_TH     = 10.0
 SIMILARITY_TH       = 50.0
 
