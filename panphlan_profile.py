@@ -19,8 +19,8 @@ from __future__ import with_statement
 # ==============================================================================
 
 __author__  = 'Thomas Tolio, Matthias Scholz, Nicola Segata (panphlan-users@googlegroups.com)'
-__version__ = '1.0.2'
-__date__    = '5 May 2015'
+__version__ = '1.0.3'
+__date__    = '8 July 2015'
 
 # Imports
 from argparse import ArgumentParser
@@ -107,9 +107,9 @@ class PanPhlAnJoinParser(ArgumentParser):
         self.add_argument('--th_zero',                  metavar='MINIMUM_THRESHOLD',            type=float, default=None,                   help='Threshold for normalized gene family coverage: lower are non-present gene families.')
         self.add_argument('--th_present',               metavar='MEDIUM_THRESHOLD',             type=float, default=None,                   help='Threshold for normalized gene family coverage: higher are present gene families.')
         self.add_argument('--th_multicopy',             metavar='MAXIMUM_THRESHOLD',            type=float, default=None,                   help='Threshold for normalized gene family coverage: higher are multicopy gene families.')
-        self.add_argument('--min_coverage',             metavar='MIN_COVERAGE_MEDIAN',          type=float, default=COVERAGE_TH,            help='Median coverage threshold to filtering criteria: a sample must have a median coverage >= this value to pass the filtering.')
-        self.add_argument('--left_max',                 metavar='LEFT_MAX',                     type=float, default=LEFT_TH,                help='Left threshold value to do not overcome for sample goodness.')
-        self.add_argument('--right_min',                metavar='RIGHT_MIN',                    type=float, default=RIGHT_TH,               help='Right threshold value to overcome for sample goodness.')
+        self.add_argument('--min_coverage',             metavar='MIN_COVERAGE_MEDIAN',          type=float, default=None,                   help='Median coverage threshold to filtering criteria: a sample must have a median coverage >= this value to pass the filtering.')
+        self.add_argument('--left_max',                 metavar='LEFT_MAX',                     type=float, default=None,                   help='Left threshold value to do not overcome for sample goodness.')
+        self.add_argument('--right_min',                metavar='RIGHT_MIN',                    type=float, default=None,                   help='Right threshold value to overcome for sample goodness.')
         self.add_argument('--rna_max_zeros',            metavar='RNA_MAX_ZEROES',               type=float, default=RNA_MAX_ZERO_TH,        help='Max accepted percent of zero coveraged gene-families (default: <10 %%).')
         self.add_argument('--strain_similarity_perc',   metavar='SIMILARITY_PERCENTAGE',        type=float, default=SIMILARITY_TH,          help='Minimum threshold (percentage) for genome size to accept the strain.')
         self.add_argument('--np',                       metavar='NON_PRESENCE_TOKEN',           type=str,   default='NP',                   help='User-defined symbol (or string) to map non-present genes.')
@@ -777,6 +777,21 @@ def dna_sample_filtering(samples_coverages, genome_length, threshold, threshold_
     median_normalized_covs = defaultdict(list)
     norm_samples_coverages = defaultdict(dict)
 
+    # set default filter th's
+    if threshold_plateau_left_max is None:
+        threshold_plateau_left_max=LEFT_TH
+    if threshold_plateau_right_min is None:
+        threshold_plateau_right_min=RIGHT_TH
+    if threshold is None:
+        threshold=COVERAGE_TH
+        
+    if VERBOSE: # need to move to dna filter function
+        print('[I] Left maximum plateau threshold: '    + str(threshold_plateau_left_max))
+        print('[I] Right minimum plateau threshold: '   + str(threshold_plateau_right_min))
+        print('[I] Minimum median coverage threshold: ' + str(threshold))
+
+
+
     # Take one sample a time
     for sample in sorted(samples_coverages.keys()):
 
@@ -1270,23 +1285,20 @@ def check_args():
             print('    Please, follow this usage: [--th_present B [--th_zero A --th_multicopy C]]\n    with A < B < C. Default values are A = 0.25, B = 0.50, C = 1.50')
         sys.exit(PARAMETER_ERROR_CODE)        
         
-
-    # Check LEFT_MAX, RIGHT_MIN
-    l, r = args['left_max'], args['right_min']
-    if l <= r:
-        show_error_message('Threshold left_max must be greater than right_min.')
-        sys.exit(PARAMETER_ERROR_CODE)
-    if VERBOSE:
-        print('[I] Left maximum plateu threshold: ' + str(args['left_max']))
-        print('[I] Right minimum plateu threshold: ' + str(args['right_min']))
-
-    # Check MIN_COVERAGE_MEDIAN
-    if args['min_coverage'] < 0.0:
-        args['min_coverage'] = COVERAGE_TH
-        if VERBOSE:
-            print('[W] Unacceptable value for minimum median coverage threshold. Set default.')
-    if VERBOSE:
-        print('[I] Minimum median coverage threshold: ' + str(args['min_coverage']))
+    # Check strain filter (coverage curve) LEFT_MAX, RIGHT_MIN, MIN_COVERAGE_MEDIAN
+    if args['left_max'] is not None:
+        if args['left_max'] <= 1:
+            show_error_message('Threshold left_max must be greater than 1.')
+            sys.exit(PARAMETER_ERROR_CODE)
+    if args['right_min'] is not None:
+        if args['right_min'] >= 1:
+            show_error_message('Threshold right_min must be smaller than 1.')
+            sys.exit(PARAMETER_ERROR_CODE)    
+    if args['min_coverage'] is not None:
+        if args['min_coverage'] < 0.0:
+            if VERBOSE:
+                print('[W] Unacceptable value for minimum median coverage threshold: ' + str(args['min_coverage']) +'. Set default: ' + str(COVERAGE_TH))
+            args['min_coverage'] = COVERAGE_TH
 
     # Check RNA_MAX_ZEROES
     if args['rna_max_zeros'] < 0.0 or args['rna_max_zeros'] > 100.0:
@@ -1400,7 +1412,7 @@ def main():
 
     # Filter DNA samples according to their median coverage value and plot coverage plateau
     if VERBOSE:
-        print('\nSTEP 5. Plotting charts...')
+        print('\nSTEP 5. Strain presence/absence filter based on coverage plateau curve...')
     sample2accepted, accepted_samples, norm_dna_samples_covs, sample2famcovlist, sample2color, median_normalized_covs, sample2median = dna_sample_filtering(dna_samples_covs, avg_genome_length, args['min_coverage'], args['left_max'], args['right_min'], families, args['clade'], TIME, VERBOSE)
     result = plot_dna_coverage(args['th_present'], args['left_max'], args['right_min'], sample2accepted, norm_dna_samples_covs, sample2famcovlist, sample2color, median_normalized_covs, avg_genome_length, args['clade'], args['o_covplot'], args['o_covplot_normed'], INTERACTIVE, TIME, VERBOSE)
     if VERBOSE:
