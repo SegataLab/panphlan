@@ -845,18 +845,18 @@ def dna_sample_filtering(samples_coverages, num_ref_genomes, avg_genome_length, 
         # samples_coverages[sample] = {f : samples_coverages[sample][f] / median[sample] for f in samples_coverages[sample]}
 
         # min coverage & plateau filter
-        sample2accepted[sample] = True if median[sample] >= th_min_coverage else False # min coverage filter 
+        mediancov = median[sample]
+        leftcov   = median_normalized_covs[sample][int(avg_genome_length * 0.3)]
+        rightcov  = median_normalized_covs[sample][int(avg_genome_length * 0.7)]
+        sample2accepted[sample] = True if mediancov >= th_min_coverage else False # min coverage filter
         if not sample2accepted[sample]:
             print('[W]  Sample ' + sample_id + ': no strain detected, sample below MIN COVERAGE threshold')    
-        if sample2accepted[sample]: # left right plateau filter
-            left = median_normalized_covs[sample][int(avg_genome_length * 0.3)]
-            right = median_normalized_covs[sample][int(avg_genome_length * 0.7)]
-            # filter 2
-            if left > th_plateau_left_max:
+        if sample2accepted[sample]: # check left right plateau coverage
+            if leftcov > th_plateau_left_max:
                 sample2accepted[sample] = False
                 if VERBOSE:
                     print('[W]  Sample ' + sample_id + ': no strain detected, sample does not pass LEFT-side coverage threshold.')
-            elif right < th_plateau_right_min:
+            elif rightcov < th_plateau_right_min:
                 sample2accepted[sample] = False
                 if VERBOSE:
                     print('[W]  Sample ' + sample_id + ': no strain detected, sample does not pass RIGHT-side coverage threshold.')
@@ -864,7 +864,7 @@ def dna_sample_filtering(samples_coverages, num_ref_genomes, avg_genome_length, 
             if VERBOSE:
                 print('[I]  Sample ' + sample_id + ': strain detected')
         if VERBOSE:
-            print('\tmedian coverage: ' + str(round(median[sample],2)) + ';  left-side coverage: ' + str(round(left,2)) + ';  right-side coverage: ' + str(round(right,2)))
+            print('\tmedian coverage: ' + str(round(mediancov,2)) + ';  left-side coverage: ' + str(round(leftcov,2)) + ';  right-side coverage: ' + str(round(rightcov,2)))
             
     accepted_samples_list = sorted([s for s in sample2accepted if sample2accepted[s]])
     return sample2accepted, accepted_samples_list, norm_samples_coverages, sample2famcovlist, sample2color, median_normalized_covs, median
