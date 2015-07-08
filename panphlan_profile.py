@@ -26,6 +26,7 @@ __date__    = '8 July 2015'
 from argparse import ArgumentParser
 from collections import defaultdict
 from random import randint
+# from math import round 
 import fnmatch, numpy, operator, os, subprocess, sys, time
 
 # Formula's constants
@@ -44,8 +45,12 @@ MIN_NONPRESENT_TH   = 0.05
 PRESENT_TH          = 0.5
 MIN_PRESENT_TH      = 0.10
 MIN_MULTICOPY_TH    = 0.15
-LEFT_TH             = 1.25 # v1.0: 1.18 strain presence/absence filter (plateau curve) 
+LEFT_TH             = 1.25 # v1.0: 1.18 strain presence/absence filter (plateau curve)
+LEFT_TH_2G          = 1.30 # 2 ref. genomes only in pangenome database
+LEFT_TH_1G          = 1.35 # 1 ref. genome only 
 RIGHT_TH            = 0.75 # v1.0: 0.82
+RIGHT_TH_2G         = 0.70 
+RIGHT_TH_1G         = 0.65 
 COVERAGE_TH         = 2.0  # v1.0: 5.0
 RNA_MAX_ZERO_TH     = 10.0
 SIMILARITY_TH       = 50.0
@@ -742,7 +747,7 @@ def dna_indexing(accepted_samples, sample2family2normcov, min_thresh, med_thresh
 
 # -----------------------------------------------------------------------------
 
-def dna_sample_filtering(samples_coverages, genome_length, threshold, threshold_plateau_left_max, threshold_plateau_right_min, families, clade, TIME, VERBOSE=False):
+def dna_sample_filtering(samples_coverages, num_ref_genomes, avg_genome_length, th_min_coverage, th_plateau_left_max, th_plateau_right_min, families, clade, TIME, VERBOSE=False):
     '''
     Plots the curves for genes coverages and normalized genes coverage of all samples
 
@@ -777,20 +782,39 @@ def dna_sample_filtering(samples_coverages, genome_length, threshold, threshold_
     median_normalized_covs = defaultdict(list)
     norm_samples_coverages = defaultdict(dict)
 
+    # lower expected number of gene-families, in case of only 1 or 2 ref. genomes in DB
+    # num_ref_genomes=1 # <<<<<<<<<<<<<<<<<<
+    orig_avg_genome_length=avg_genome_length
+    if num_ref_genomes == 2:
+        avg_genome_length=int(round(0.90 * avg_genome_length))
+        print('[I] Decrease expected gene-families per sample strain to: ' + str(avg_genome_length) + ' (0.9*' + str(orig_avg_genome_length) +') due to only 2 ref. genomes in DB')
+    elif num_ref_genomes == 1:
+        avg_genome_length=int(round(0.75 * avg_genome_length))
+        print('[I] Decrease expected gene-families per sample strain to: ' + str(avg_genome_length) + ' (0.75*' + str(orig_avg_genome_length) +') due to only 1 ref. genomes in DB)')
+
     # set default filter th's
-    if threshold_plateau_left_max is None:
-        threshold_plateau_left_max=LEFT_TH
-    if threshold_plateau_right_min is None:
-        threshold_plateau_right_min=RIGHT_TH
-    if threshold is None:
-        threshold=COVERAGE_TH
+    # if only 1 or 2 ref. genomes in DB, less stringend th's are used
+    if th_plateau_left_max is None:
+        if num_ref_genomes>2:
+            th_plateau_left_max=LEFT_TH
+        elif num_ref_genomes == 2:
+            th_plateau_left_max=LEFT_TH_2G
+        elif num_ref_genomes == 1:
+            th_plateau_left_max=LEFT_TH_1G    
+    if th_plateau_right_min is None:
+        if num_ref_genomes>2:
+            th_plateau_right_min=RIGHT_TH
+        elif num_ref_genomes == 2:
+            th_plateau_right_min=RIGHT_TH_2G
+        elif num_ref_genomes == 1:
+            th_plateau_right_min=RIGHT_TH_1G          
+    if th_min_coverage is None:
+        th_min_coverage=COVERAGE_TH
         
     if VERBOSE: # need to move to dna filter function
-        print('[I] Left maximum plateau threshold: '    + str(threshold_plateau_left_max))
-        print('[I] Right minimum plateau threshold: '   + str(threshold_plateau_right_min))
-        print('[I] Minimum median coverage threshold: ' + str(threshold))
-
-
+        print('[I] Minimum median coverage threshold: ' + str(th_min_coverage))
+        print('[I] Left maximum plateau threshold: '    + str(th_plateau_left_max))
+        print('[I] Right minimum plateau threshold: '   + str(th_plateau_right_min))
 
     # Take one sample a time
     for sample in sorted(samples_coverages.keys()):
@@ -803,7 +827,7 @@ def dna_sample_filtering(samples_coverages, genome_length, threshold, threshold_
         families_covs = families_covs[::-1] # reverse
         del(d)
         # Compute the median
-        median[sample] = numpy.median([p[1] for p in families_covs][:genome_length])
+        median[sample] = numpy.median([p[1] for p in families_covs][:avg_genome_length])
         sample2famcovlist[sample] = ([p[1] for p in families_covs], [p[0] for p in families_covs])
         # Median-normalization
         # median_normalized_covs[sample] = [c / median[sample] for c in sample2famcovlist[sample][0]]
@@ -820,33 +844,35 @@ def dna_sample_filtering(samples_coverages, genome_length, threshold, threshold_
             norm_samples_coverages[sample][f] = normed_cov
         # samples_coverages[sample] = {f : samples_coverages[sample][f] / median[sample] for f in samples_coverages[sample]}
 
-        # Apply Filter 1 and 2
-        if VERBOSE:
-            print('[I] Sample ' + sample_id + ':\n\tmedian coverage is ' + str(median[sample]) + ' (must be > ' + str(threshold) + ' to be accepted).')
-        sample2accepted[sample] = True if median[sample] >= threshold else False # filter 1
-        if sample2accepted[sample]:
-            left = median_normalized_covs[sample][int(genome_length * 0.3)]
-            right = median_normalized_covs[sample][int(genome_length * 0.7)]
-            if VERBOSE:
-                print('\tleft value is ' + str(left) + ' (must be < ' + str(threshold_plateau_left_max) + ' to be accepted).')
-                print('\tright value is ' + str(right) + ' (must be > ' + str(threshold_plateau_right_min) + ' to be accepted).')
+        # min coverage & plateau filter
+        sample2accepted[sample] = True if median[sample] >= th_min_coverage else False # min coverage filter 
+        if not sample2accepted[sample]:
+            print('[W]  Sample ' + sample_id + ': no strain detected, sample below MIN COVERAGE threshold')    
+        if sample2accepted[sample]: # left right plateau filter
+            left = median_normalized_covs[sample][int(avg_genome_length * 0.3)]
+            right = median_normalized_covs[sample][int(avg_genome_length * 0.7)]
             # filter 2
-            if left > threshold_plateau_left_max:
+            if left > th_plateau_left_max:
                 sample2accepted[sample] = False
                 if VERBOSE:
-                    print('[W] Sample ' + sample_id + ' has been rejected because too high left value!')
-            elif right < threshold_plateau_right_min:
+                    print('[W]  Sample ' + sample_id + ': no strain detected, sample does not pass LEFT-side coverage threshold.')
+            elif right < th_plateau_right_min:
                 sample2accepted[sample] = False
                 if VERBOSE:
-                    print('[W] Sample ' + sample_id + ' has been rejected because too low right value!')
-
+                    print('[W]  Sample ' + sample_id + ': no strain detected, sample does not pass RIGHT-side coverage threshold.')
+        if sample2accepted[sample]:
+            if VERBOSE:
+                print('[I]  Sample ' + sample_id + ': strain detected')
+        if VERBOSE:
+            print('\tmedian coverage: ' + str(round(median[sample],2)) + ';  left-side coverage: ' + str(round(left,2)) + ';  right-side coverage: ' + str(round(right,2)))
+            
     accepted_samples_list = sorted([s for s in sample2accepted if sample2accepted[s]])
     return sample2accepted, accepted_samples_list, norm_samples_coverages, sample2famcovlist, sample2color, median_normalized_covs, median
 
 
 # ----------------------------------------------------------------------------------------------------
 
-def plot_dna_coverage(th_present, left_max, right_min, sample2accepted, samples_coverages, sample2famcovlist, sample2color, median_normalized_covs, genome_length, clade, plot1_name, plot2_name, INTERACTIVE, TIME, VERBOSE=False):
+def plot_dna_coverage(sample2accepted, samples_coverages, sample2famcovlist, sample2color, median_normalized_covs, genome_length, clade, plot1_name, plot2_name, INTERACTIVE, TIME, VERBOSE=False):
     '''
     Draw into two .pdf files the plots for gene families normalized and unnormalized coverages
     Accepted sample present a colored trend, while rejected ones are drawn in grey
@@ -893,7 +919,10 @@ def plot_dna_coverage(th_present, left_max, right_min, sample2accepted, samples_
                         else:
                             plt.plot(range(1, len(covs) + 1), covs, COLOR_GREY)
                     plt.axis([0.0, genome_length * 1.5, 0.0, 1000.0])
-                    plt.legend(loc='upper right', fontsize='xx-small')
+                    try:
+                        plt.legend(loc='upper right', fontsize='xx-small')
+                    except TypeError:
+                        print('[W] pylab.legend fontsize does not work (old module version).')
                     savefig(plot1_name)
                     if INTERACTIVE:
                         fig1 = plt.figure(0)
@@ -913,13 +942,18 @@ def plot_dna_coverage(th_present, left_max, right_min, sample2accepted, samples_
                         else:
                             plt.plot(range(1, len(covs) + 1), covs, COLOR_GREY)
                     plt.axis([0.0, genome_length * 1.5, 0.0, 9.0])
+                    # thresholds need to adapted from dna_sample_filtering
                     # plt.plot((0.0, genome_length * 1.5), (th_present, th_present), 'k--') # th_present horizontal
                     # plt.plot((0.9 * genome_length, 0.9 * genome_length), (0.0, 9.0), 'k--') # genome length lowerbound vertical
                     # plt.plot((1.1 * genome_length, 1.1 * genome_length), (0.0, 9.0), 'k--') # genome length upperbound vertical
                     # plt.plot([genome_length * 0.3], [left_max], 'ro') # left_max intersected with genome length * 0.3
                     # plt.plot([genome_length * 0.7], [right_min], 'ro') # right_min intersected with genome length * 0.7
 
-                    plt.legend(loc='upper right', fontsize='xx-small')
+                    
+                    try:
+                        plt.legend(loc='upper right', fontsize='xx-small')
+                    except TypeError:
+                        print('[W] pylab.legend fontsize does not work (old module version).')
                     savefig(plot2_name)
                     if INTERACTIVE:
                         fig2 = plt.plot()
@@ -1019,7 +1053,6 @@ def build_mappings(pangenome_file, VERBOSE):
 
     with open(pangenome_file, mode='r') as f:
         for line in f:
-            
             words = line.strip().split('\t')
             fml, gene, genome, ctg, fr, to = words[FAMILY_INDEX], words[GENE_INDEX], words[GENOME_INDEX], words[CONTIG_INDEX], int(words[FROM_INDEX]), int(words[TO_INDEX])
             gene_lengths[gene] = abs(to - fr) + 1
@@ -1027,16 +1060,17 @@ def build_mappings(pangenome_file, VERBOSE):
             families.add(fml)
             genome2families[genome].add(fml)
     
-    # Having the set of gene families for each genomes, we compute the sets lengths and then the average value
-    genome_lengths = dict((g, len(genome2families[g])) for g in genome2families)
-    
-    # avg_genome_length = int(sum(genome_lengths[g] for g in genome_lengths) / len(genome_lengths))
+    # Get expected median genome length (number of gene families)
+    genome_lengths    = dict((g, len(genome2families[g])) for g in genome2families)
+    num_ref_genomes   = len(genome_lengths)
     avg_genome_length = int(numpy.median(list(genome_lengths.values())))
 
     if VERBOSE:
-        print('[I] Pangenome contains ' + str(len(families)) + ' gene families.')
-        print('[I] Average genome length: ' + str(avg_genome_length) + '.')
-    return gene_lengths, gene2family, sorted(list(families)), avg_genome_length, genome2families
+        print('[I] Pangenome info: ')
+        print('     Number of reference genomes: '                + str(num_ref_genomes))
+        print('     Average number of gene-families per genome: ' + str(avg_genome_length))
+        print('     Total number of pangenome gene-families '               + str(len(families)))
+    return gene_lengths, gene2family, sorted(list(families)), num_ref_genomes, avg_genome_length, genome2families
 
 
 # -----------------------------------------------------------------------------
@@ -1346,7 +1380,7 @@ def check_args():
 def main():
     args = check_args()    
         
-    print('\nSTEP 0. Initialization...')
+    # print('\nSTEP 0. Initialization...')
     TOTAL_TIME = time.time()
     TIME = time.time()
 
@@ -1357,7 +1391,7 @@ def main():
 
     # From file to dicts
     if VERBOSE:
-        print('\nSTEP 1. Translating files into dictionaries...')
+        print('\nSTEP 1. Read and merge mapping results ...')
     dna_samples_covs = {}
     rna_samples_covs = {}
     if not args['i_dna'][COVERAGES_KEY] == None:
@@ -1373,10 +1407,10 @@ def main():
 
 
 
-    # Create mappings: gene->family, genome->families, gene->length
+    # Create dict mappings: gene->family, genome->families, gene->length
     if VERBOSE:
-        print('\nSTEP 2. Creating data mapping...')
-    gene_lenghts, gene2family, families, avg_genome_length, genome2families = build_mappings(args['i_dna'][PANGENOME_KEY], VERBOSE)
+        print('\nSTEP 2. Read pangenome data...')
+    gene_lenghts, gene2family, families, num_ref_genomes, avg_genome_length, genome2families = build_mappings(args['i_dna'][PANGENOME_KEY], VERBOSE)
     
 
 
@@ -1413,23 +1447,24 @@ def main():
     # Filter DNA samples according to their median coverage value and plot coverage plateau
     if VERBOSE:
         print('\nSTEP 5. Strain presence/absence filter based on coverage plateau curve...')
-    sample2accepted, accepted_samples, norm_dna_samples_covs, sample2famcovlist, sample2color, median_normalized_covs, sample2median = dna_sample_filtering(dna_samples_covs, avg_genome_length, args['min_coverage'], args['left_max'], args['right_min'], families, args['clade'], TIME, VERBOSE)
-    result = plot_dna_coverage(args['th_present'], args['left_max'], args['right_min'], sample2accepted, norm_dna_samples_covs, sample2famcovlist, sample2color, median_normalized_covs, avg_genome_length, args['clade'], args['o_covplot'], args['o_covplot_normed'], INTERACTIVE, TIME, VERBOSE)
-    if VERBOSE:
-        print('[I] Charts have ' + ('not ' if not result else '') + 'been plotted.')
+    sample2accepted, accepted_samples, norm_dna_samples_covs, sample2famcovlist, sample2color, median_normalized_covs, sample2median = dna_sample_filtering(dna_samples_covs, num_ref_genomes, avg_genome_length, args['min_coverage'], args['left_max'], args['right_min'], families, args['clade'], TIME, VERBOSE)
+    
+    result = plot_dna_coverage(sample2accepted, norm_dna_samples_covs, sample2famcovlist, sample2color, median_normalized_covs, avg_genome_length, args['clade'], args['o_covplot'], args['o_covplot_normed'], INTERACTIVE, TIME, VERBOSE)
+    # if VERBOSE:
+    #     print('[I] Charts have ' + ('not ' if not result else '') + 'been plotted.')
 
 
     # DNA indexing
     if VERBOSE:
-        print('\nSTEP 6a. Indexing DNA samples...')
+        print('\nSTEP 6a. Define multicopy, strain-specific, and non-present gene-families (1,-1,-2,-3 matrix, option --o_idx)')
     sample2family2dnaidx, TIME = dna_indexing(accepted_samples, norm_dna_samples_covs, args['th_zero'], args['th_present'], args['th_multicopy'], args['o_idx'], families, args['clade'], TIME, VERBOSE)
     if VERBOSE:
-        print('\nSTEP 6b. Calculating gene families presence/absence...')
+        print('\nSTEP 6b. Get presence/absence of gene-families (1,-1 matrix, option --o_dna)')
     dna_sample2family2presence = dna_presencing(sample2accepted, dna_files_list, args['i_dna'][COVERAGES_KEY], sample2family2dnaidx, args['o_dna'], families, args['clade'], TIME, VERBOSE)
     
     if ADD_STRAINS or args['strain_hit_genes_perc'] != '':
         if VERBOSE:
-            print('\nSTEP 6c. Generating gene families coverage also for strains...')
+            print('\nSTEP 6c. Calculate percent of identical gene-families between sample-strains and reference-genomes... (option --strain_hit_genes_perc)')
         ss_presence, TIME = samples_strains_presences(dna_sample2family2presence, strains_list, strain2family2presence, avg_genome_length, args['strain_similarity_perc'], args['o_dna'], families, args['clade'], ADD_STRAINS, TIME, VERBOSE)
         # ss_presence = { STRAIN or SAMPLE : { GENE FAMILY : PRESENCE } }
         if args['strain_hit_genes_perc'] != '':
