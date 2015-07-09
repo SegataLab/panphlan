@@ -46,11 +46,7 @@ PRESENT_TH          = 0.5
 MIN_PRESENT_TH      = 0.10
 MIN_MULTICOPY_TH    = 0.15
 LEFT_TH             = 1.25 # v1.0: 1.18 strain presence/absence filter (plateau curve)
-LEFT_TH_2G          = 1.30 # 2 ref. genomes only in pangenome database
-LEFT_TH_1G          = 1.35 # 1 ref. genome only 
 RIGHT_TH            = 0.75 # v1.0: 0.82
-RIGHT_TH_2G         = 0.70 
-RIGHT_TH_1G         = 0.65 
 COVERAGE_TH         = 2.0  # v1.0: 5.0
 RNA_MAX_ZERO_TH     = 10.0
 SIMILARITY_TH       = 50.0
@@ -782,32 +778,23 @@ def dna_sample_filtering(samples_coverages, num_ref_genomes, avg_genome_length, 
     median_normalized_covs = defaultdict(list)
     norm_samples_coverages = defaultdict(dict)
 
-    # lower expected number of gene-families, in case of only 1 or 2 ref. genomes in DB
-    # num_ref_genomes=1 # <<<<<<<<<<<<<<<<<<
+    # lower expected number of gene-families, in case of only 1,2 or 3 ref. genomes in DB
     orig_avg_genome_length=avg_genome_length
-    if num_ref_genomes == 2:
+    if   num_ref_genomes == 3:
         avg_genome_length=int(round(0.90 * avg_genome_length))
-        print('[I] Decrease expected gene-families per sample strain to: ' + str(avg_genome_length) + ' (0.9*' + str(orig_avg_genome_length) +') due to only 2 ref. genomes in DB')
+        print('[I] Decrease expected gene-families per sample strain to: ' + str(avg_genome_length) + ' (0.9*' + str(orig_avg_genome_length) +') due to only 3 ref. genomes in DB')
+    elif num_ref_genomes == 2:
+        avg_genome_length=int(round(0.85 * avg_genome_length))
+        print('[I] Decrease expected gene-families per sample strain to: ' + str(avg_genome_length) + ' (0.85*' + str(orig_avg_genome_length) +') due to only 2 ref. genomes in DB)')
     elif num_ref_genomes == 1:
         avg_genome_length=int(round(0.75 * avg_genome_length))
         print('[I] Decrease expected gene-families per sample strain to: ' + str(avg_genome_length) + ' (0.75*' + str(orig_avg_genome_length) +') due to only 1 ref. genomes in DB)')
 
     # set default filter th's
-    # if only 1 or 2 ref. genomes in DB, less stringend th's are used
     if th_plateau_left_max is None:
-        if num_ref_genomes>2:
-            th_plateau_left_max=LEFT_TH
-        elif num_ref_genomes == 2:
-            th_plateau_left_max=LEFT_TH_2G
-        elif num_ref_genomes == 1:
-            th_plateau_left_max=LEFT_TH_1G    
+        th_plateau_left_max=LEFT_TH
     if th_plateau_right_min is None:
-        if num_ref_genomes>2:
-            th_plateau_right_min=RIGHT_TH
-        elif num_ref_genomes == 2:
-            th_plateau_right_min=RIGHT_TH_2G
-        elif num_ref_genomes == 1:
-            th_plateau_right_min=RIGHT_TH_1G          
+        th_plateau_right_min=RIGHT_TH    
     if th_min_coverage is None:
         th_min_coverage=COVERAGE_TH
         
