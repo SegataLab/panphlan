@@ -18,6 +18,8 @@ PanPhlAn is written in Python and covers the three main tasks:
 * `panphlan_map.py`, to profile each metagenomic sample by mapping it against the species specific database
 * `panphlan_profile.py`, to merge and process the mapping results for getting the final gene presence/absence and transcriptional matrices
 
+→ [Download and Installation](https://bitbucket.org/CibioCM/panphlan/wiki/Download_and_Installation)
+
 PanPhlAn runs under Ubuntu/Linux and requires the following software tools to be installed on your system:
 
 * Bowtie2 
