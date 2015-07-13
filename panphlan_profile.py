@@ -27,7 +27,15 @@ from argparse import ArgumentParser
 from collections import defaultdict
 from random import randint
 # from math import round 
-import fnmatch, numpy, operator, os, subprocess, sys, time
+import fnmatch, operator, os, subprocess, sys, time
+
+try:
+    import numpy
+except ImportError as err:
+    print('\n[E]',err) 
+    print('\n[E] Please install the numpy module of Python\n')
+    sys.exit(2)
+
 
 # Formula's constants
 CONST_C         = 10
