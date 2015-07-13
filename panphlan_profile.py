@@ -1101,6 +1101,9 @@ def check_args():
 
     VERBOSE = args['verbose']
 
+    if VERBOSE:
+        print('\nPanPhlAn profile version '+__version__+'\n')
+
     # Check CLADE
     clade = args['clade']
     if not clade.startswith(PANPHLAN):
@@ -1384,7 +1387,7 @@ def main():
     ADD_STRAINS = args['add_strains']
     RNASEQ = True if args['sample_pairs'] else False
 
-    # From file to dicts
+    # read mapping result files
     if VERBOSE:
         print('\nSTEP 1. Read and merge mapping results ...')
     dna_samples_covs = {}
@@ -1402,7 +1405,7 @@ def main():
 
 
 
-    # Create dict mappings: gene->family, genome->families, gene->length
+    # Create dicts: gene->family, genome->families, gene->length
     if VERBOSE:
         print('\nSTEP 2. Read pangenome data...')
     gene_lenghts, gene2family, families, num_ref_genomes, avg_genome_length, genome2families = build_mappings(args['i_dna'][PANGENOME_KEY], VERBOSE)

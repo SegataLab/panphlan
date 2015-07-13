@@ -832,6 +832,9 @@ def check_args():
 
     VERBOSE = args_set['verbose']
 
+    if VERBOSE:
+        print('\nPanPhlAn map version '+__version__+'\n')
+
     # Check: INPUT_FILE -------------------------------------------------------
     is_compressed = False
     ipath = args_set['input']

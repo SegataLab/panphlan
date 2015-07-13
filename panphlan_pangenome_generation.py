@@ -650,6 +650,9 @@ def check_args():
     args = vars(parser.parse_args())
     VERBOSE = args['verbose']
 
+    if VERBOSE:
+        print('\nPanPhlAn pangenome generation version '+__version__+'\n')
+
     # Check: FFN_FOLDER --------------------------------------------------------
     ipath = args['i_ffn']
     if not os.path.exists(ipath):
