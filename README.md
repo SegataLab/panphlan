@@ -45,7 +45,7 @@ The user group is managed by
 
 [PanPhlAn](http://segatalab.cibio.unitn.it/tools/panphlan/) is a project of the [Computational Metagenomics Lab at CIBIO](http://segatalab.cibio.unitn.it/), University of Trento, Italy
 
-
+----
 
 # Example of *E. coli* strain profiling #
 
