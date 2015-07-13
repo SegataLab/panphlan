@@ -19,8 +19,8 @@ from __future__ import with_statement
 # ==============================================================================
 
 __author__  = 'Thomas Tolio, Matthias Scholz, Nicola Segata (panphlan-users@googlegroups.com)'
-__version__ = '1.0.3'
-__date__    = '8 July 2015'
+__version__ = '1.1'
+__date__    = '12 July 2015'
 
 # Imports
 from argparse import ArgumentParser
