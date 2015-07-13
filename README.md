@@ -46,17 +46,3 @@ The user group is managed by
 [PanPhlAn](http://segatalab.cibio.unitn.it/tools/panphlan/) is a project of the [Computational Metagenomics Lab at CIBIO](http://segatalab.cibio.unitn.it/), University of Trento, Italy
 
 ----
-
-# Example of *E. coli* strain profiling #
-
-## Characterization of the German 2011 *E. coli* outbreak strain ##
-![PanPhlAn heatmap](http://segatalab.cibio.unitn.it/images/panphlan_heatmap_ecoli_outbreak.png "PanPhlAn heatmap")
-
-PanPhlAn profiling of the German outbreak metagenomes using a reference database in which the target outbreak genome is missing. **(a)** Hierarchical clustering. The heatmap displays presence/absence gene-family profiles of 110 reference strains (bright colored columns) and of 12 metagenomically detected strains (darker columns). Most outbreak samples cluster together due to almost identical profiles (right), with four samples (left) showing different profiles due to the presence of additional dominant *E. coli* strains overlying the target outbreak strain. **(b)** Functional analysis of outbreak-specific gene-families (Fisher exact test) confirmed that the outbreak strain is a combination of a EAEC pathogen (pAA plasmid) with acquired Shiga toxin and antibiotic resistance genes, complemented with a set of enriched virulence-related functions and pathway modules. 
-
-### Reference ###
-Matthias Scholz\*, Doyle V. Ward\*, Thomas Tolio, Moreno Zolfo, Francesco Asnicar, Duy Tin Truong, Edoardo Pasolli, Adrian Tett, Ardythe L. Morrow, and Nicola Segata (\* Equal contribution)  
-**Strain-level microbial epidemiology and population genomics from shotgun metagenomics**  
-*Under review* 
-
-----
