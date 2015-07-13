@@ -31,6 +31,8 @@ For more information, see our wiki [→ Download and Installation](https://bitbu
 
 ### User support ###
 
+[→ User Tutorial](https://bitbucket.org/CibioCM/panphlan/wiki/Home)
+
 For questions and to keep up to date with information you can join our [email-based group and discussion forum](https://groups.google.com/forum/#!forum/panphlan-users) 
 
 Or, you can directly write your question to [panphlan-users@googlegroups.com](mailto:panphlan-users@googlegroups.com)
@@ -45,50 +47,16 @@ The user group is managed by
 
 ----
 
-## PanPhlAn modules usages
+# Example of *E. coli* strain profiling #
 
-Pangenome generation:
+## Characterization of the German 2011 *E. coli* outbreak strain ##
+![PanPhlAn heatmap](http://segatalab.cibio.unitn.it/images/panphlan_heatmap_ecoli_outbreak.png "PanPhlAn heatmap")
 
-```
-./panphlan_pangenome_generation.py
-    --i_ffn FFN_FOLDER/ --i_fna FNA_FOLDER/ --clade CLADE --output OUTPUT_FOLDER/
-    [--tmp TEMP_FILES_FOLDER/] [--uc] [--th UCLUST_PERC_IDENTITY] [--verbose]
-```
-[Pre-processed pangenome databases for download](https://bitbucket.org/CibioCM/panphlan/wiki/Pangenome%20databases) are provided for more than 400 species.
+PanPhlAn profiling of the German outbreak metagenomes using a reference database in which the target outbreak genome is missing. **(a)** Hierarchical clustering. The heatmap displays presence/absence gene-family profiles of 110 reference strains (bright colored columns) and of 12 metagenomically detected strains (darker columns). Most outbreak samples cluster together due to almost identical profiles (right), with four samples (left) showing different profiles due to the presence of additional dominant *E. coli* strains overlying the target outbreak strain. **(b)** Functional analysis of outbreak-specific gene-families (Fisher exact test) confirmed that the outbreak strain is a combination of a EAEC pathogen (pAA plasmid) with acquired Shiga toxin and antibiotic resistance genes, complemented with a set of enriched virulence-related functions and pathway modules. 
 
-
-Gene abundances mapping:
-
-```
-./panphlan_map.py
-    --input INPUT_FILE --clade CLADE [--output OUTPUT_FILE]
-    [--th_mismatches NUMBER_OF_MISMATCHES] [--out_bam OUTPUT_BAM_FILE]
-    [--nproc NUMBER_OF_PROCESSORS] [--mGB MEMORY-GIGABYTES]
-    [--readLength READS_LENGTH] [--tmp TEMP_FILES_FOLDER/] [--verbose]
-```
-
-Metagenomic/-transcriptomic profiling:
-
-```
-./panphlan_profile.py
-    --i_dna GENE_ABUNDANCES_FOLDER/ --clade CLADE
-    [--i_rna TRANSCRIPT_ABUNDANCES_FOLDER/]
-    [--sample_pairs DNA_RNA_SAMPLE_PAIRS_FILE]
-    [--th_present PRESENCE_THRESHOLD [--th_zero ABSENCE_THRESHOLD
-                                      --th_multicopy MULTICOPY_THRESHOLD]]
-    [--min_coverage MINIMUM_MEDIAN_COVERAGE]
-    [--left_max MAXIMUM_LEFT_THRESHOLD] [--right_min MINIMUM_RIGHT_THRESHOLD]
-    [--rna_max_zeros MAXIMUM_ZERO_COVERED_GENEFAMILIES_PERCENTAGE]
-    [--strain_similarity_perc STRAIN_SIMILARITY_PERCENTAGE]
-    [--np NON_PRESENCE_TOKEN] [--nan NOT_A_NUMBER_TOKEN]
-    [--o_dna GENEFAMILY_PRESENCE_MATRIX] [--o_cov GENEFAMILY_COVERAGE_MATRIX]
-    [--o_idx GENEFAMILY_DNAINDEX_MATRIX] [--o_rna GENEFAMILY_RNA_EXPRESSION_MATRIX]
-    [--o_covplot PLOT_FILE] [--o_covplot_normed NORMED_PLOT_FILE]
-    [--add_strains] [--interactive] [--verbose]
-```
-
-
-To find out more about how to use PanPhlAn, read our [User Tutorial](https://bitbucket.org/CibioCM/panphlan/wiki/Home).
-
+### Reference ###
+Matthias Scholz\*, Doyle V. Ward\*, Thomas Tolio, Moreno Zolfo, Francesco Asnicar, Duy Tin Truong, Edoardo Pasolli, Adrian Tett, Ardythe L. Morrow, and Nicola Segata (\* Equal contribution)  
+**Strain-level microbial epidemiology and population genomics from shotgun metagenomics**  
+*Under review* 
 
 ----
