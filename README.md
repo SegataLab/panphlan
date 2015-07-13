@@ -86,8 +86,7 @@ Metagenomic/-transcriptomic profiling:
 ```
 
 
-To find out more about how to use PanPhlAn, read our [User Tutorial](https://bitbucket.org/CibioCM/panphlan/wiki/Tutorial).
+To find out more about how to use PanPhlAn, read our [User Tutorial](https://bitbucket.org/CibioCM/panphlan/wiki/Home).
 
-Or, to learn more about the algorithm behind PanPhlAn, read our [Technical Guide](https://bitbucket.org/CibioCM/panphlan/wiki/Home).
 
 ----
