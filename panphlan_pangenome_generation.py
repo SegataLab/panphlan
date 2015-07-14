@@ -225,9 +225,9 @@ def get_gene_locations(pathgenomefiles, pathgenefiles, VERBOSE):
                 contig = r.id.split(':')[0]
                 start, stop = min(pos1, pos2), max(pos1, pos2) # to always have start < stop
                 gene2loc[r.id] = (str(contig), start, stop)
-        except IndexError as err: # alternatively, run BLAST-like python gene-genome mapping to get locations
+        except (IndexError, ValueError) as err: # alternatively, run BLAST-like python gene-genome mapping to get locations
             if VERBOSE:
-                print('    Extraction from geneID failt, map gene-sequences against genome')
+                print('    Extraction from geneID failt, map gene-sequences against genome...')
             gene2multiloc = {} # tmp-dict for all hits, including sets of multiple gene locations
             # read genome sequence
             contignames = []
