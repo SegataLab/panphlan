@@ -19,7 +19,7 @@ from __future__ import with_statement
 # ==============================================================================
 
 __author__  = 'Thomas Tolio, Matthias Scholz, Nicola Segata (panphlan-users@googlegroups.com)'
-__version__ = '1.1'
+__version__ = '1.1.1'
 __date__    = '12 July 2015'
 
 # Imports
@@ -193,7 +193,10 @@ def combining(gene2loc, gene2family, gene2genome, output_path, clade, TIME, VERB
     with open(pangenome_csv, mode='w') as ocsv:
         genes_list = sorted(gene2loc.keys())
         for gene in genes_list:
-            ocsv.write(gene2family[gene] + '\t' + gene + '\t' + gene2genome[gene] + '\t' + gene2loc[gene][0] + '\t' + str(gene2loc[gene][1]) + '\t' + str(gene2loc[gene][2]) + '\n')
+            try:
+                ocsv.write(gene2family[gene] + '\t' + gene + '\t' + gene2genome[gene] + '\t' + gene2loc[gene][0] + '\t' + str(gene2loc[gene][1]) + '\t' + str(gene2loc[gene][2]) + '\n')
+            except KeyError as err:
+                print('[W] could not find gene in dict gene2loc: '   + gene)
     return TIME
     
 
