@@ -368,10 +368,12 @@ def family_of(index):
 
 def familydictization(merged_txt, VERBOSE):
     '''
-    Return a dictionary mapping genes to their own gene family
+    Return a dictionary mapping genes to gene-families, based on usearch7 cluster result
     gene2family := { GENE : FAMILY }
 
-    Input: a file with genes are clustered by line
+    Input: Text file with gene-families line-wise
+           All geneIDs per line belong to one gene-family cluster
+           Line 1 represents gene-family g000001
 
     Gene family is named as 'g<NUM OF LINE IN THE FILE>'
     EX.
