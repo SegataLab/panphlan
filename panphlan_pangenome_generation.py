@@ -193,10 +193,11 @@ def combining(gene2loc, gene2family, gene2genome, output_path, clade, TIME, VERB
     with open(pangenome_csv, mode='w') as ocsv:
         genes_list = sorted(gene2loc.keys())
         for gene in genes_list:
-            try:
+            if gene in gene2family:
                 ocsv.write(gene2family[gene] + '\t' + gene + '\t' + gene2genome[gene] + '\t' + gene2loc[gene][0] + '\t' + str(gene2loc[gene][1]) + '\t' + str(gene2loc[gene][2]) + '\n')
-            except KeyError as err:
-                print('[W] could not find gene in dict gene2loc: '   + gene)
+            else:
+                print('[W] Could not find gene in usearch7 cluster result (dict gene2family): '   + gene)
+                print('    Check presence of gene in file: usearch7_species_cluster.uc, option --uc')
     return TIME
     
 
