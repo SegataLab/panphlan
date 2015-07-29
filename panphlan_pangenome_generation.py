@@ -658,6 +658,7 @@ def check_args():
 
     if VERBOSE:
         print('\nPanPhlAn pangenome generation version '+__version__+'\n')
+        print('Python version: ' + sys.version)
 
     # Check: FFN_FOLDER --------------------------------------------------------
     ipath = args['i_ffn']
@@ -723,7 +724,11 @@ def check_args():
 # ------------------------------------------------------------------------------
 
 def main():
-    # Check options correctness
+    # Check Python version
+    if sys.hexversion < 0x02060000:
+        print('Python version: ' + sys.version)
+        sys.exit('Python versions older than 2.6 are not supported.')
+
     args = check_args()
     VERBOSE = args['verbose']
     KEEP_UC = args['uc']

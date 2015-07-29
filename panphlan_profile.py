@@ -1103,6 +1103,7 @@ def check_args():
 
     if VERBOSE:
         print('\nPanPhlAn profile version '+__version__+'\n')
+        print('Python version: ' + sys.version)
 
     # Check CLADE
     clade = args['clade']
@@ -1376,6 +1377,11 @@ def check_args():
 # -----------------------------------------------------------------------------
 
 def main():
+    # Check Python version
+    if sys.hexversion < 0x02060000:
+        print('Python version: ' + sys.version)
+        sys.exit('Python versions older than 2.6 are not supported.')
+
     args = check_args()    
         
     # print('\nSTEP 0. Initialization...')
