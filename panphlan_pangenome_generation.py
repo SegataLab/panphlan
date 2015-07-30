@@ -19,7 +19,7 @@ from __future__ import with_statement
 # ==============================================================================
 
 __author__  = 'Thomas Tolio, Matthias Scholz, Nicola Segata (panphlan-users@googlegroups.com)'
-__version__ = '1.1.1'
+__version__ = '1.1.2'
 __date__    = '12 July 2015'
 
 # Imports
@@ -231,7 +231,7 @@ def get_gene_locations(pathgenomefiles, pathgenefiles, VERBOSE):
                 gene2loc[r.id] = (str(contig), start, stop)
         except (IndexError, ValueError) as err: # alternatively, run BLAST-like python gene-genome mapping to get locations
             if VERBOSE:
-                print('    Extraction from geneID failt, map gene-sequences against genome...')
+                print('    Extraction from geneID failed, map gene-sequences against genome...')
             gene2multiloc = {} # tmp-dict for all hits, including sets of multiple gene locations
             # read genome sequence
             contignames = []
@@ -613,18 +613,21 @@ def check_genomes(ffn_folder, fna_folder, VERBOSE):
         sys.exit('Missing genome files')
 
     # check if all genome-gene file pairs exist, remove single genome or gene-files from list
-    for f in genomefiles:
+    for f in genomefiles[:]: # need a copy [:], as we remove items from list
         path_genefile_ffn = os.path.join(ffn_folder, f.replace('.'+FNA,'.'+FFN) )
         if not os.path.exists(path_genefile_ffn):
             print('[W] Cannot find gene-file:\n    ' + path_genefile_ffn)
             print('    Excluding genome ' + f + ' from pangenome database')
             genomefiles.remove(f)
-    for f in genefiles:    
+    for f in genefiles[:]:  # need a copy [:], as we remove items from list
         path_genomefile_fna = os.path.join(fna_folder, f.replace('.'+FFN,'.'+FNA) )
         if not os.path.exists(path_genomefile_fna):
             print('[W] Cannot find genome-file:\n    ' + path_genomefile_fna)
             print('    Excluding corresponding genes of file: ' + f + ' from pangenome database')    
             genefiles.remove(f)
+
+    if not len(genomefiles) == len(genefiles):
+        sys.exit('\nError in function check_genomes of panphlan_pangenome_generation.py\n')
 
     if VERBOSE:
         print('[I] Total number of genomes (genome.fna gene.ffn file pairs): ' + str(len(genomefiles)))
