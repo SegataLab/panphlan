@@ -76,6 +76,7 @@ EXTENSIONS = [CSV, TXT, BZ2, GZ, ZIP]
 # Error codes
 INEXISTENCE_ERROR_CODE  =  1 # File or folder does not exist
 PARAMETER_ERROR_CODE    =  2 # Dependent options are missed (e.g. If we define --sample_pairs, we MUST also define both --i_dna and --i_rna)
+FILEFORMAT_ERROR_CODE   =  3 # file of DNA RNA sample pairs
 
 # Strings
 PANPHLAN        = 'panphlan_'
@@ -1161,11 +1162,16 @@ def check_args():
                         sys.exit(INEXISTENCE_ERROR_CODE)
 
                     # --sample_pairs, --i_dna, --i_rna are all defined
-                    with open(pairs_path) as drmap:
-                        next(drmap) # Skip the first line, it's the header
-                        for line in drmap:
-                            words = line.strip().split('\t')
+                    try: # read file of DNA RNA sample pairs
+                        for line in (l.strip() for l in open(pairs_path) if not l.startswith('#')):
+                            words = line.split('\t')
                             dna2rna[words[0]] = words[1]
+                    except IndexError as err:
+                        show_error_message(err)
+                        print(line)
+                        print('[E] Cannot read DNA RNA --sample_pairs:')
+                        print('    File format needs to follow tab-separated pairs of DNA and RNA sample names.')
+                        sys.exit(FILEFORMAT_ERROR_CODE)
                     # Search for files reading the DNA-RNA mapping
                     dna_file2id = {}
                     rna_id2file = {}
