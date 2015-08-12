@@ -231,7 +231,8 @@ def correct_output_name(opath, clade, VERBOSE):
         opath = '' if not folders else folders + '/'
         opath += name
         if VERBOSE:
-            print('[W] Corrected output path "' + old_path + '" in "' + opath + '"')
+            if not old_path==opath:
+                print('[W] Corrected output path "' + old_path + '" in "' + opath + '"')
 
     except Exception as err:
         show_error_message(str(err) + '\n\tOutput file defined for -o option is not acceptable!\n    Correct pattern for filename is: SAMPLE[_CLADE][.csv]')
