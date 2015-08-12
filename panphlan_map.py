@@ -19,8 +19,8 @@ from __future__ import with_statement
 # ==============================================================================
 
 __author__  = 'Thomas Tolio, Matthias Scholz, Nicola Segata (panphlan-users@googlegroups.com)'
-__version__ = '1.1'
-__date__    = '12 July 2015'
+__version__ = '1.1.1'
+__date__    = '12 August 2015'
 
 # Imports
 from argparse import ArgumentParser
@@ -715,32 +715,33 @@ def mapping(input_pair, is_multi_file, clade, out_bam, min_length, max_numof_mis
 
 def check_fastqdump(VERBOSE, PLATFORM):
     '''
-    Check if SRA-toolkit (fastq-dump tool) is alread installed in the system
+    If input is a SRA file: check if SRA-toolkit (fastq-dump tool) is installed in the system. 
     '''
     try:
         fastqdump = ''
-        if PLATFORM == LINUX:
-            fastqdump = subprocess.Popen(['which', 'fastq-dump'], stdout=subprocess.PIPE).communicate()[0]
-        elif PLATFORM == WINDOWS:
+        if PLATFORM == WINDOWS:
             fastqdump = subprocess.Popen(['where', 'fastq-dump'], stdout=subprocess.PIPE).communicate()[0]
+        else: # Linux, Mac, ...
+            fastqdump = subprocess.Popen(['which', 'fastq-dump'], stdout=subprocess.PIPE).communicate()[0]
         if VERBOSE:
-            print('[I] SRA-toolkit is already installed in the system in path ' + str(fastqdump))
+            print('[I] SRA-toolkit is installed in the system in path ' + str(fastqdump))
     except Exception as err:
         show_error_message(err)
-        sys.exit(UNINSTALLED_ERROR_CODE)
+        print('[W] SRA-toolkit is not installed. SRA sample files cannot be processed.')
+        sys.exit(UNINSTALLED_ERROR_CODE) 
 
 # -----------------------------------------------------------------------------
 
 def check_samtools(VERBOSE = False, PLATFORM = 'lin'):
     '''
-    Check if Samtools is alread installed in the system
+    Check if Samtools is installed in the system
     '''
     try:
         samtools = ''
-        if PLATFORM == LINUX:
-            samtools = subprocess.Popen(['which', 'samtools'], stdout=subprocess.PIPE).communicate()[0]
-        elif PLATFORM == WINDOWS:
+        if PLATFORM == WINDOWS:
             samtools = subprocess.Popen(['where', 'samtools'], stdout=subprocess.PIPE).communicate()[0]
+        else: # Linux, Mac, ...    
+            samtools = subprocess.Popen(['which', 'samtools'], stdout=subprocess.PIPE).communicate()[0]
         if VERBOSE:
             print('[I] Samtools is already installed in the system in path ' + str(samtools.strip()))
     except Exception as err:
@@ -756,10 +757,10 @@ def check_bowtie2(clade, VERBOSE=False, PLATFORM='lin'):
     Check if Bowtie2 is alread installed in the system
     '''
     try: # bowtie2 installed?
-        if PLATFORM == LINUX:
-            bowtie2 = subprocess.Popen(['which', 'bowtie2'], stdout=subprocess.PIPE).communicate()[0]
-        elif PLATFORM == WINDOWS:
+        if PLATFORM == WINDOWS:
             bowtie2 = subprocess.Popen(['where', 'bowtie2'], stdout=subprocess.PIPE).communicate()[0]
+        else: # Linux, Mac, ...
+            bowtie2 = subprocess.Popen(['which', 'bowtie2'], stdout=subprocess.PIPE).communicate()[0]
         bowtie2_version = subprocess.Popen(['bowtie2', '--version'], stdout=subprocess.PIPE).communicate()[0]
         bowtie2_version = bowtie2_version.split()[2]
         if VERBOSE:
