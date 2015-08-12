@@ -715,7 +715,7 @@ def mapping(input_pair, is_multi_file, clade, out_bam, min_length, max_numof_mis
 
 def check_fastqdump(VERBOSE, PLATFORM):
     '''
-    If input is a SRA file: check if SRA-toolkit (fastq-dump tool) is installed in the system. 
+    If input is a SRA file: check if SRA-toolkit (fastq-dump tool) is installed 
     '''
     try:
         fastqdump = ''
@@ -734,7 +734,7 @@ def check_fastqdump(VERBOSE, PLATFORM):
 
 def check_samtools(VERBOSE = False, PLATFORM = 'lin'):
     '''
-    Check if Samtools is installed in the system
+    Check if Samtools is installed
     '''
     try:
         samtools = ''
@@ -754,7 +754,7 @@ def check_samtools(VERBOSE = False, PLATFORM = 'lin'):
 
 def check_bowtie2(clade, VERBOSE=False, PLATFORM='lin'):
     '''
-    Check if Bowtie2 is alread installed in the system
+    Check if Bowtie2 is alread installed
     '''
     try: # bowtie2 installed?
         if PLATFORM == WINDOWS:
@@ -806,7 +806,7 @@ def check_bowtie2(clade, VERBOSE=False, PLATFORM='lin'):
 
 def check_installed_tools(clade, VERBOSE = False, PLATFORM = 'lin'):
     '''
-    Check if all the necessary tools (i.e. Bowtie2, Samtools) are already installed in the system
+    Check if Bowtie2 and Samtools are installed
     '''
     return check_bowtie2(clade, VERBOSE, PLATFORM), check_samtools(VERBOSE, PLATFORM)
 

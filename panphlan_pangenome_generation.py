@@ -557,10 +557,10 @@ def check_usearch7(VERBOSE, PLATFORM='lin'):
     Check if Usearch 7 is installed
     '''
     try:
-        if PLATFORM == LINUX:
-            usearch7_path = subprocess.Popen(['which','usearch7'], stdout=subprocess.PIPE).communicate()[0].decode('utf-8')
-        elif PLATFORM == WINDOWS:
+        if PLATFORM == WINDOWS:
             usearch7_path = subprocess.Popen(['where','usearch7'], stdout=subprocess.PIPE).communicate()[0].decode('utf-8')
+        else: # Linux, Mac, ...
+            usearch7_path = subprocess.Popen(['which','usearch7'], stdout=subprocess.PIPE).communicate()[0].decode('utf-8')
         usearch7_version = subprocess.Popen(['usearch7','--version'], stdout=subprocess.PIPE).communicate()[0].decode('utf-8')
         usearch7_version = usearch7_version.split()[1]
     except OSError as err:
@@ -578,13 +578,13 @@ def check_usearch7(VERBOSE, PLATFORM='lin'):
 
 def check_bowtie2(VERBOSE, PLATFORM='lin'):
     '''
-    Check if Bowtie2 is already installed
+    Check if Bowtie2 is installed
     '''
     try:
-        if PLATFORM == LINUX:
-            bowtie2 = subprocess.Popen(['which', 'bowtie2'], stdout=subprocess.PIPE).communicate()[0].decode('utf-8')
-        elif PLATFORM == WINDOWS:
+        if PLATFORM == WINDOWS:
             bowtie2 = subprocess.Popen(['where', 'bowtie2'], stdout=subprocess.PIPE).communicate()[0].decode('utf-8')
+        else: # Linux, Mac, ...
+            bowtie2 = subprocess.Popen(['which', 'bowtie2'], stdout=subprocess.PIPE).communicate()[0].decode('utf-8')
         bowtie2_version = subprocess.Popen(['bowtie2', '--version'], stdout=subprocess.PIPE).communicate()[0].decode('utf-8')
         bowtie2_version = bowtie2_version.split()[2]
         if VERBOSE:
