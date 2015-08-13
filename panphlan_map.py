@@ -837,6 +837,7 @@ def check_args():
     if VERBOSE:
         print('\nPanPhlAn map version '+__version__+'\n')
         print('Python version: ' + sys.version)
+        print('System: ' + sys.platform)
 
     # Check: INPUT_FILE -------------------------------------------------------
     is_compressed = False

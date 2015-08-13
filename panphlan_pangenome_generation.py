@@ -662,6 +662,7 @@ def check_args():
     if VERBOSE:
         print('\nPanPhlAn pangenome generation version '+__version__+'\n')
         print('Python version: ' + sys.version)
+        print('System: ' + sys.platform)
 
     # Check: FFN_FOLDER --------------------------------------------------------
     ipath = args['i_ffn']

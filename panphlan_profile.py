@@ -1105,6 +1105,7 @@ def check_args():
     if VERBOSE:
         print('\nPanPhlAn profile version '+__version__+'\n')
         print('Python version: ' + sys.version)
+        print('System: ' + sys.platform)
 
     # Check CLADE
     clade = args['clade']
