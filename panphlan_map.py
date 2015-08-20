@@ -19,7 +19,7 @@ from __future__ import with_statement
 # ==============================================================================
 
 __author__  = 'Thomas Tolio, Matthias Scholz, Nicola Segata (panphlan-users@googlegroups.com)'
-__version__ = '1.1.1'
+__version__ = '1.1.2'
 __date__    = '12 August 2015'
 
 # Imports
@@ -872,7 +872,7 @@ def check_args():
     if not clade.startswith(PANPHLAN):
         args_set['clade'] = PANPHLAN + clade
     if VERBOSE:
-        print('[I] Clade: ' + args_set['clade'])
+        print('[I] Clade/Species: ' + args_set['clade'].replace(PANPHLAN,'') )
 
     # Check: OUTPUT_FILE ------------------------------------------------------
     opath = args_set['output']
@@ -929,7 +929,7 @@ def check_args():
     if args_set['readLength'] < DEFAULT_READ_LENGTH:
         args_set['readLength'] = DEFAULT_READ_LENGTH
     if VERBOSE:
-        print('[I] Length of the reads: ' + str(args_set['readLength']))
+        print('[I] Minimum length of reads: ' + str(args_set['readLength']))
 
     # Check: TEMP_FOLDER ------------------------------------------------------
     tmp_path = args_set['tmp']
