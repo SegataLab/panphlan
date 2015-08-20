@@ -660,8 +660,8 @@ def check_args():
     VERBOSE = args['verbose']
 
     if VERBOSE:
-        print('\nPanPhlAn pangenome generation version '+__version__+'\n')
-        print('Python version: ' + sys.version)
+        print('\nPanPhlAn pangenome generation version '+__version__)
+        print('Python version: ' + sys.version.split()[0])
         print('System: ' + sys.platform)
 
     # Check: FFN_FOLDER --------------------------------------------------------
