@@ -333,7 +333,7 @@ def centroids_add_geneID_prefix(clade, gene2family, output_path):
     3) write new version of panphlan_species_centrois.ffn
     called from --> pangenome_generation()
     '''
-    centroids_ffn = os.path.join(output_path,'panphlan_' + clade + '_centroids.ffn')
+    centroids_ffn      = os.path.join(output_path,'panphlan_' + clade + '_centroids.ffn')
     centroids_orig_ffn = os.path.join(output_path,'panphlan_' + clade + '_centroids_orig.ffn')
 
     if os.path.exists(centroids_ffn):
