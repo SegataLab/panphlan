@@ -328,16 +328,16 @@ def gene2genome_mapping(pathgenefiles, VERBOSE):
 def centroids_add_geneID_prefix(clade, gene2family, output_path):
     '''
     Add prefix 'clade:genefamID:' to geneIDs in centroid.ffn sequence file
-    1) copy usearch7 result: panphlan_species_centrois.ffn as TMP/.._centroids_orig.ffn
+    1) copy usearch7 result: panphlan_species_centrois.ffn as .._centroids_orig.ffn
     2) read file and add prefix: species:g12345:old_geneID
     3) write new version of panphlan_species_centrois.ffn
     called from --> pangenome_generation()
     '''
     centroids_ffn = os.path.join(output_path,'panphlan_' + clade + '_centroids.ffn')
-    centroids_orig_ffn = os.path.join(TEMP_FOLDER,'panphlan_' + clade + '_centroids_orig.ffn')
+    centroids_orig_ffn = os.path.join(output_path,'panphlan_' + clade + '_centroids_orig.ffn')
 
     if os.path.exists(centroids_ffn):
-        # move panphlan_species_centroids.ffn to TMP/panphlan_species_centroids_orig.ffn
+        # move panphlan_species_centroids.ffn to panphlan_species_centroids_orig.ffn
         os.rename(centroids_ffn,centroids_orig_ffn)
         # add prefix species:g12345:old_geneID (read centroid_orig.ffn, write new centroid.ffn)    
         centroid_sequences = SeqIO.parse(open(centroids_orig_ffn),'fasta')
