@@ -19,8 +19,8 @@ from __future__ import with_statement
 # ==============================================================================
 
 __author__  = 'Thomas Tolio, Matthias Scholz, Nicola Segata (panphlan-users@googlegroups.com)'
-__version__ = '1.1.2'
-__date__    = '12 July 2015'
+__version__ = '1.1.2.1'
+__date__    = '28 August 2015'
 
 # Imports
 from argparse import ArgumentParser
@@ -323,6 +323,32 @@ def gene2genome_mapping(pathgenefiles, VERBOSE):
                 sys.exit(NONUNIQUEGENE_ERROR_CODE)
     return gene2genome
 
+# ------------------------------------------------------------------------------
+
+def centroids_add_geneID_prefix(clade, gene2family, output_path):
+    '''
+    Add prefix 'clade:genefamID:' to geneIDs in centroid.ffn sequence file
+    1) copy usearch7 result: panphlan_species_centrois.ffn as TMP/.._centroids_orig.ffn
+    2) read file and add prefix: species:g12345:old_geneID
+    3) write new version of panphlan_species_centrois.ffn
+    called from --> pangenome_generation()
+    '''
+    centroids_ffn = os.path.join(output_path,'panphlan_' + clade + '_centroids.ffn')
+    centroids_orig_ffn = os.path.join(TEMP_FOLDER,'panphlan_' + clade + '_centroids_orig.ffn')
+
+    if os.path.exists(centroids_ffn):
+        # move panphlan_species_centroids.ffn to TMP/panphlan_species_centroids_orig.ffn
+        os.rename(centroids_ffn,centroids_orig_ffn)
+        # add prefix species:g12345:old_geneID (read centroid_orig.ffn, write new centroid.ffn)    
+        centroid_sequences = SeqIO.parse(open(centroids_orig_ffn),'fasta')
+        with open(centroids_ffn, 'w') as f:
+            for seq in centroid_sequences:
+                genefamID=gene2family[seq.id] # 'g12345'
+                seq.id = clade + ':' + genefamID + ':' + seq.id
+                r = SeqIO.write(seq, f, 'fasta')
+                if r!=1:
+                    sys.exit('[E] Error while writing centroid sequence:  ' + seq.id)
+        # os.remove(centroids_orig_ffn)
 
 # ------------------------------------------------------------------------------
 
@@ -353,8 +379,11 @@ def pangenome_generation(pathgenomefiles, pathgenefiles, merged_txt, clade, outp
     gene2genome    = gene2genome_mapping(pathgenefiles, VERBOSE)
     genome2contigs = get_contigs(pathgenomefiles)
     
-    # Create the pangenome
+    # Create the pangenome database: panphlan_clade_pangenome.csv
     combining(gene2loc, gene2family, gene2genome, output_path, clade, TIME, VERBOSE)
+
+    # Add prefix clade:genefamID: to geneIDs in centroid.ffn sequence file
+    centroids_add_geneID_prefix(clade, gene2family, output_path) 
 
     if VERBOSE:
         TIME = time_message(TIME, 'Pangenome has been generated.')
@@ -540,7 +569,7 @@ def gene_families_clustering(pathgenefiles, identity_threshold_perc, clade, outp
     '''
     # Merge & Sort
     TIME, tmp_sorted_ffn = merging(pathgenefiles, tmp_path, TIME, VERBOSE)
-    # Cluster
+    # usearch7 clustering
     tmp_uc, TIME = clustering(tmp_sorted_ffn.name, identity_threshold_perc / 100.0, clade, output_path, tmp_path, KEEP_UC, TIME, VERBOSE)
     # Convert
     merged_txt = output_path + 'usearch7_' + clade + '_genefamily_cluster.txt'
@@ -752,9 +781,9 @@ def main():
     # check input genome and gene files
     pathgenomefiles, pathgenefiles = check_genomes(args['i_ffn'], args['i_fna'], VERBOSE)    
 
-    # Get gene families cluster
+    # Get gene families cluster (usearch7)
     if VERBOSE:
-        print('\nSTEP 2. Generating gene families cluster...')
+        print('\nSTEP 2. Generating gene families cluster (usearch7) ...')
     merged_txt, TIME = gene_families_clustering(pathgenefiles, args['th'], args['clade'], args['output'], args['tmp'], KEEP_UC, TIME, VERBOSE)
 
     # Get pangenome and bowtie2 index file
