@@ -345,10 +345,12 @@ def centroids_add_geneID_prefix(clade, gene2family, output_path):
             for seq in centroid_sequences:
                 genefamID=gene2family[seq.id] # 'g12345'
                 seq.id = clade + ':' + genefamID + ':' + seq.id
+                seq.name=''
+                seq.description=''
                 r = SeqIO.write(seq, f, 'fasta')
                 if r!=1:
                     sys.exit('[E] Error while writing centroid sequence:  ' + seq.id)
-        # os.remove(centroids_orig_ffn)
+        os.remove(centroids_orig_ffn)
 
 # ------------------------------------------------------------------------------
 
