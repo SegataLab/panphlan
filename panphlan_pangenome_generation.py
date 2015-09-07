@@ -472,7 +472,7 @@ def clustering(sorted_merged_ffn, identity, clade, output_path, tmp_path, KEEP_U
             merged_uc = tempfile.NamedTemporaryFile(delete=False, prefix='panphlan_usearch7_', suffix='.uc')
         else:
             merged_uc = tempfile.NamedTemporaryFile(delete=False, prefix='panphlan_usearch7_', suffix='.uc', dir=tmp_path)
-    centroids_ffn = output_path + 'panphlan_' + clade + '_centroids.ffn'
+    centroids_ffn = os.path.join(output_path,'panphlan_' + clade + '_centroids.ffn')
     # 3rd command:  usearch7 -cluster_smallmem merged_file.sorted.ffn -id 0.95 -maxaccepts 32 -maxrejects 128 -wordlength 3 -strand both -uc merged_file.uc
     try:
         clust_cmd = ['usearch7', '--cluster_smallmem', sorted_merged_ffn, '--id', str(identity),
@@ -702,8 +702,10 @@ def check_args():
         sys.exit(INEXISTENCE_ERROR_CODE)
         
     ipath = os.path.abspath(ipath)
-    if not ipath[-1] ==  '/':
-        args['i_ffn'] = ipath + '/'
+    ipath = os.path.join(ipath,'')
+    args['i_ffn'] = ipath
+    # if not ipath[-1] ==  '/':
+    #    args['i_ffn'] = ipath + '/'
     if VERBOSE:
         print('[I] Input gene FFN folder: ' + args['i_ffn'])
 
@@ -714,8 +716,10 @@ def check_args():
         sys.exit(INEXISTENCE_ERROR_CODE)
 
     ipath = os.path.abspath(ipath)
-    if not ipath[-1] ==  '/':
-        args['i_fna'] = ipath + '/'
+    ipath = os.path.join(ipath,'')
+    args['i_fna'] = ipath
+    # if not ipath[-1] ==  '/':
+    #    args['i_fna'] = ipath + '/'
     if VERBOSE:
         print('[I] Input genome FNA folder: ' + args['i_fna'])
 
@@ -734,9 +738,9 @@ def check_args():
             print('[I] Identity threshold percentage: ' + str(args['th']) + ' %.')
 
     # Check: OUTPUT_FOLDER -----------------------------------------------------
-    opath = args['output']
-    if not opath[-1] == '/':
-        opath +=  '/'
+    opath = os.path.join(args['output'],'')
+    # if not opath[-1] == '/':
+    #    opath +=  '/'
     if not os.path.exists(os.path.dirname(opath)):
         os.makedirs(opath)
     args['output'] = opath
@@ -744,9 +748,9 @@ def check_args():
         print('[I] Output folder: ' + args['output'])
 
     # Check: TEMP_FOLDER ------------------------------------------------------
-    tmp_path = args['tmp']
-    if not tmp_path[-1] == '/':
-        tmp_path +=  '/'
+    tmp_path = os.path.join(args['tmp'],'')
+    # if not tmp_path[-1] == '/':
+    #    tmp_path +=  '/'
     if not os.path.exists(os.path.dirname(tmp_path)):
         os.makedirs(tmp_path)
     args['tmp'] = tmp_path
