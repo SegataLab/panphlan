@@ -79,7 +79,6 @@ class PanPhlAnGenParser(ArgumentParser):
         self.add_argument('--verbose',       action='store_true',                                        help='Defines if the standard output must be verbose or not.')
         self.add_argument('-v', '--version', action='version',   version="PanPhlAn version "+__version__+"\t("+__date__+")", help='Prints the current PanPhlAn version and exits.')
 
-
 # ------------------------------------------------------------------------------
 # MINOR FUNCTIONS
 # ------------------------------------------------------------------------------
@@ -88,18 +87,15 @@ def end_program(total_time):
     print('[TERMINATING...] ' + __file__ + ', ' + str(round(total_time / 60.0, 2)) + ' minutes.')
 
 
-
 def show_interruption_message():
 	sys.stderr.flush()
 	sys.stderr.write('\r')
 	sys.stderr.write(INTERRUPTION_MESSAGE)
 
 
-
 def show_error_message(error):
     sys.stderr.write('\n[E] Execution has encountered an error!\n')
     sys.stderr.write('    ' + str(error) + '\n')
-
 
 
 def time_message(start_time, message):
@@ -110,7 +106,6 @@ def time_message(start_time, message):
 # ------------------------------------------------------------------------------
 # MAJOR FUNCTIONS
 # ------------------------------------------------------------------------------
-
 def create_bt2_indexes(pathgenomefiles, clade, output_path, tmp_path, TIME, VERBOSE):
     '''
     Call the build function of Bowtie2 to create the indexes for a given species
@@ -170,9 +165,7 @@ def create_bt2_indexes(pathgenomefiles, clade, output_path, tmp_path, TIME, VERB
         show_interruption_message()
         sys.exit(INTERRUPTION_ERROR_CODE)
 
-
 # ------------------------------------------------------------------------------
-
 def combining(gene2loc, gene2family, gene2genome, output_path, clade, TIME, VERBOSE):
     '''
     Create the pangenome combining all the information from gene mappings (location (contig, from, to), family and genome)
@@ -200,9 +193,7 @@ def combining(gene2loc, gene2family, gene2genome, output_path, clade, TIME, VERB
                 print('    Check presence of gene in file: usearch7_species_cluster.uc, option --uc')
     return TIME
     
-
 # ------------------------------------------------------------------------------
-
 def get_gene_locations(pathgenomefiles, pathgenefiles, VERBOSE):
     '''
     Get gene locations: Read all .ffn files to extract start and stop location from gene-name,
@@ -285,9 +276,7 @@ def get_gene_locations(pathgenomefiles, pathgenefiles, VERBOSE):
                     gene2loc[g]=c
     return gene2loc
 
-
 # ------------------------------------------------------------------------------
-
 def get_contigs(pathgenomefiles):
     '''
     Map each genome (filename) to its contig-set
@@ -306,7 +295,6 @@ def get_contigs(pathgenomefiles):
     return genome2contigs
 
 # ------------------------------------------------------------------------------
-
 def gene2genome_mapping(pathgenefiles, VERBOSE):
     '''
     Map each gene to its genome (genome-filename)
@@ -331,7 +319,6 @@ def gene2genome_mapping(pathgenefiles, VERBOSE):
     return gene2genome
 
 # ------------------------------------------------------------------------------
-
 def centroids_add_geneID_prefix(clade, gene2family, output_path):
     '''
     Add prefix 'clade:genefamID:' to geneIDs in centroid.ffn sequence file
@@ -360,7 +347,6 @@ def centroids_add_geneID_prefix(clade, gene2family, output_path):
         os.remove(centroids_orig_ffn)
 
 # ------------------------------------------------------------------------------
-
 def pangenome_generation(pathgenomefiles, pathgenefiles, merged_txt, clade, output_path, gene2genome, TIME, VERBOSE):
     '''
     TODO
@@ -399,9 +385,7 @@ def pangenome_generation(pathgenomefiles, pathgenefiles, merged_txt, clade, outp
 
     return TIME
 
-
 # ------------------------------------------------------------------------------
-
 def family_of(index):
     return 'g' + str(format(index, '06d'))
 
@@ -435,9 +419,7 @@ def familydictization(merged_txt, VERBOSE):
         print('[I] Pangenome contains ' + str(len(gene2family)) + ' genes, clustered in ' + str(numof_line) + ' gene families.')
     return gene2family
 
-
 # ------------------------------------------------------------------------------
-
 def conversion(merged_uc, merged_txt, TIME, VERBOSE):
     '''
     Convert the UC file into a TXT file
@@ -463,9 +445,7 @@ def conversion(merged_uc, merged_txt, TIME, VERBOSE):
         TIME = time_message(TIME, 'UC --> TXT conversion has been done.')
     return TIME
 
-
 # ------------------------------------------------------------------------------
-
 def clustering(sorted_merged_ffn, identity, clade, output_path, tmp_path, KEEP_UC, TIME, VERBOSE):
     '''
     Group gene sequence in clusters by similarity
@@ -514,7 +494,6 @@ def clustering(sorted_merged_ffn, identity, clade, output_path, tmp_path, KEEP_U
     return merged_uc, TIME
 
 # ------------------------------------------------------------------------------
-
 def merging(pathgenefiles, tmp_path, TIME, VERBOSE):
     '''
     Merge all the gene-sequence FFN files into a unique one, then sort by length
@@ -567,9 +546,7 @@ def merging(pathgenefiles, tmp_path, TIME, VERBOSE):
     # Get in output the temporary merged and sorted .ffn file
     return TIME, tmp_sorted_ffn
 
-
 # ------------------------------------------------------------------------------
-
 def gene_families_clustering(pathgenefiles, identity_threshold_perc, clade, output_path, tmp_path, KEEP_UC, TIME, VERBOSE):
     '''
     
@@ -587,9 +564,7 @@ def gene_families_clustering(pathgenefiles, identity_threshold_perc, clade, outp
         os.unlink(tmp_uc.name)
     return merged_txt, TIME
     
-
 # ------------------------------------------------------------------------------
-
 def check_usearch7(VERBOSE, PLATFORM='lin'):
     '''
     Check if Usearch 7 is installed
@@ -610,10 +585,8 @@ def check_usearch7(VERBOSE, PLATFORM='lin'):
 
     if VERBOSE:
         print('[I] Usearch v.7 is installed, version: ' + str(usearch7_version) + ', path: ' + str(usearch7_path).strip())
-    
 
 # ------------------------------------------------------------------------------
-
 def check_bowtie2(VERBOSE, PLATFORM='lin'):
     '''
     Check if Bowtie2 is installed
@@ -657,7 +630,11 @@ def add_filename_to_geneIDs(pathgenefiles, tmp_path, VERBOSE):
         filename = os.path.splitext(os.path.basename(ffn_in))[0]
         with open(ffn_out, 'w') as f_out:
             for seq in SeqIO.parse(open(ffn_in), 'fasta'):
-                # seq.id = filename + ':' + seq.id
+                if seq.id == seq.name:
+                    seq.name=''
+                if seq.id == seq.description:    
+                    seq.description=''
+                # seq.id = filename + ':' + seq.id    
                 r = SeqIO.write(seq, f_out, 'fasta')
                 if r!=1:
                     sys.exit('[E] Error while writing sequence to ffn-file:\n    ' + ffn_out)    
@@ -665,7 +642,6 @@ def add_filename_to_geneIDs(pathgenefiles, tmp_path, VERBOSE):
     return new_pathgenefiles
 
 # ------------------------------------------------------------------------------
-
 def check_genomes(ffn_folder, fna_folder, VERBOSE):
     '''
     Check if genome files and .fna .fnn pairs are present and calculate expected runtime
@@ -740,7 +716,6 @@ def clean_up(pathgenefiles, merged_txt, tmp_path, VERBOSE):
     os.rmdir(tmp_path)
 
 # ------------------------------------------------------------------------------
-
 def check_args():
     '''
     Check input arguments
@@ -818,9 +793,7 @@ def check_args():
 
     return args
 
-
 # ------------------------------------------------------------------------------
-
 def main():
     # Check Python version
     if sys.hexversion < 0x02060000:
