@@ -717,6 +717,29 @@ def check_genomes(ffn_folder, fna_folder, VERBOSE):
     return pathgenomefiles, pathgenefiles
 
 # ------------------------------------------------------------------------------
+def clean_up(pathgenefiles, merged_txt, tmp_path, VERBOSE):
+    '''
+    Remove files not needed anymore
+    1) copy of gene-sequence ffn files having prefix to geneIDs "Filename:originalGenID"
+    2) usearch7 cluster info file
+    2) TMP folder
+    '''
+    if VERBOSE:
+        print('[I] Remove copies of gene-sequence ffn files from TMP/')
+    for f in pathgenefiles:
+        if tmp_path in f: # make sure we deleting in the TMP directory
+            os.remove(f)
+
+    if VERBOSE:
+        print('[I] Remove usearch7 tmp results')
+    os.remove(merged_txt)
+    
+    if VERBOSE:
+        print('[I] Remove TMP/ directory')
+    os.rmdir(os.path.join(tmp_path,'ffn_uniqueGeneIDs'))
+    os.rmdir(tmp_path)
+
+# ------------------------------------------------------------------------------
 
 def check_args():
     '''
@@ -834,9 +857,9 @@ def main():
     if VERBOSE:
         print('\nSTEP 3. Getting pangenome file...')
     TIME = pangenome_generation(pathgenomefiles, pathgenefiles, merged_txt, args['clade'], args['output'], gene2genome, TIME, VERBOSE)
-    os.remove(merged_txt) # information of this file can be found in the .uc file
     TIME = create_bt2_indexes(pathgenomefiles, args['clade'], args['output'], args['tmp'], TIME, VERBOSE)
-
+    
+    clean_up(pathgenefiles, merged_txt, tmp_path, VERBOSE)
     end_program(time.time() - TOTAL_TIME)
 
 # ------------------------------------------------------------------------------
