@@ -354,7 +354,7 @@ def centroids_add_geneID_prefix(clade, gene2family, output_path):
 
 # ------------------------------------------------------------------------------
 
-def pangenome_generation(pathgenomefiles, pathgenefiles, merged_txt, clade, output_path, TIME, VERBOSE):
+def pangenome_generation(pathgenomefiles, pathgenefiles, merged_txt, clade, output_path, gene2genome, TIME, VERBOSE):
     '''
     TODO
     
@@ -378,7 +378,7 @@ def pangenome_generation(pathgenomefiles, pathgenefiles, merged_txt, clade, outp
         print('[I] Get gene locations, gene families, contigs and genomes for each gene.')
     gene2family    = familydictization(merged_txt, VERBOSE)
     gene2loc       = get_gene_locations(pathgenomefiles, pathgenefiles, VERBOSE)
-    gene2genome    = gene2genome_mapping(pathgenefiles, VERBOSE)
+    # gene2genome    = gene2genome_mapping(pathgenefiles, VERBOSE) # new: run first in main to test for unique geneIDs across genomes
     genome2contigs = get_contigs(pathgenomefiles)
     
     # Create the pangenome database: panphlan_clade_pangenome.csv
@@ -786,6 +786,7 @@ def main():
     
     # check input genome and gene files
     pathgenomefiles, pathgenefiles = check_genomes(args['i_ffn'], args['i_fna'], VERBOSE)    
+    gene2genome    = gene2genome_mapping(pathgenefiles, VERBOSE)
 
     # Get gene families cluster (usearch7)
     if VERBOSE:
@@ -795,7 +796,7 @@ def main():
     # Get pangenome and bowtie2 index file
     if VERBOSE:
         print('\nSTEP 3. Getting pangenome file...')
-    TIME = pangenome_generation(pathgenomefiles, pathgenefiles, merged_txt, args['clade'], args['output'], TIME, VERBOSE)
+    TIME = pangenome_generation(pathgenomefiles, pathgenefiles, merged_txt, args['clade'], args['output'], gene2genome, TIME, VERBOSE)
     os.remove(merged_txt) # information of this file can be found in the .uc file
     TIME = create_bt2_indexes(pathgenomefiles, args['clade'], args['output'], args['tmp'], TIME, VERBOSE)
 
