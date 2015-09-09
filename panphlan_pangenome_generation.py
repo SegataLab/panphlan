@@ -19,7 +19,7 @@ from __future__ import with_statement
 # ==============================================================================
 
 __author__  = 'Thomas Tolio, Matthias Scholz, Nicola Segata (panphlan-users@googlegroups.com)'
-__version__ = '1.1.2.1'
+__version__ = '1.1.2.2'
 __date__    = '28 August 2015'
 
 # Imports
@@ -224,9 +224,16 @@ def get_gene_locations(pathgenomefiles, pathgenefiles, VERBOSE):
                 # extract gene-locations from gi-gene-IDs, examples
                 #   gi|545636471|ref|NC_022443.1|:3480-3965
                 #   gi|387779217|ref|NC_017349.1|:789327-789398,789400-790437
-                pos1 = int(r.id.split(':')[1].split('-')[0].replace('c',''))
-                pos2 = int(r.id.split(':')[1].split('-')[-1].replace('c',''))
-                contig = r.id.split(':')[0]
+                # pos1 = int(r.id.split(':')[1].split('-')[0].replace('c',''))
+                # pos2 = int(r.id.split(':')[1].split('-')[-1].replace('c',''))
+                # contig = r.id.split(':')[0]
+                # new: ffn files with prefix filename:origGeneID
+                #   [0] = filename
+                #   [1] = contig
+                #   [2] = location
+                pos1 = int(r.id.split(':')[2].split('-')[0].replace('c','')) 
+                pos2 = int(r.id.split(':')[2].split('-')[-1].replace('c',''))
+                contig = r.id.split(':')[1]
                 start, stop = min(pos1, pos2), max(pos1, pos2) # to always have start < stop
                 gene2loc[r.id] = (str(contig), start, stop)
         except (IndexError, ValueError) as err: # alternatively, run BLAST-like python gene-genome mapping to get locations
@@ -625,8 +632,37 @@ def check_bowtie2(VERBOSE, PLATFORM='lin'):
         print('\n[E] Please, install Bowtie2.\n')
         if VERBOSE:
             print('    Bowtie2 is used to generate the .bt2 index files required in panphlan_map.py\n')
-        sys.exit(UNINSTALLED_ERROR_CODE)
+        sys.exit(UNINSTALLED_ERROR_CODE)        
 
+# ------------------------------------------------------------------------------
+def add_filename_to_geneIDs(pathgenefiles, tmp_path, VERBOSE):
+    '''
+    To get unique geneIDs across all genomes:
+    1) Copy gene ffn files to TMP
+    2) add filename as prefix to geneIDs "Filename:originalGenID"
+
+    requires Biopython (Bio module)
+    '''
+    if VERBOSE:
+        print('[I] To get unique geneIDs across genomes: add filename as prefix to geneIDs')
+
+    # create new folder 'ffn_uniqueGeneIDs' in TMP
+    new_ffn_folder = os.path.join(tmp_path,'ffn_uniqueGeneIDs','') # '' to get ending '/'
+    os.makedirs(new_ffn_folder)
+    
+    # create new list of ffn files: new_pathgenefiles
+    new_pathgenefiles = [os.path.join(new_ffn_folder,os.path.basename(f)) for f in pathgenefiles]
+
+    for (ffn_in,ffn_out) in zip(pathgenefiles,new_pathgenefiles):
+        filename = os.path.splitext(os.path.basename(ffn_in))[0]
+        with open(ffn_out, 'w') as f_out:
+            for seq in SeqIO.parse(open(ffn_in), 'fasta'):
+                # seq.id = filename + ':' + seq.id
+                r = SeqIO.write(seq, f_out, 'fasta')
+                if r!=1:
+                    sys.exit('[E] Error while writing sequence to ffn-file:\n    ' + ffn_out)    
+
+    return new_pathgenefiles
 
 # ------------------------------------------------------------------------------
 
@@ -785,7 +821,8 @@ def main():
     usearch7  = check_usearch7(VERBOSE, PLATFORM) # for getting gene-family cluster
     
     # check input genome and gene files
-    pathgenomefiles, pathgenefiles = check_genomes(args['i_ffn'], args['i_fna'], VERBOSE)    
+    pathgenomefiles, pathgenefiles = check_genomes(args['i_ffn'], args['i_fna'], VERBOSE)
+    pathgenefiles = add_filename_to_geneIDs(pathgenefiles, args['tmp'], VERBOSE)
     gene2genome    = gene2genome_mapping(pathgenefiles, VERBOSE)
 
     # Get gene families cluster (usearch7)
