@@ -832,7 +832,7 @@ def main():
     TIME = pangenome_generation(pathgenomefiles, pathgenefiles, merged_txt, args['clade'], args['output'], gene2genome, TIME, VERBOSE)
     TIME = create_bt2_indexes(pathgenomefiles, args['clade'], args['output'], args['tmp'], TIME, VERBOSE)
     
-    clean_up(pathgenefiles, merged_txt, tmp_path, VERBOSE)
+    clean_up(pathgenefiles, merged_txt, args['tmp'], VERBOSE)
     end_program(time.time() - TOTAL_TIME)
 
 # ------------------------------------------------------------------------------
