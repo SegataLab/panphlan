@@ -634,7 +634,7 @@ def add_filename_to_geneIDs(pathgenefiles, tmp_path, VERBOSE):
                     seq.name=''
                 if seq.id == seq.description:    
                     seq.description=''
-                # seq.id = filename + ':' + seq.id    
+                seq.id = filename + ':' + seq.id    
                 r = SeqIO.write(seq, f_out, 'fasta')
                 if r!=1:
                     sys.exit('[E] Error while writing sequence to ffn-file:\n    ' + ffn_out)    
