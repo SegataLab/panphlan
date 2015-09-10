@@ -632,8 +632,8 @@ def add_filename_to_geneIDs(pathgenefiles, tmp_path, VERBOSE):
             for seq in SeqIO.parse(open(ffn_in), 'fasta'):
                 if seq.id == seq.name:
                     seq.name=''
-                if seq.id == seq.description:    
-                    seq.description=''
+                if seq.id == seq.description.split()[0]:    
+                    seq.description=' '.join(seq.description.split()[1:])
                 seq.id = filename + ':' + seq.id    
                 r = SeqIO.write(seq, f_out, 'fasta')
                 if r!=1:
