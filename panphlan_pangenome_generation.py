@@ -19,7 +19,7 @@ from __future__ import with_statement
 # ==============================================================================
 
 __author__  = 'Thomas Tolio, Matthias Scholz, Nicola Segata (panphlan-users@googlegroups.com)'
-__version__ = '1.1.2.2'
+__version__ = '1.1.2.3'
 __date__    = '28 August 2015'
 
 # Imports
@@ -222,9 +222,9 @@ def get_gene_locations(pathgenomefiles, pathgenefiles, VERBOSE):
                 #   [0] = filename
                 #   [1] = contig
                 #   [2] = location
-                pos1 = int(r.id.split(':')[2].split('-')[0].replace('c','')) 
-                pos2 = int(r.id.split(':')[2].split('-')[-1].replace('c',''))
-                contig = r.id.split(':')[1]
+                pos1 = int(r.id.split(':')[-1].split('-')[0].replace('c','')) 
+                pos2 = int(r.id.split(':')[-1].split('-')[-1].replace('c',''))
+                contig = r.id.split(':')[-2]
                 start, stop = min(pos1, pos2), max(pos1, pos2) # to always have start < stop
                 gene2loc[r.id] = (str(contig), start, stop)
         except (IndexError, ValueError) as err: # alternatively, run BLAST-like python gene-genome mapping to get locations
