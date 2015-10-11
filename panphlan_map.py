@@ -94,6 +94,7 @@ class PanPhlAnParser(ArgumentParser):
         ArgumentParser.__init__(self)
         self.add_argument('-i','--input',           metavar='INPUT_FILE',                   type=str,                                                   help='File(s) containing the unpaired reads to be aligned using Bowtie2. If not specified, Bowtie2 gets the read from the stdin filehandle.')
         self.add_argument('-f', '--input_format',   metavar='INPUT_FORMAT',                 type=str,   choices=KNOWN_INPUT_FORMATS,                    help='Specification of the format of input file (acceptable formats: ' + str(KNOWN_INPUT_FORMATS) + ')')
+        self.add_argument('--fastx',                metavar='FASTX_FORMAT',                 type=str,   default='fastq', choices=['fastq','fasta'],     help='Read input format (fasta or fastq), default: fastq, if not fasta recognized by file ending.')
         self.add_argument('-c','--clade',           metavar='CLADE_NAME',                   type=str,                                   required=True,  help='Name of the specie to consider, i.e. the basename of the index for the reference genome used by Bowtie2 to align reads.')
         self.add_argument('-o','--output',          metavar='OUTPUT_FILE',                  type=str,                                                   help='File to write the computed genes abundances. To follow the standards, .csv file format isa a good extension to choose.')
         self.add_argument('--th_mismatches',        metavar='NUMOF_MISMATCHES',             type=int,   default=-1,                                     help='Number of mismatches to filter.')
@@ -647,6 +648,9 @@ def mapping(input_pair, is_multi_file, clade, out_bam, min_length, max_numof_mis
             bowtie2_cmd.append('--quiet')
         else:
             print('[I] ' + ' '.join(bowtie2_cmd))
+            
+        if args['fastx'] is 'fasta': 
+            bowtie2_cmd.append('-f') #bowtie2 default is fastq (-q)
             
         if is_multi_file:
             p1 = subprocess.Popen(bowtie2_cmd, stdin=p0.stdout, stdout=subprocess.PIPE)
