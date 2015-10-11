@@ -69,6 +69,29 @@ COMPRESSED_FORMATS      = [BZ2, GZ]
 ARCHIVE_FORMATS         = [TAR_BZ2, TAR_GZ, SRA]
 KNOWN_INPUT_FORMATS     = [TAR_BZ2, TAR_GZ, BZ2, GZ, SRA, FASTQ, BAM]
 
+# input file formats
+INPUT_FORMAT={} 
+INPUT_FORMAT['tar.bz2']  =('fastq',['tar', '-xOf'])
+INPUT_FORMAT['tar.gz']   =('fastq',['tar', '-xOf'])
+INPUT_FORMAT['sra']      =('fastq',['fastq-dump', '-Z', '--split-spot'])
+INPUT_FORMAT['bz2']      =('fastq',['bzcat'])
+INPUT_FORMAT['gz']       =('fastq',['gunzip', '-c']) # gzcat, zcat not always available
+INPUT_FORMAT['fq.bz2']   =('fastq',['bzcat'])
+INPUT_FORMAT['fa.bz2']   =('fasta',['bzcat'])
+INPUT_FORMAT['fastq.bz2']=('fastq',['bzcat'])
+INPUT_FORMAT['fasta.bz2']=('fasta',['bzcat'])
+INPUT_FORMAT['fq.gz']    =('fastq',['gunzip', '-c']) 
+INPUT_FORMAT['fa.gz']    =('fasta',['gunzip', '-c']) 
+INPUT_FORMAT['fastq.gz'] =('fastq',['gunzip', '-c'])
+INPUT_FORMAT['fasta.gz'] =('fasta',['gunzip', '-c']) 
+INPUT_FORMAT['fastq']    =('fastq',['cat'])
+INPUT_FORMAT['fasta']    =('fasta',['cat'])
+INPUT_FORMAT['fq']       =('fastq',['cat'])
+INPUT_FORMAT['fa']       =('fasta',['cat'])
+INPUT_FORMAT['bam']      =('bam',[''])
+# only archive file (tar,sra) are decompressed and piped to bowtie2,
+# other files are directly given as bowtie2 input, but might be piped in future 
+
 # Error codes
 INEXISTENCE_ERROR_CODE      =  1 # File or folder does not exist
 UNINSTALLED_ERROR_CODE      =  2 # Software is not installed
@@ -150,14 +173,28 @@ def find(pattern, path):
 
 
 
+# def detect_input_format(filename):
+#     '''
+#     Detect the file format
+#     If unknown, it returns None
+#     '''
+#     for extension in reversed(sorted(KNOWN_INPUT_FORMATS, key=len)):
+#         if filename.endswith(extension):
+#             return extension
+#     # Unacceptable format is found. Raise an error and close the program
+#     show_error_message('Input with unacceptable extension/format.')
+#     sys.exit(FILEFORMAT_ERROR_CODE)
+
 def detect_input_format(filename):
     '''
-    Detect the file format
-    If unknown, it returns None
+    Detect input file format
+    Return: file-extension, fasta/fastq format, decompress command
+    Error, if unknown file format
     '''
-    for extension in reversed(sorted(KNOWN_INPUT_FORMATS, key=len)):
+    for extension in reversed(sorted(INPUT_FORMAT.keys(), key=len)):
         if filename.endswith(extension):
-            return extension
+            fastx, decompress = INPUT_FORMAT[extension]
+            return extension, fastx, decompress
     # Unacceptable format is found. Raise an error and close the program
     show_error_message('Input with unacceptable extension/format.')
     sys.exit(FILEFORMAT_ERROR_CODE)
@@ -852,7 +889,8 @@ def check_args():
         # Input format "fastq" is set by default because the stdin is a fasta/q stream
         # i.e. the program has not to decompress anything, the user does
         args_set['input'] = ('-', FASTQ)
-        args_set['input_format'] = FASTQ
+        # args_set['input_format'] = FASTQ
+        args_set['input_format'] = args_set['fastx']
     else:
         # If the file does not exist, halts the program
         if not os.path.exists(ipath):
@@ -864,12 +902,14 @@ def check_args():
             iextension = args_set['input_format']
             # If -f is not defined, then automatically detect input format
             if iextension == None:
-                iextension = detect_input_format(ipath)
+                iextension, ifastx, idecompress = detect_input_format(ipath)
                 args_set['input_format'] = iextension
                 
             if VERBOSE:
                 print('[I] Input file: ' + ipath + '. Extension detected: ' + iextension)
-            args_set['input'] = (ipath, iextension)
+            args_set['input'] = (ipath, iextension, ifastx, idecompress)
+            if ifastx is 'fasta':         # only overwrite for clearly detected 'fasta',  
+                args_set['fastx']='fasta' # tar.bz2 can be both, user needs to specify if not default 'fastq' 
 
     # Check: CLADE_NAME -------------------------------------------------------
     clade = args_set['clade']
