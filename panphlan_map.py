@@ -19,8 +19,8 @@ from __future__ import with_statement
 # ==============================================================================
 
 __author__  = 'Thomas Tolio, Matthias Scholz, Nicola Segata (panphlan-users@googlegroups.com)'
-__version__ = '1.1.2'
-__date__    = '12 August 2015'
+__version__ = '1.1.3'
+__date__    = '11 October 2015'
 
 # Imports
 from argparse import ArgumentParser
@@ -66,10 +66,10 @@ TAR_GZ                  = 'tar.gz'
 SRA                     = 'sra'
 
 COMPRESSED_FORMATS      = [BZ2, GZ]
-ARCHIVE_FORMATS         = [TAR_BZ2, TAR_GZ, SRA]
-KNOWN_INPUT_FORMATS     = [TAR_BZ2, TAR_GZ, BZ2, GZ, SRA, FASTQ, BAM]
+ARCHIVE_FORMATS         = [TAR_BZ2, TAR_GZ, SRA] 
+# KNOWN_INPUT_FORMATS     = [TAR_BZ2, TAR_GZ, BZ2, GZ, SRA, FASTQ, BAM] # old, but still used 
 
-# input file formats
+# input file endings, expected fasta or fastq format, decompression command 
 INPUT_FORMAT={} 
 INPUT_FORMAT['tar.bz2']  =('fastq',['tar', '-xOf'])
 INPUT_FORMAT['tar.gz']   =('fastq',['tar', '-xOf'])
@@ -116,8 +116,8 @@ class PanPhlAnParser(ArgumentParser):
     def __init__(self):
         ArgumentParser.__init__(self)
         self.add_argument('-i','--input',           metavar='INPUT_FILE',                   type=str,                                                   help='File(s) containing the unpaired reads to be aligned using Bowtie2. If not specified, Bowtie2 gets the read from the stdin filehandle.')
-        self.add_argument('-f', '--input_format',   metavar='INPUT_FORMAT',                 type=str,   choices=KNOWN_INPUT_FORMATS,                    help='Specification of the format of input file (acceptable formats: ' + str(KNOWN_INPUT_FORMATS) + ')')
-        self.add_argument('--fastx',                metavar='FASTX_FORMAT',                 type=str,   default='fastq', choices=['fastq','fasta'],     help='Read input format (fasta or fastq), default: fastq, if not fasta recognized by file ending.')
+        self.add_argument('-f', '--input_format',   metavar='INPUT_FORMAT',                 type=str,                                                   help='Old option, will be removed in future version')
+        self.add_argument('--fastx',                metavar='FASTX_FORMAT',                 type=str,   default='fastq',choices=['fastq','fasta','bam'],help='Read input format (fasta or fastq), default: fastq, if not fasta recognized by file ending.')
         self.add_argument('-c','--clade',           metavar='CLADE_NAME',                   type=str,                                   required=True,  help='Name of the specie to consider, i.e. the basename of the index for the reference genome used by Bowtie2 to align reads.')
         self.add_argument('-o','--output',          metavar='OUTPUT_FILE',                  type=str,                                                   help='File to write the computed genes abundances. To follow the standards, .csv file format isa a good extension to choose.')
         self.add_argument('--th_mismatches',        metavar='NUMOF_MISMATCHES',             type=int,   default=-1,                                     help='Number of mismatches to filter.')
@@ -907,7 +907,7 @@ def check_args():
                 args_set['input_format'] = iextension
                 
             if VERBOSE:
-                print('[I] Input file: ' + ipath + '. Extension detected: ' + iextension)
+                print('[I] Input file: ' + ipath + '. Detected extension: ' + iextension + '; format: ' + ifastx)
             args_set['input'] = (ipath, iextension, ifastx, idecompress)
             if ifastx is 'fasta':         # only overwrite for clearly detected 'fasta',  
                 args_set['fastx']='fasta' # tar.bz2 can be both, user needs to specify if not default 'fastq' 
