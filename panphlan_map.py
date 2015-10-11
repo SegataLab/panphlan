@@ -590,7 +590,7 @@ def bamming(in_sam, out_bam, memory, tmp_path, TIME, VERBOSE):
 
 # -----------------------------------------------------------------------------
 
-def mapping(input_pair, is_multi_file, clade, out_bam, min_length, max_numof_mismatches, memory, numof_proc, tmp_path, TIME, PLATFORM, VERBOSE):
+def mapping(input_pair, fastx, is_multi_file, clade, out_bam, min_length, max_numof_mismatches, memory, numof_proc, tmp_path, TIME, PLATFORM, VERBOSE):
     '''
     Maps the input sample file (.fastq) into a .bam file (passing through a .sam file) using BowTie2 and Samtools commands
 
@@ -649,7 +649,7 @@ def mapping(input_pair, is_multi_file, clade, out_bam, min_length, max_numof_mis
         else:
             print('[I] ' + ' '.join(bowtie2_cmd))
             
-        if args['fastx'] is 'fasta': 
+        if fastx is 'fasta': 
             bowtie2_cmd.append('-f') #bowtie2 default is fastq (-q)
             
         if is_multi_file:
@@ -997,7 +997,7 @@ def main():
         # if -f FASTQ_TAR_BZ2 or -f FASTQ_TAR_GZ or -f FASTQ_SRA, then the input file is an archive
         MULTI = args['input'][1] in ARCHIVE_FORMATS
         # Call mapping
-        mapping_outcome, TIME = mapping(args['input'], MULTI, indexes_folder + args['clade'], args['out_bam'], args['readLength'], args['th_mismatches'], args['mGB'], args['nproc'], args['tmp'], TIME, PLATFORM, VERBOSE)
+        mapping_outcome, TIME = mapping(args['input'],args['fastx'], MULTI, indexes_folder + args['clade'], args['out_bam'], args['readLength'], args['th_mismatches'], args['mGB'], args['nproc'], args['tmp'], TIME, PLATFORM, VERBOSE)
         sorted_bam_file = mapping_outcome[1]
         isTemp = True if mapping_outcome[0] == TEMPORARY_FILE else False
 
