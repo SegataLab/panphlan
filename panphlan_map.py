@@ -627,7 +627,7 @@ def bamming(in_sam, out_bam, memory, tmp_path, TIME, VERBOSE):
 
 # -----------------------------------------------------------------------------
 
-def mapping(input_pair, fastx, is_multi_file, clade, out_bam, min_length, max_numof_mismatches, memory, numof_proc, tmp_path, TIME, PLATFORM, VERBOSE):
+def mapping(input_set, fastx, is_multi_file, clade, out_bam, min_length, max_numof_mismatches, memory, numof_proc, tmp_path, TIME, PLATFORM, VERBOSE):
     '''
     Maps the input sample file (.fastq) into a .bam file (passing through a .sam file) using BowTie2 and Samtools commands
 
@@ -657,8 +657,9 @@ def mapping(input_pair, fastx, is_multi_file, clade, out_bam, min_length, max_nu
     outcome = (None, None)
     try:
         XN_FILTER = False if max_numof_mismatches <= -1 else True
-        input_format = input_pair[1]
-        input_path = input_pair[0]
+        input_path     = input_set[0]
+        input_format   = input_set[1]
+        decompress_cmd = input_set[3]
         total = 0
         rejected = 0
         outcome = (None, None)
@@ -666,13 +667,13 @@ def mapping(input_pair, fastx, is_multi_file, clade, out_bam, min_length, max_nu
 
         if is_multi_file:
             # 0th command: decompress archive and concatenate all the files inside (both in only one command)
-            decompress_cmd = ''
-            if input_format == TAR_BZ2:
-                decompress_cmd = ['tar', '-jxOf']
-            elif input_format == TAR_GZ:
-                decompress_cmd = ['tar', '-xOf']
-            elif input_format == SRA:
-                decompress_cmd = ['fastq-dump', '-Z', '--split-spot']
+             # decompress_cmd = ''
+             # if input_format == TAR_BZ2:
+             #     decompress_cmd = ['tar', '-jxOf']
+             # elif input_format == TAR_GZ:
+             #     decompress_cmd = ['tar', '-xOf']
+             # elif input_format == SRA:
+             #     decompress_cmd = ['fastq-dump', '-Z', '--split-spot']
             decompress_cmd.append(input_path)
             if VERBOSE:
                 print('[I] ' + ' '.join(decompress_cmd))
@@ -888,7 +889,7 @@ def check_args():
         print('[I] Input file is not specified. It will be used the standard input (stdin). Input format is "fastq" by default.')
         # Input format "fastq" is set by default because the stdin is a fasta/q stream
         # i.e. the program has not to decompress anything, the user does
-        args_set['input'] = ('-', FASTQ)
+        args_set['input'] = ('-', args_set['fastx'],'','')
         # args_set['input_format'] = FASTQ
         args_set['input_format'] = args_set['fastx']
     else:
