@@ -120,7 +120,8 @@ class PanPhlAnJoinParser(ArgumentParser):
         self.add_argument('--min_coverage',             metavar='MIN_COVERAGE_MEDIAN',          type=float, default=None,                   help='Median coverage threshold to filtering criteria: a sample must have a median coverage >= this value to pass the filtering.')
         self.add_argument('--left_max',                 metavar='LEFT_MAX',                     type=float, default=None,                   help='Left threshold value to do not overcome for sample goodness.')
         self.add_argument('--right_min',                metavar='RIGHT_MIN',                    type=float, default=None,                   help='Right threshold value to overcome for sample goodness.')
-        self.add_argument('--rna_max_zeros',            metavar='RNA_MAX_ZEROES',               type=float, default=RNA_MAX_ZERO_TH,        help='Max accepted percent of zero coveraged gene-families (default: <10 %%).')
+        self.add_argument('--rna_max_zeros',            metavar='RNA_MAX_ZEROES',               type=float, default=RNA_MAX_ZERO_TH,        help='Max accepted percent of zero coveraged gene-families (default: <10 %%).')          
+        self.add_argument('--rna_norm_percentile',      metavar='RNA_NORM_PERCENTILE',          type=float, default=50,                     help='Percentile for normalizing RNA/DNA ratios')
         self.add_argument('--strain_similarity_perc',   metavar='SIMILARITY_PERCENTAGE',        type=float, default=SIMILARITY_TH,          help='Minimum threshold (percentage) for genome size to accept the strain.')
         self.add_argument('--np',                       metavar='NON_PRESENCE_TOKEN',           type=str,   default='NP',                   help='User-defined symbol (or string) to map non-present genes.')
         self.add_argument('--nan',                      metavar='NOT_A_NUMBER_TOKEN',           type=str,   default='NaN',                  help='User-defined symbol (or string) to map multicopy and unknown genes.')
@@ -388,7 +389,7 @@ def get_samples_panfamilies(families, sample2family2presence, TIME, VERBOSE):
 
 # -----------------------------------------------------------------------------
 
-def rna_seq(out_channel, sample2family2dnaidx, dna_sample2family2cov, dna_sample2family2presence, dna_accepted_samples, rna_samples_list, rna_sample2family2cov, rna_max_zeroes, dna2rna, dna_file2id, rna_id2file, families, c, np_symbol, nan_symbol, clade, TIME, VERBOSE):
+def rna_seq(out_channel, sample2family2dnaidx, dna_sample2family2cov, dna_sample2family2presence, dna_accepted_samples, rna_samples_list, rna_sample2family2cov, rna_max_zeroes, dna2rna, dna_file2id, rna_id2file, families, c, np_symbol, nan_symbol, clade, rna_norm_percentile, TIME, VERBOSE):
     '''
     DESCRIPTION
         1.  convert DNA samples to get (1,-1,-2,-3) DNA index matrix and DNA coverage values
@@ -455,7 +456,9 @@ def rna_seq(out_channel, sample2family2dnaidx, dna_sample2family2cov, dna_sample
 
         # Take all the gene families belonging to the plateau and calculte the median of their RNA/DNA values
         plateau_rna_div_dna = [sample2family2rna_div_dna[dna_sample][f] for f in sample2family2rna_div_dna[dna_sample] if sample2family2dnaidx[dna_sample][f] == 1]
-        median[dna_sample] = numpy.median(plateau_rna_div_dna)
+        # median[dna_sample] = numpy.median(plateau_rna_div_dna)
+        median[dna_sample] = numpy.percentile(plateau_rna_div_dna, rna_norm_percentile) # default: 50
+
         if VERBOSE:
             print('[I] Median of plateau gene families RNA/DNA values: ' + str(median[dna_sample]))
         
@@ -1500,7 +1503,7 @@ def main():
     if RNASEQ:
         if VERBOSE:
             print('\nSTEP 8. Indexing RNA samples...')
-        rna_seq(args['o_rna'], sample2family2dnaidx, dna_samples_covs, dna_sample2family2presence, sample2accepted, rna_id_list, rna_samples_covs, args['rna_max_zeros'], args['sample_pairs'], args['i_dna'][COVERAGES_KEY], args['i_rna'], families, CONST_C, args['np'], args['nan'], args['clade'], TIME, VERBOSE)
+        rna_seq(args['o_rna'], sample2family2dnaidx, dna_samples_covs, dna_sample2family2presence, sample2accepted, rna_id_list, rna_samples_covs, args['rna_max_zeros'], args['sample_pairs'], args['i_dna'][COVERAGES_KEY], args['i_rna'], families, CONST_C, args['np'], args['nan'], args['clade'], args['rna_norm_percentile'], TIME, VERBOSE)
 
     end_program(time.time() - TOTAL_TIME) 
 
