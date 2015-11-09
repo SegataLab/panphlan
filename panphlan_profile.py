@@ -680,7 +680,7 @@ def dna_presencing(accepted_samples, dna_files_list, dna_file2id, sample2family2
         sampleID = sample_name(s, clade)
         sample2numGeneFamilies[sampleID] = sum( sample2family2presence[s][f] for f in sample2family2presence[s] )
         if VERBOSE: print('      ' + sampleID + '\t' + str(sample2numGeneFamilies[sampleID]))
-    print('      Average number of gene-families in reference genomes: ' + str(avg_genome_length))
+    if VERBOSE: print('      Average number of gene-families in reference genomes: ' + str(avg_genome_length))
 
     if len(dna_files_list) > 0:
         if VERBOSE:
@@ -688,10 +688,18 @@ def dna_presencing(accepted_samples, dna_files_list, dna_file2id, sample2family2
             TIME = time_message(TIME, 'Presence/absence matrix finished.')
     else:
         print('[W] No file has been written for gene families presence/absence because there is no accpeted samples.')
+        print('    You can try very sensitive options:  --min_coverage 1 --left_max 1.70 --right_min 0.30')
+        print('    Read more: https://bitbucket.org/CibioCM/panphlan/wiki/panphlan_profile_strain_detection')
     return sample2family2presence, sample2numGeneFamilies, TIME
 
-# ------------------------------------------------------------------------------
-
+# -----------------------------------------------------------------------------
+def check_multistrains(sample2numGeneFamilies, avg_genome_length, VERBOSE):
+    print(' ')
+    for s, n in sorted(sample2numGeneFamilies.items()):
+        if n > 1.5 * avg_genome_length:
+            print('WARNING: gene-families of sample ' + s + ' may come from multiple strains (number of gene-families: '+ str(n) +', expected number: ' + str(avg_genome_length) + ')' )
+    
+# -----------------------------------------------------------------------------
 def index_of(min_thresh, med_thresh, max_thresh, normalized_coverage):
     '''
     Return the DNA index for the given median-normalized coverage
@@ -1514,6 +1522,9 @@ def main():
         if VERBOSE:
             print('\nSTEP 8. Indexing RNA samples...')
         rna_seq(args['o_rna'], sample2family2dnaidx, dna_samples_covs, dna_sample2family2presence, sample2accepted, rna_id_list, rna_samples_covs, args['rna_max_zeros'], args['sample_pairs'], args['i_dna'][COVERAGES_KEY], args['i_rna'], families, CONST_C, args['np'], args['nan'], args['clade'], args['rna_norm_percentile'], TIME, VERBOSE)
+
+    # check presence of multiple strains in same sample -> give warning
+    check_multistrains(sample2numGeneFamilies, avg_genome_length, VERBOSE)
 
     end_program(time.time() - TOTAL_TIME) 
 
