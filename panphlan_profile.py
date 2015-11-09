@@ -1428,7 +1428,7 @@ def main():
     
 
 
-    # Strains-only presence/absence matrix
+    # Strains-only presence/absence matrix (without samples)
     strains_list = []
     if ADD_STRAINS or args['strain_hit_genes_perc'] != '':
         if VERBOSE:
@@ -1446,7 +1446,7 @@ def main():
 
     # Convert gene/transcript abundance into family (normalized) coverage
     if VERBOSE:
-        print('\nSTEP 4. Converting from gene families absolute abundances to gene families normalized coverages for DNA samples...')
+        print('\nSTEP 4. Converting single gene abundances to gene family coverages')
     for sample in dna_files_list:
         if VERBOSE:
             print('[I] Normalization for DNA sample ' + sample_name(sample, args['clade']) + '...')
