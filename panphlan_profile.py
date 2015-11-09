@@ -142,7 +142,7 @@ class PanPhlAnJoinParser(ArgumentParser):
 # ------------------------------------------------------------------------------
 
 def end_program(total_time):
-    print('[TERMINATING...] ' + __file__ + ', ' + str(round(total_time / 60.0, 2)) + ' minutes.')
+    print('\n[TERMINATING...] ' + __file__ + ', ' + str(round(total_time / 60.0, 2)) + ' minutes.\n')
 
 
 
@@ -161,7 +161,7 @@ def show_error_message(error):
 
 def time_message(start_time, message):
     current_time = time.time()
-    print('[I] ' + message + ' Execution time: ' + str(round(current_time - start_time, 2)) + ' seconds.')
+    print(' [I] ' + message + ' Execution time: ' + str(round(current_time - start_time, 2)) + ' seconds.')
     return current_time
 
 
@@ -639,7 +639,7 @@ def presence_of(dna_index):
 def presence_to_str(presence):
     return '1' if presence else '0'
 
-def dna_presencing(accepted_samples, dna_files_list, dna_file2id, sample2family2dnaidx, out_channel, families, clade, TIME, VERBOSE):
+def dna_presencing(accepted_samples, dna_files_list, dna_file2id, sample2family2dnaidx, out_channel, families, clade, avg_genome_length, TIME, VERBOSE):
     '''
     Build the gene families presence/absence matrix.
         Take the DNA indexing matrix:
@@ -679,15 +679,16 @@ def dna_presencing(accepted_samples, dna_files_list, dna_file2id, sample2family2
     for s in sample2family2presence.keys():
         sampleID = sample_name(s, clade)
         sample2numGeneFamilies[sampleID] = sum( sample2family2presence[s][f] for f in sample2family2presence[s] )
-        if VERBOSE: print(' [I] ' + sampleID + '\t' + str(sample2numGeneFamilies[sampleID]))
+        if VERBOSE: print('      ' + sampleID + '\t' + str(sample2numGeneFamilies[sampleID]))
+    print('      Average number of gene-families in reference genomes: ' + str(avg_genome_length))
 
     if len(dna_files_list) > 0:
         if VERBOSE:
-            print(' [I] Gene family presence/absence matrix is printed to ' + out_channel + '.')
+            print(' [I] Gene family presence/absence matrix is printed to ' + out_channel)
             TIME = time_message(TIME, 'Presence/absence matrix finished.')
     else:
         print('[W] No file has been written for gene families presence/absence because there is no accpeted samples.')
-    return sample2family2presence, TIME
+    return sample2family2presence, sample2numGeneFamilies, TIME
 
 # ------------------------------------------------------------------------------
 
@@ -1483,7 +1484,7 @@ def main():
     sample2family2dnaidx, TIME = dna_indexing(accepted_samples, norm_dna_samples_covs, args['th_zero'], args['th_present'], args['th_multicopy'], args['o_idx'], families, args['clade'], TIME, VERBOSE)
     if VERBOSE:
         print('\nSTEP 6b. Get presence/absence of gene-families (1,-1 matrix, option --o_dna)')
-    dna_sample2family2presence = dna_presencing(sample2accepted, dna_files_list, args['i_dna'][COVERAGES_KEY], sample2family2dnaidx, args['o_dna'], families, args['clade'], TIME, VERBOSE)
+    dna_sample2family2presence, sample2numGeneFamilies, TIME = dna_presencing(sample2accepted, dna_files_list, args['i_dna'][COVERAGES_KEY], sample2family2dnaidx, args['o_dna'], families, args['clade'], avg_genome_length, TIME, VERBOSE)
     
     if ADD_STRAINS or args['strain_hit_genes_perc'] != '':
         if VERBOSE:
