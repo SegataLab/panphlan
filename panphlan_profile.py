@@ -693,7 +693,7 @@ def dna_presencing(accepted_samples, dna_files_list, dna_file2id, sample2family2
     return sample2family2presence, sample2numGeneFamilies, TIME
 
 # -----------------------------------------------------------------------------
-def check_multistrains(sample2numGeneFamilies, avg_genome_length, VERBOSE):
+def check_for_multistrains(sample2numGeneFamilies, avg_genome_length, VERBOSE):
     print(' ')
     for s, n in sorted(sample2numGeneFamilies.items()):
         if n > 1.5 * avg_genome_length:
@@ -1462,9 +1462,9 @@ def main():
             sys.exit(0) 
 
 
-    # Convert gene/transcript abundance into family (normalized) coverage
+    # Merge gene/transcript abundance into family (normalized) coverage
     if VERBOSE:
-        print('\nSTEP 4. Converting single gene abundances to gene family coverages')
+        print('\nSTEP 4. Merge single gene abundances to gene family coverages')
     for sample in dna_files_list:
         if VERBOSE:
             print('[I] Normalization for DNA sample ' + sample_name(sample, args['clade']) + '...')
@@ -1475,15 +1475,11 @@ def main():
     TIME = print_coverage_matrix(dna_files_list, args['i_dna'][COVERAGES_KEY], dna_samples_covs, args['o_cov'], families, args['clade'], TIME, VERBOSE)
     
 
-
     # Filter DNA samples according to their median coverage value and plot coverage plateau
     if VERBOSE:
         print('\nSTEP 5. Strain presence/absence filter based on coverage plateau curve...')
     sample2accepted, accepted_samples, norm_dna_samples_covs, sample2famcovlist, sample2color, median_normalized_covs, sample2median = dna_sample_filtering(dna_samples_covs, num_ref_genomes, avg_genome_length, args['min_coverage'], args['left_max'], args['right_min'], families, args['clade'], TIME, VERBOSE)
-    
     result = plot_dna_coverage(sample2accepted, norm_dna_samples_covs, sample2famcovlist, sample2color, median_normalized_covs, avg_genome_length, args['clade'], args['o_covplot'], args['o_covplot_normed'], INTERACTIVE, TIME, VERBOSE)
-    # if VERBOSE:
-    #     print('[I] Charts have ' + ('not ' if not result else '') + 'been plotted.')
 
 
     # DNA indexing
@@ -1503,11 +1499,11 @@ def main():
             strain2sample2hit, TIME = strains_gene_hit_percentage(ss_presence, genome2families, sample2accepted, args['strain_hit_genes_perc'], args['clade'], TIME, VERBOSE)
 
 
-    # 
+    # RNA-seq: get RNA gene-family coverage
     rna_file_list = []
     if RNASEQ:
         if VERBOSE:
-            print('\nSTEP 7. Converting from transcripts absolute abundances to transcripts normalized coverages for RNA samples...')
+            print('\nSTEP 7. RNA-seq: Merge single gene transcript abundances to gene-family transcript coverages')
         for sample_id in rna_id_list:
             sample = args['i_rna'][sample_id]
             if not sample == NO_RNA_FILE_KEY:
@@ -1524,7 +1520,7 @@ def main():
         rna_seq(args['o_rna'], sample2family2dnaidx, dna_samples_covs, dna_sample2family2presence, sample2accepted, rna_id_list, rna_samples_covs, args['rna_max_zeros'], args['sample_pairs'], args['i_dna'][COVERAGES_KEY], args['i_rna'], families, CONST_C, args['np'], args['nan'], args['clade'], args['rna_norm_percentile'], TIME, VERBOSE)
 
     # check presence of multiple strains in same sample -> give warning
-    check_multistrains(sample2numGeneFamilies, avg_genome_length, VERBOSE)
+    check_for_multistrains(sample2numGeneFamilies, avg_genome_length, VERBOSE)
 
     end_program(time.time() - TOTAL_TIME) 
 
