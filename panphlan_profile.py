@@ -418,7 +418,9 @@ def rna_seq(out_channel, sample2family2dnaidx, dna_sample2family2cov, dna_sample
     # Data from Step 1 are given in input (sample2family2dnaidx, dna_samples_covs)
     # Data from Step 2 are given in input (rna_samples_covs)
 
-    sample2family2presence = dict((sample_name(k, clade), v) for (k,v) in dna_sample2family2presence.items())
+    # not used in fucntion, can be removed? (Nov 2015)
+    # sample2family2presence = dict((sample_name(k, clade), v) for (k,v) in dna_sample2family2presence.items())
+    
     sample2family2rna_div_dna = defaultdict(dict)
     rna_samples = []
     rna_ids = []
