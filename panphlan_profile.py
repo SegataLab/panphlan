@@ -389,7 +389,7 @@ def get_samples_panfamilies(families, sample2family2presence, TIME, VERBOSE):
 
 # -----------------------------------------------------------------------------
 
-def rna_seq(out_channel, sample2family2dnaidx, dna_sample2family2cov, dna_sample2family2presence, dna_accepted_samples, rna_samples_list, rna_sample2family2cov, rna_max_zeroes, dna2rna, dna_file2id, rna_id2file, families, c, np_symbol, nan_symbol, clade, rna_norm_percentile, TIME, VERBOSE):
+def rna_seq(out_channel, sample2family2dnaidx, dna_sample2family2cov, dna_accepted_samples, rna_samples_list, rna_sample2family2cov, rna_max_zeroes, dna2rna, dna_file2id, rna_id2file, families, c, np_symbol, nan_symbol, clade, rna_norm_percentile, TIME, VERBOSE):
     '''
     DESCRIPTION
         1.  convert DNA samples to get (1,-1,-2,-3) DNA index matrix and DNA coverage values
@@ -416,11 +416,8 @@ def rna_seq(out_channel, sample2family2dnaidx, dna_sample2family2cov, dna_sample
 
     '''
     # Data from Step 1 are given in input (sample2family2dnaidx, dna_samples_covs)
-    # Data from Step 2 are given in input (rna_samples_covs)
+    # Data from Step 2 are given in input (rna_samples_covs)    
 
-    # not used in fucntion, can be removed? (Nov 2015)
-    # sample2family2presence = dict((sample_name(k, clade), v) for (k,v) in dna_sample2family2presence.items())
-    
     sample2family2rna_div_dna = defaultdict(dict)
     rna_samples = []
     rna_ids = []
@@ -1517,11 +1514,10 @@ def main():
 
     # DNA (and RNA) indexing
     if RNASEQ:
-        if VERBOSE:
-            print('\nSTEP 8. Indexing RNA samples...')
-        rna_seq(args['o_rna'], sample2family2dnaidx, dna_samples_covs, dna_sample2family2presence, sample2accepted, rna_id_list, rna_samples_covs, args['rna_max_zeros'], args['sample_pairs'], args['i_dna'][COVERAGES_KEY], args['i_rna'], families, CONST_C, args['np'], args['nan'], args['clade'], args['rna_norm_percentile'], TIME, VERBOSE)
+        if VERBOSE: print('\nSTEP 8. RNA-seq: Get strain-specific gene transcription profiles')
+        rna_seq(args['o_rna'], sample2family2dnaidx, dna_samples_covs, sample2accepted, rna_id_list, rna_samples_covs, args['rna_max_zeros'], args['sample_pairs'], args['i_dna'][COVERAGES_KEY], args['i_rna'], families, CONST_C, args['np'], args['nan'], args['clade'], args['rna_norm_percentile'], TIME, VERBOSE)
 
-    # check presence of multiple strains in same sample -> give warning
+    # check presence of multiple strains in a sample -> give warning
     check_for_multistrains(sample2numGeneFamilies, avg_genome_length, VERBOSE)
 
     end_program(time.time() - TOTAL_TIME) 
