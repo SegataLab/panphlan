@@ -608,6 +608,7 @@ def samples_strains_presences(sample2family2presence, strains_list, strain2famil
         sample_and_strain_presences[s] = strain2family2presence[s]
 
     if TO_BE_PRINTED and len(sample_and_strain_sorted_list) > 0:
+        if VERBOSE: print(' [I] Print gene-family presence/absence matrix of samples and ref. genomes to: ' + out_channel)
         with open(out_channel, mode='w') as csv:
             # [sample_name(s, clade) for s in sample_and_strain_sorted_list]
             csv.write('\t' + '\t'.join(sample_and_strain_sorted_list) + '\n')
@@ -689,7 +690,8 @@ def check_for_multistrains(sample2numGeneFamilies, avg_genome_length, VERBOSE):
     print(' ')
     for s, n in sorted(sample2numGeneFamilies.items()):
         if n > 1.5 * avg_genome_length:
-            print('WARNING: gene-families of sample ' + s + ' may come from multiple strains \n         number of gene-families: '+ str(n) +', expected number: ' + str(avg_genome_length) + '(average of ref. genomes)' )
+            print('WARNING: gene-families of sample ' + s + ' may come from multiple strains \n         number of gene-families: '+ str(n) +' is much larger than expected number (average of ref. genomes): ' + str(avg_genome_length))
+    print('\n')
     
 # -----------------------------------------------------------------------------
 def index_of(min_thresh, med_thresh, max_thresh, normalized_coverage):
@@ -1483,10 +1485,11 @@ def main():
         if VERBOSE: print('\nSTEP 8. RNA-seq: Get strain-specific gene transcription profiles')
         rna_seq(args['o_rna'], sample2family2dnaidx, dna_samples_covs, sample2accepted, rna_id_list, rna_samples_covs, args['rna_max_zeros'], args['sample_pairs'], args['i_dna'][COVERAGES_KEY], args['i_rna'], families, CONST_C, args['np'], args['nan'], args['clade'], args['rna_norm_percentile'], TIME, VERBOSE)
 
-    # check presence of multiple strains in a sample -> give warning
+    end_program(time.time() - TOTAL_TIME) 
+
+    # WARNING for presence of multiple strains in a sample 
     check_for_multistrains(sample2numGeneFamilies, avg_genome_length, VERBOSE)
 
-    end_program(time.time() - TOTAL_TIME) 
 
 # ------------------------------------------------------------------------------
 # MAIN
