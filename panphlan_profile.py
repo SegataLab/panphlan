@@ -243,7 +243,6 @@ def is_present(family, sample2family2presence):
             return True
     return False
 
-
 # -----------------------------------------------------------------------------
 
 def strains_binary_matrix(selected_strains, strain2family2presence, families, out_channel, TIME, VERBOSE):
@@ -260,9 +259,7 @@ def strains_binary_matrix(selected_strains, strain2family2presence, families, ou
             csv.write('\n')
     TIME = time_message(TIME, 'Written strains binary matrix output file.')
 
-
 # -----------------------------------------------------------------------------
-
 def build_strain2family2presence(strains_list, families, genome2families, TIME, VERBOSE):
     '''
     Build the dictionary from strain to gene family to presence
@@ -284,7 +281,6 @@ def build_strain2family2presence(strains_list, families, genome2families, TIME, 
     if VERBOSE:
         TIME = time_message(TIME, 'Gene families presence/absence in strain reference genomes computed.')
     return TIME, strain2family2presence
-
 
 # -----------------------------------------------------------------------------
 
@@ -385,7 +381,6 @@ def get_samples_panfamilies(families, sample2family2presence, TIME, VERBOSE):
     if VERBOSE:
         TIME = time_message(TIME, 'Extracted ' + str(len(panfamilies)) + ' gene families present in the samples.')
     return TIME, sorted(panfamilies)
-
 
 # -----------------------------------------------------------------------------
 
@@ -528,7 +523,6 @@ def rna_seq(out_channel, sample2family2dnaidx, dna_sample2family2cov, dna_accept
         TIME = time_message(TIME, 'RNA indexing executed.')
     return TIME
 
-
 # ------------------------------------------------------------------------------
 
 def strains_gene_hit_percentage(ss_presence, genome2families, accepted_samples, out_channel, clade, TIME, VERBOSE):
@@ -629,7 +623,6 @@ def samples_strains_presences(sample2family2presence, strains_list, strain2famil
         TIME = time_message(TIME, 'Samples/strains gene families presence/absence matrix computed.')
     return sample_and_strain_presences, TIME
 
-
 # ------------------------------------------------------------------------------
 
 def presence_of(dna_index):
@@ -696,7 +689,7 @@ def check_for_multistrains(sample2numGeneFamilies, avg_genome_length, VERBOSE):
     print(' ')
     for s, n in sorted(sample2numGeneFamilies.items()):
         if n > 1.5 * avg_genome_length:
-            print('WARNING: gene-families of sample ' + s + ' may come from multiple strains (number of gene-families: '+ str(n) +', expected number: ' + str(avg_genome_length) + ')' )
+            print('WARNING: gene-families of sample ' + s + ' may come from multiple strains \n         number of gene-families: '+ str(n) +', expected number: ' + str(avg_genome_length) + '(average of ref. genomes)' )
     
 # -----------------------------------------------------------------------------
 def index_of(min_thresh, med_thresh, max_thresh, normalized_coverage):
@@ -711,7 +704,6 @@ def index_of(min_thresh, med_thresh, max_thresh, normalized_coverage):
         return  1
     else:
         return -1
-
 
 # -----------------------------------------------------------------------------
 
@@ -768,7 +760,6 @@ def dna_indexing(accepted_samples, sample2family2normcov, min_thresh, med_thresh
         TIME = time_message(TIME, 'DNA indexing executed.')
 
     return sample2family2dnaidx, TIME 
-
 
 # -----------------------------------------------------------------------------
 
@@ -885,7 +876,6 @@ def dna_sample_filtering(samples_coverages, num_ref_genomes, avg_genome_length, 
     accepted_samples_list = sorted([s for s in sample2accepted if sample2accepted[s]])
     return sample2accepted, accepted_samples_list, norm_samples_coverages, sample2famcovlist, sample2color, median_normalized_covs, median
 
-
 # ----------------------------------------------------------------------------------------------------
 
 def plot_dna_coverage(sample2accepted, samples_coverages, sample2famcovlist, sample2color, median_normalized_covs, genome_length, clade, plot1_name, plot2_name, INTERACTIVE, TIME, VERBOSE=False):
@@ -986,7 +976,6 @@ def plot_dna_coverage(sample2accepted, samples_coverages, sample2famcovlist, sam
 
     return False
 
-
 # -----------------------------------------------------------------------------
 
 def print_coverage_matrix(dna_files_list, dna_file2id, dna_samples_covs, out_channel, families, clade, TIME, VERBOSE):
@@ -1009,9 +998,7 @@ def print_coverage_matrix(dna_files_list, dna_file2id, dna_samples_covs, out_cha
         TIME = time_message(TIME, 'Gene families coverage matrix has been printed in ' + out_channel + '.')
     return TIME
 
-
 # -----------------------------------------------------------------------------
-
 
 def families_coverages(gene2cov, gene2family, lengths, VERBOSE):
     '''
@@ -1034,22 +1021,6 @@ def families_coverages(gene2cov, gene2family, lengths, VERBOSE):
         family2cov[f] = cov
 
     return family2cov
-
-
-# 
-# HERE IS THE THOMAS' METHOD FOR CALCULATING FAMILY CONVERAGES THROUGH GENE COVERAGE NORMALIZATION
-# 
-
-# def thomas_families_coverages(gene2cov, contig2gene, gene2family, VERBOSE):
-#     for ctg in contig2gene:
-#         for gen in contig2gene[ctg]:
-#             length = contig2gene[ctg][gen][1] - contig2gene[ctg][gen][0] + 1
-#             gene2cov[gen] = float(gene2cov[gen]) / length
-#     family2cov = defaultdict(int)
-#     for gen in gene2family:
-#         family2cov[gene2family[gen]] += gene2cov[gen]
-#     return family2cov
-
 
 # -----------------------------------------------------------------------------
 
@@ -1088,7 +1059,6 @@ def build_mappings(pangenome_file, VERBOSE):
         print('     Total number of pangenome gene-families '               + str(len(families)))
     return gene_lengths, gene2family, sorted(list(families)), num_ref_genomes, avg_genome_length, genome2families
 
-
 # -----------------------------------------------------------------------------
 
 def dict_from_file(input_file):
@@ -1104,7 +1074,6 @@ def dict_from_file(input_file):
         d[gene] = coverage
     f.close()
     return d
-
 
 # -----------------------------------------------------------------------------
 
@@ -1400,7 +1369,6 @@ def check_args():
 
     return args
 
-
 # -----------------------------------------------------------------------------
 
 def main():
@@ -1476,25 +1444,23 @@ def main():
 
     # Filter DNA samples according to their median coverage value and plot coverage plateau
     if VERBOSE:
-        print('\nSTEP 5. Strain presence/absence filter based on coverage plateau curve...')
+        print('\nSTEP 5: Strain presence/absence filter based on coverage plateau curve...')
     sample2accepted, accepted_samples, norm_dna_samples_covs, sample2famcovlist, sample2color, median_normalized_covs, sample2median = dna_sample_filtering(dna_samples_covs, num_ref_genomes, avg_genome_length, args['min_coverage'], args['left_max'], args['right_min'], families, args['clade'], TIME, VERBOSE)
     result = plot_dna_coverage(sample2accepted, norm_dna_samples_covs, sample2famcovlist, sample2color, median_normalized_covs, avg_genome_length, args['clade'], args['o_covplot'], args['o_covplot_normed'], INTERACTIVE, TIME, VERBOSE)
 
 
     # DNA indexing
-    if VERBOSE:
-        print('\nSTEP 6a. Define multicopy, strain-specific, and non-present gene-families (1,-1,-2,-3 matrix, option --o_idx)')
+    if VERBOSE: print('\nSTEP 6a: Define multicopy, strain-specific, and non-present gene-families (1,-1,-2,-3 matrix, option --o_idx)')
     sample2family2dnaidx, TIME = dna_indexing(accepted_samples, norm_dna_samples_covs, args['th_zero'], args['th_present'], args['th_multicopy'], args['o_idx'], families, args['clade'], TIME, VERBOSE)
-    if VERBOSE:
-        print('\nSTEP 6b. Get presence/absence of gene-families (1,-1 matrix, option --o_dna)')
+    if VERBOSE: print('\nSTEP 6b: Get presence/absence of gene-families (1,-1 matrix, option --o_dna)')
     dna_sample2family2presence, sample2numGeneFamilies, TIME = dna_presencing(sample2accepted, dna_files_list, args['i_dna'][COVERAGES_KEY], sample2family2dnaidx, args['o_dna'], families, args['clade'], avg_genome_length, TIME, VERBOSE)
-    
+
     if ADD_STRAINS or args['strain_hit_genes_perc'] != '':
-        if VERBOSE:
-            print('\nSTEP 6c. Calculate percent of identical gene-families between sample-strains and reference-genomes... (option --strain_hit_genes_perc)')
+        if VERBOSE: print('\nSTEP 6c: Calculate percent of identical gene-families between sample-strains and reference-genomes... (option --strain_hit_genes_perc)')
         ss_presence, TIME = samples_strains_presences(dna_sample2family2presence, strains_list, strain2family2presence, avg_genome_length, args['strain_similarity_perc'], args['o_dna'], families, args['clade'], ADD_STRAINS, TIME, VERBOSE)
         # ss_presence = { STRAIN or SAMPLE : { GENE FAMILY : PRESENCE } }
         if args['strain_hit_genes_perc'] != '':
+            if VERBOSE: print('\nSTEP 6d: Get percent of sample-strain gene-families present in reference-genomes (option --strain_hit_genes_perc)')
             strain2sample2hit, TIME = strains_gene_hit_percentage(ss_presence, genome2families, sample2accepted, args['strain_hit_genes_perc'], args['clade'], TIME, VERBOSE)
 
 
