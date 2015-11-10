@@ -418,7 +418,7 @@ def rna_seq(out_channel, sample2family2dnaidx, dna_sample2family2cov, dna_sample
     # Data from Step 1 are given in input (sample2family2dnaidx, dna_samples_covs)
     # Data from Step 2 are given in input (rna_samples_covs)
 
-    sample2family2presence = dict((sample_name(k, clade), v) for (k,v) in dna_sample2family2presence[0].items())
+    sample2family2presence = dict((sample_name(k, clade), v) for (k,v) in dna_sample2family2presence.items())
     sample2family2rna_div_dna = defaultdict(dict)
     rna_samples = []
     rna_ids = []
@@ -595,7 +595,7 @@ def samples_strains_presences(sample2family2presence, strains_list, strain2famil
         Some gene-families can be present in samples, but not in the selected (>50%) strains.
         Some gene-families can be present in selected strains, but not in samples (if a strain is selected, we show all of it's gene-families).
     '''
-    sample2family2presence = dict((sample_name(k, clade), v) for (k,v) in sample2family2presence[0].items())
+    sample2family2presence = dict((sample_name(k, clade), v) for (k,v) in sample2family2presence.items())
 
     # Get all present (in at least one sample) families
     TIME, samples_panfamilies = get_samples_panfamilies(families, sample2family2presence, TIME, VERBOSE)
