@@ -19,8 +19,8 @@ from __future__ import with_statement
 # ==============================================================================
 
 __author__  = 'Thomas Tolio, Matthias Scholz, Nicola Segata (panphlan-users@googlegroups.com)'
-__version__ = '1.1'
-__date__    = '12 July 2015'
+__version__ = '1.1.1'
+__date__    = '11 November 2015'
 
 # Imports
 from argparse import ArgumentParser
@@ -689,9 +689,13 @@ def dna_presencing(accepted_samples, dna_files_list, dna_file2id, sample2family2
 def check_for_multistrains(sample2numGeneFamilies, avg_genome_length, VERBOSE):
     print(' ')
     for s, n in sorted(sample2numGeneFamilies.items()):
-        if n > 1.5 * avg_genome_length:
-            print('WARNING: gene-families of sample ' + s + ' may come from multiple strains \n         number of gene-families: '+ str(n) +' is much larger than expected number (average of ref. genomes): ' + str(avg_genome_length))
+        if n > 1.1 * avg_genome_length:
+            print('QUALITY WARNING: gene-families of sample ' + s + ' may come from multiple strains \n  number of gene-families: '+ str(n) +' is 10% higher than expected number (average of ref. genomes): ' + str(avg_genome_length))
+        if n < 0.8 * avg_genome_length:
+            print('QUALITY WARNING: sample ' + s + ' shows too low number of gene-families, due to low coverage or multiple strains  \n  number of gene-families: '+ str(n) +' is 20% lower than expected number (average of ref. genomes): ' + str(avg_genome_length))
+
     print('\n')
+    
     
 # -----------------------------------------------------------------------------
 def index_of(min_thresh, med_thresh, max_thresh, normalized_coverage):
