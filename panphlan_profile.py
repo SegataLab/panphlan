@@ -667,13 +667,15 @@ def dna_presencing(accepted_samples, dna_files_list, dna_file2id, sample2family2
                 csv.write(line + '\n')
 
     # get number of gene-families per sample
-    if VERBOSE: print(' [I] Number of gene families per sample-specific strain:')
     sample2numGeneFamilies={} 
     for s in sample2family2presence.keys():
         sampleID = sample_name(s, clade)
         sample2numGeneFamilies[sampleID] = sum( sample2family2presence[s][f] for f in sample2family2presence[s] )
-        if VERBOSE: print('      ' + sampleID + '\t' + str(sample2numGeneFamilies[sampleID]))
-    if VERBOSE: print('      Average number of gene-families in reference genomes: ' + str(avg_genome_length))
+    if VERBOSE:
+        print(' [I] Number of gene families per sample-specific strain:')
+        for sampleID in sorted(sample2numGeneFamilies.keys()):
+            print('      ' + sampleID + '\t' + str(sample2numGeneFamilies[sampleID]))
+        print('      Average number of gene-families in reference genomes: ' + str(avg_genome_length))
 
     if len(dna_files_list) > 0:
         if VERBOSE:
