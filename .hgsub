@@ -1,2 +1,2 @@
-plotting_scripts/hclust2 = https://bitbucket.org/nsegata/hclust2
-plotting_scripts/mpca = https://bitbucket.org/CibioCM/mpca
+tools/hclust2 = https://bitbucket.org/nsegata/hclust2
+tools/mpca = https://bitbucket.org/CibioCM/mpca
