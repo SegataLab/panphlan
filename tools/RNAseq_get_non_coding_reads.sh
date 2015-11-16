@@ -36,5 +36,9 @@ samtools view -bS ${SAMPLE_ID}_mapped_and_unmapped.sam > ${SAMPLE_ID}_mapped_and
 # get reads not mapped to gene-sequences (but mapped to reference genomes)
 samtools view -b -f 4 -F 256 ${SAMPLE_ID}_mapped_and_unmapped.bam > ${SAMPLE_ID}_non_coding_reads.bam
 
-echo -e '\n'Result: ${SAMPLE_ID}_non_coding_reads.bam'\n'
+echo -e '\n Result: '${SAMPLE_ID}'_non_coding_reads.bam \n'
+
+echo 'Number of reads:'
+samtools view -c ${SAMPLE_ID}_non_coding_reads.bam
+
 
