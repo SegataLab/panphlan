@@ -1,7 +1,7 @@
 # RNA-seq: get transcripts that align with putatively non-­coding DNA sequences of unknown gene families
-# get reads that maps against the reference genomes but are not assigned to any of the clustered  gene  families
+# get reads that maps against the reference genomes but are not assigned to any of the clustered gene families
 
-# please adapt to following variables
+# please modify the following variables
 SAMPLE_PATH=Samples/G38878.tar.bz2
 SPECIES=ecoli14    # panphlan species database
 GENE_SEQ_PATH=ecoli14/ffn  # folder of gene sequences (.ffn files of pangenome database)
