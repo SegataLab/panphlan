@@ -2,8 +2,7 @@
 # get reads that maps against the reference genomes but are not assigned to any of the clustered  gene  families
 
 # please adapt to following variables
-SAMPLE_ID=G38878
-SAMPLE_PATH=Samples/${SAMPLE_ID}.tar.bz2
+SAMPLE_PATH=Samples/G38878.tar.bz2
 SPECIES=ecoli14    # panphlan species database
 GENE_SEQ_PATH=ecoli14/ffn  # folder of gene sequences (.ffn files of pangenome database)
 NUMBER_OF_PROCESSORS=12
@@ -20,6 +19,8 @@ bowtie2-build genes.fna genes_${SPECIES}
 
 ###############################################################################
 # Step B) get non-coding reads of a sample
+
+SAMPLE_ID=`basename ${SAMPLE_PATH%%.*}`;
 
 # panphlan mapping against reference genomes, get bam (option --out_bam)
 ./panphlan/panphlan_map.py -c ${SPECIES} -i ${SAMPLE_PATH} -o Cov/${SAMPLE_ID} --out_bam Bam/${SAMPLE_ID} -p ${NUMBER_OF_PROCESSORS}
