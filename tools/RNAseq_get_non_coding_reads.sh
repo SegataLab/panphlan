@@ -5,7 +5,7 @@
 SAMPLE_ID=G38878
 SAMPLE_PATH=Samples/${SAMPLE_ID}.tar.bz2
 SPECIES=ecoli14    # panphlan species database
-GENE_SEQ_PATH=ffn  # folder of gene sequences (.ffn files of pangenome database)
+GENE_SEQ_PATH=ecoli14/ffn  # folder of gene sequences (.ffn files of pangenome database)
 NUMBER_OF_PROCESSORS=12
 
 
