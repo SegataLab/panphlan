@@ -56,6 +56,7 @@ MIN_MULTICOPY_TH    = 0.15
 LEFT_TH             = 1.25 # v1.0: 1.18 strain presence/absence filter (plateau curve)
 RIGHT_TH            = 0.75 # v1.0: 0.82
 COVERAGE_TH         = 2.0  # v1.0: 5.0
+ZERO_NON_PLATEAU_TH = 0.20 # multistrain detection
 RNA_MAX_ZERO_TH     = 10.0
 SIMILARITY_TH       = 50.0
 
@@ -695,10 +696,8 @@ def check_for_multistrains(sample2numGeneFamilies, avg_genome_length, VERBOSE):
             print('QUALITY WARNING: gene-families of sample ' + s + ' may come from multiple strains \n  number of gene-families: '+ str(n) +' is 10% higher than expected number (average of ref. genomes): ' + str(avg_genome_length))
         if n < 0.8 * avg_genome_length:
             print('QUALITY WARNING: sample ' + s + ' shows too low number of gene-families, due to low coverage or multiple strains  \n  number of gene-families: '+ str(n) +' is 20% lower than expected number (average of ref. genomes): ' + str(avg_genome_length))
-
     print('\n')
-    
-    
+
 # -----------------------------------------------------------------------------
 def index_of(min_thresh, med_thresh, max_thresh, normalized_coverage):
     '''
@@ -746,7 +745,7 @@ def dna_indexing(accepted_samples, sample2family2normcov, min_thresh, med_thresh
 
     for sample in accepted_samples:
         if VERBOSE:
-            print('[I] Indexing DNA for sample ' + sample)
+            print(' [I] Indexing DNA for sample ' + sample)
         sample_id = sample_name(sample, clade)
         for family in families:
             sample2family2dnaidx[sample][family] = index_of(min_thresh, med_thresh, max_thresh, sample2family2normcov[sample][family])
@@ -806,7 +805,7 @@ def dna_sample_filtering(samples_coverages, num_ref_genomes, avg_genome_length, 
     median_normalized_covs = defaultdict(list)
     norm_samples_coverages = defaultdict(dict)
 
-    # lower expected number of gene-families, in case of only 1,2 or 3 ref. genomes in DB
+    # reduce expected number of gene-families, in case of only 1,2 or 3 ref. genomes in DB
     orig_avg_genome_length=avg_genome_length
     if   num_ref_genomes == 3:
         avg_genome_length=int(round(0.90 * avg_genome_length))
@@ -825,12 +824,14 @@ def dna_sample_filtering(samples_coverages, num_ref_genomes, avg_genome_length, 
         th_plateau_right_min=RIGHT_TH    
     if th_min_coverage is None:
         th_min_coverage=COVERAGE_TH
+    th_max_zero=ZERO_NON_PLATEAU_TH    
         
-    if VERBOSE: # need to move to dna filter function
-        print('[I] Minimum median coverage threshold: ' + str(th_min_coverage))
-        print('[I] Left maximum plateau threshold: '    + str(th_plateau_left_max))
-        print('[I] Right minimum plateau threshold: '   + str(th_plateau_right_min))
-
+    if VERBOSE:
+        print(' [I] Minimum median coverage threshold: '                          + str(th_min_coverage))
+        print(' [I] Left maximum plateau threshold: '                             + str(th_plateau_left_max))
+        print(' [I] Right minimum plateau threshold: '                            + str(th_plateau_right_min))
+        print(' [I] Maximum zero non-plateau threshold (multistrain detection): ' + str(th_max_zero))
+        
     # Take one sample a time
     for sample in sorted(samples_coverages.keys()):
 
@@ -863,24 +864,29 @@ def dna_sample_filtering(samples_coverages, num_ref_genomes, avg_genome_length, 
         mediancov = median[sample]
         leftcov   = median_normalized_covs[sample][int(avg_genome_length * 0.3)]
         rightcov  = median_normalized_covs[sample][int(avg_genome_length * 0.7)]
+        zerocov   = median_normalized_covs[sample][int(avg_genome_length * 1.25)]
+        if VERBOSE:
+            print(' [I] ' + sample_id + ' median coverage: ' + str(round(mediancov,2)) +
+                  '; left-side cov: ' + str(round(leftcov,2)) +
+                  '; right-side cov: ' + str(round(rightcov,2)) +
+                  '; out-plateau cov: ' + str(round(zerocov,2)) )
         sample2accepted[sample] = True if mediancov >= th_min_coverage else False # min coverage filter
         if not sample2accepted[sample]:
-            print('[W]  Sample ' + sample_id + ': no strain detected, sample below MIN COVERAGE threshold')    
+            print(' [W]  Sample ' + sample_id + ': no strain detected, sample below MIN COVERAGE threshold')    
         if sample2accepted[sample]: # check left right plateau coverage
             if leftcov > th_plateau_left_max:
                 sample2accepted[sample] = False
                 if VERBOSE:
-                    print('[W]  Sample ' + sample_id + ': no strain detected, sample does not pass LEFT-side coverage threshold.')
+                    print('     ' + sample_id + ': no strain detected, sample does not pass LEFT-side coverage threshold.')
             elif rightcov < th_plateau_right_min:
                 sample2accepted[sample] = False
                 if VERBOSE:
-                    print('[W]  Sample ' + sample_id + ': no strain detected, sample does not pass RIGHT-side coverage threshold.')
+                    print('     ' + sample_id + ': no strain detected, sample does not pass RIGHT-side coverage threshold.')        
         if sample2accepted[sample]:
-            if VERBOSE:
-                print('[I]  Sample ' + sample_id + ': strain detected')
-        if VERBOSE:
-            print('\tmedian coverage: ' + str(round(mediancov,2)) + ';  left-side coverage: ' + str(round(leftcov,2)) + ';  right-side coverage: ' + str(round(rightcov,2)))
-            
+            if VERBOSE: print('     ' + sample_id + ' OK - strain detected')
+            if zerocov > th_max_zero:
+                # to do: add to dict
+                if VERBOSE: print('     ' + sample_id + ' WARNING: sample may contain multiple strains')
     accepted_samples_list = sorted([s for s in sample2accepted if sample2accepted[s]])
     return sample2accepted, accepted_samples_list, norm_samples_coverages, sample2famcovlist, sample2color, median_normalized_covs, median
 
