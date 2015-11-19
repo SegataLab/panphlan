@@ -872,7 +872,7 @@ def dna_sample_filtering(samples_coverages, num_ref_genomes, avg_genome_length, 
                   '; out-plateau cov: ' + str(round(zerocov,2)) )
         sample2accepted[sample] = True if mediancov >= th_min_coverage else False # min coverage filter
         if not sample2accepted[sample]:
-            print(' [W]  Sample ' + sample_id + ': no strain detected, sample below MIN COVERAGE threshold')    
+            print('     ' + sample_id + ': no strain detected, sample below MIN COVERAGE threshold')    
         if sample2accepted[sample]: # check left right plateau coverage
             if leftcov > th_plateau_left_max:
                 sample2accepted[sample] = False
