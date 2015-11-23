@@ -681,7 +681,8 @@ def dna_presencing(accepted_samples, dna_files_list, dna_file2id, sample2family2
     if VERBOSE:
         print(' [I] Number of gene families per sample-specific strain:')
         for sampleID in sorted(sample_stats.keys()):
-            print('      ' + sampleID + '\t' + str(sample_stats[sampleID]['numberGeneFamilies']))
+            if 'numberGeneFamilies' in sample_stats[sampleID]:  
+                print('      ' + sampleID + '\t' + str(sample_stats[sampleID]['numberGeneFamilies']))
         print('      Average number of gene-families in reference genomes: ' + str(avg_genome_length))        
         
     if len(dna_files_list) > 0:
