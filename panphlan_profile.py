@@ -207,17 +207,23 @@ def check_output(opath, odefault, goal, VERBOSE):
             print('[I] Output file: ' + opath)
         return opath
 
+def get_sampleID_from_path(sample_path, clade):
+    # example: "path/to/mapping/result/ERR54632_ecoli14.csv.bz2" -> "ERR54632"
+    filename = os.path.basename(sample_path)
+    filename = filename.replace('.csv.bz2','')
+    c=clade.replace('panphlan_','')
+    sampleID = filename.replace( '_' + c ,'')
+    return sampleID
 
-
-def sample_name(sample_path, clade):
-    # simplest sample name "some/path/panphlan_SAMPLE_clade.ext"
-    for ext in EXTENSIONS:
-        if '.' + ext in sample_path:
-            sample_path = sample_path.replace('.' + ext, '')
-    sample_path = sample_path.split('/')[-1]
-    c = '_' + clade
-    c = c.replace('panphlan_', '')
-    return sample_path.replace('panphlan_', '').replace(c, '')
+# def sample_name(sample_path, clade):
+#     # simplest sample name "some/path/panphlan_SAMPLE_clade.ext"
+#     for ext in EXTENSIONS:
+#         if '.' + ext in sample_path:
+#             sample_path = sample_path.replace('.' + ext, '')
+#     sample_path = sample_path.split('/')[-1]
+#     c = '_' + clade
+#     c = c.replace('panphlan_', '')
+#     return sample_path.replace('panphlan_', '').replace(c, '')
 
 
 
@@ -498,7 +504,7 @@ def rna_seq(out_channel, sample2family2dnaidx, dna_sample2family2cov, dna_accept
 
     # Print
     rnaseq_accepted_samples.sort()
-    rnaseq_accepted_ids = [sample_name(s, clade) for s in rnaseq_accepted_samples]
+    rnaseq_accepted_ids = [get_sampleID_from_path(s, clade) for s in rnaseq_accepted_samples]
     if not out_channel == '':
         with open(out_channel, mode='w') as csv:
             csv.write('\t' + '\t'.join(rnaseq_accepted_ids) + '\n')
@@ -535,7 +541,7 @@ def strains_gene_hit_percentage(ss_presence, genome2families, accepted_samples, 
     # ss_presence = { STRAIN or SAMPLE : { GENE FAMILY : PRESENCE } }
     strain2sample2hit = {}
     strains_list = sorted(genome2families.keys())
-    samples_list = sorted([sample_name(s, clade) for s in accepted_samples.keys() if accepted_samples[s]])
+    samples_list = sorted([get_sampleID_from_path(s, clade) for s in accepted_samples.keys() if accepted_samples[s]])
 
     if len(samples_list) > 0:
         # Populate { STRAIN : { SAMPLE : HIT PERCENTAGE } } 
@@ -589,7 +595,7 @@ def samples_strains_presences(sample2family2presence, strains_list, strain2famil
         Some gene-families can be present in samples, but not in the selected (>50%) strains.
         Some gene-families can be present in selected strains, but not in samples (if a strain is selected, we show all of it's gene-families).
     '''
-    sample2family2presence = dict((sample_name(k, clade), v) for (k,v) in sample2family2presence.items())
+    sample2family2presence = dict((get_sampleID_from_path(k, clade), v) for (k,v) in sample2family2presence.items())
 
     # Get all present (in at least one sample) families
     TIME, samples_panfamilies = get_samples_panfamilies(families, sample2family2presence, TIME, VERBOSE)
@@ -611,7 +617,7 @@ def samples_strains_presences(sample2family2presence, strains_list, strain2famil
     if TO_BE_PRINTED and len(sample_and_strain_sorted_list) > 0:
         if VERBOSE: print(' [I] Print gene-family presence/absence matrix of samples and ref. genomes to: ' + out_channel)
         with open(out_channel, mode='w') as csv:
-            # [sample_name(s, clade) for s in sample_and_strain_sorted_list]
+            # [get_sampleID_from_path(s, clade) for s in sample_and_strain_sorted_list]
             csv.write('\t' + '\t'.join(sample_and_strain_sorted_list) + '\n')
             for f in families:
                 if f not in never_present_families:
@@ -649,7 +655,7 @@ def dna_presencing(accepted_samples, dna_files_list, dna_file2id, sample2family2
         csv = open(out_channel, mode='w')
     
     if not out_channel == '' and len(dna_sample_ids) > 0:
-        csv.write('\t' + '\t'.join([sample_name(s, clade) for s in dna_sample_ids]) + '\n')
+        csv.write('\t' + '\t'.join([get_sampleID_from_path(s, clade) for s in dna_sample_ids]) + '\n')
     for f in families:
         #if sum(sample2family2presence[s][f] for s in sample2family2presence) > 0:
         line = f
@@ -670,7 +676,7 @@ def dna_presencing(accepted_samples, dna_files_list, dna_file2id, sample2family2
     # get number of gene-families per sample
     sample2numGeneFamilies={} 
     for s in sample2family2presence.keys():
-        sampleID = sample_name(s, clade)
+        sampleID = get_sampleID_from_path(s, clade)
         sample2numGeneFamilies[sampleID] = sum( sample2family2presence[s][f] for f in sample2family2presence[s] )
     if VERBOSE:
         print(' [I] Number of gene families per sample-specific strain:')
@@ -740,13 +746,13 @@ def dna_indexing(accepted_samples, sample2family2normcov, min_thresh, med_thresh
     '''
     sample2family2dnaidx = defaultdict(dict)
 
-    accepted_ids = sorted([sample_name(s, clade) for s in accepted_samples])
-    id2sample = dict((sample_name(s, clade),s) for s in accepted_samples)
+    accepted_ids = sorted([get_sampleID_from_path(s, clade) for s in accepted_samples])
+    id2sample = dict((get_sampleID_from_path(s, clade),s) for s in accepted_samples)
 
     for sample in accepted_samples:
         if VERBOSE:
             print(' [I] Indexing DNA for sample ' + sample)
-        sample_id = sample_name(sample, clade)
+        sample_id = get_sampleID_from_path(sample, clade)
         for family in families:
             sample2family2dnaidx[sample][family] = index_of(min_thresh, med_thresh, max_thresh, sample2family2normcov[sample][family])
 
@@ -835,7 +841,7 @@ def dna_sample_filtering(samples_coverages, num_ref_genomes, avg_genome_length, 
     # Take one sample a time
     for sample in sorted(samples_coverages.keys()):
 
-        sample_id = sample_name(sample, clade)
+        sample_id = get_sampleID_from_path(sample, clade)
         d = samples_coverages[sample]
 
         # Take families coverage from sample and sort descendently by value (coverage)
@@ -932,7 +938,7 @@ def plot_dna_coverage(sample2accepted, samples_coverages, sample2famcovlist, sam
                     plt.ylabel('Coverage')
     
                     for sample in sorted_samples:
-                        sample_id = sample_name(sample, clade)
+                        sample_id = get_sampleID_from_path(sample, clade)
                         covs = sample2famcovlist[sample][0]
                         if sample2accepted[sample]:
                             plt.plot(range(1, len(covs) + 1), covs, sample2color[sample], label=sample_id)
@@ -955,7 +961,7 @@ def plot_dna_coverage(sample2accepted, samples_coverages, sample2famcovlist, sam
                     plt.xlabel('Gene families')
                     plt.ylabel('Normalized coverage')
                     for sample in sorted_samples:
-                        sample_id = sample_name(sample, clade)
+                        sample_id = get_sampleID_from_path(sample, clade)
                         covs = median_normalized_covs[sample]
                         if sample2accepted[sample]:
                             plt.plot(range(1, len(covs) + 1), covs, sample2color[sample], label=sample_id)
@@ -1000,7 +1006,7 @@ def print_coverage_matrix(dna_files_list, dna_file2id, dna_samples_covs, out_cha
     id2file = dict((v,k) for (k,v) in dna_file2id.items())
     if not out_channel == '':
         with open(out_channel, mode='w') as csv:
-            csv.write('\t' + '\t'.join([sample_name(s, clade) for s in dna_sample_ids]) + '\n')
+            csv.write('\t' + '\t'.join([get_sampleID_from_path(s, clade) for s in dna_sample_ids]) + '\n')
             for f in families:
                 if sum(dna_samples_covs[s][f] for s in dna_samples_covs) > 0.0:
                     csv.write(f)
@@ -1247,7 +1253,7 @@ def check_args():
                 sys.exit(INEXISTENCE_ERROR_CODE)
             if VERBOSE:
                 print('[I] Found ' + str(len(covs_files)) + ' abundances files.')
-            samples_files = dict((f, sample_name(f, args['clade'])) for f in covs_files)
+            samples_files = dict((f, get_sampleID_from_path(f, args['clade'])) for f in covs_files)
             
             # Find pangenome file
             pangenome_file_pattern = '*' + args['clade'].replace('panphlan_', '') + '_pangenome.csv'
@@ -1448,7 +1454,7 @@ def main():
         print('\nSTEP 4. Merge single gene abundances to gene family coverages')
     for sample in dna_files_list:
         if VERBOSE:
-            print('[I] Normalization for DNA sample ' + sample_name(sample, args['clade']) + '...')
+            print('[I] Normalization for DNA sample ' + get_sampleID_from_path(sample, args['clade']) + '...')
         dna_samples_covs[sample] = families_coverages(dna_samples_covs[sample], gene2family, gene_lenghts, VERBOSE)
     
     # Get samples list
@@ -1487,7 +1493,7 @@ def main():
             sample = args['i_rna'][sample_id]
             if not sample == NO_RNA_FILE_KEY:
                 if VERBOSE:
-                    print('[I] Normalization for RNA sample ' + sample_name(sample, args['clade']) + '...')
+                    print('[I] Normalization for RNA sample ' + get_sampleID_from_path(sample, args['clade']) + '...')
                 rna_file_list.append(sample)
                 rna_samples_covs[sample] = families_coverages(rna_samples_covs[sample], gene2family, gene_lenghts, VERBOSE)
 
