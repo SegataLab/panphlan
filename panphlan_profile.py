@@ -639,7 +639,7 @@ def presence_of(dna_index):
 def presence_to_str(presence):
     return '1' if presence else '0'
 
-def dna_presencing(accepted_samples, dna_files_list, dna_file2id, sample2family2dnaidx, out_channel, families, clade, avg_genome_length, TIME, VERBOSE):
+def dna_presencing(accepted_samples, dna_files_list, dna_file2id, sample2family2dnaidx, out_channel, families, clade, avg_genome_length, sample_stats, TIME, VERBOSE):
     '''
     Build the gene families presence/absence matrix.
         Take the DNA indexing matrix:
@@ -673,17 +673,17 @@ def dna_presencing(accepted_samples, dna_files_list, dna_file2id, sample2family2
             if total_presence:
                 csv.write(line + '\n')
 
-    # get number of gene-families per sample
-    sample2numGeneFamilies={} 
+    # get number of gene-families per sample (add to dict sample_stats)
     for s in sample2family2presence.keys():
         sampleID = get_sampleID_from_path(s, clade)
-        sample2numGeneFamilies[sampleID] = sum( sample2family2presence[s][f] for f in sample2family2presence[s] )
+        numGeneFamilies = sum( sample2family2presence[s][f] for f in sample2family2presence[s] )
+        sample_stats[sampleID].update({'numberGeneFamilies' : numGeneFamilies})
     if VERBOSE:
         print(' [I] Number of gene families per sample-specific strain:')
-        for sampleID in sorted(sample2numGeneFamilies.keys()):
-            print('      ' + sampleID + '\t' + str(sample2numGeneFamilies[sampleID]))
-        print('      Average number of gene-families in reference genomes: ' + str(avg_genome_length))
-
+        for sampleID in sorted(sample_stats.keys()):
+            print('      ' + sampleID + '\t' + str(sample_stats[sampleID]['numberGeneFamilies']))
+        print('      Average number of gene-families in reference genomes: ' + str(avg_genome_length))        
+        
     if len(dna_files_list) > 0:
         if VERBOSE:
             print(' [I] Gene family presence/absence matrix is printed to ' + out_channel)
@@ -692,19 +692,24 @@ def dna_presencing(accepted_samples, dna_files_list, dna_file2id, sample2family2
         print('[W] No file has been written for gene families presence/absence because there is no accpeted samples.')
         print('    You can try very sensitive options:  --min_coverage 1 --left_max 1.70 --right_min 0.30')
         print('    Read more: https://bitbucket.org/CibioCM/panphlan/wiki/panphlan_profile_strain_detection')
-    return sample2family2presence, sample2numGeneFamilies, TIME
-
+    return sample2family2presence, sample_stats, TIME
 # -----------------------------------------------------------------------------
-def check_for_multistrains(sample2numGeneFamilies, avg_genome_length, VERBOSE):
+
+def print_multistrain_warning(sample_stats, avg_genome_length, VERBOSE):
     print(' ')
-    for s, n in sorted(sample2numGeneFamilies.items()):
-        if n > 1.1 * avg_genome_length:
-            print('QUALITY WARNING: gene-families of sample ' + s + ' may come from multiple strains \n  number of gene-families: '+ str(n) +' is 10% higher than expected number (average of ref. genomes): ' + str(avg_genome_length))
-        if n < 0.8 * avg_genome_length:
-            print('QUALITY WARNING: sample ' + s + ' shows too low number of gene-families, due to low coverage or multiple strains  \n  number of gene-families: '+ str(n) +' is 20% lower than expected number (average of ref. genomes): ' + str(avg_genome_length))
-    print('\n')
-
+    for sampleID in sorted(sample_stats.keys()): # check result of out-plateau zero threshold
+        if sample_stats[sampleID]['Multistrain']:
+            print('QUALITY WARNING: sample ' + sampleID + ' may contain multiple strains, PanPhlAn extracts the dominant strain')
+    for sampleID in sorted(sample_stats.keys()): # check number of gene-families
+        if sample_stats[sampleID]['strainIsPresent']:
+            n = sample_stats[sampleID]['numberGeneFamilies']
+            if n > 1.1 * avg_genome_length:
+                print('QUALITY WARNING: gene-families of sample ' + sampleID + ' may come from multiple strains \n  number of gene-families: '+ str(n) +' is 10% higher than expected number (average of ref. genomes): ' + str(avg_genome_length))
+            if n < 0.8 * avg_genome_length:
+                print('QUALITY WARNING: sample ' + sampleID + ' shows too low number of gene-families, due to low coverage or multiple strains  \n  number of gene-families: '+ str(n) +' is 20% lower than expected number (average of ref. genomes): ' + str(avg_genome_length))
+    print('\n')    
 # -----------------------------------------------------------------------------
+
 def index_of(min_thresh, med_thresh, max_thresh, normalized_coverage):
     '''
     Return the DNA index for the given median-normalized coverage
@@ -717,7 +722,6 @@ def index_of(min_thresh, med_thresh, max_thresh, normalized_coverage):
         return  1
     else:
         return -1
-
 # -----------------------------------------------------------------------------
 
 def dna_indexing(accepted_samples, sample2family2normcov, min_thresh, med_thresh, max_thresh, index_file, families, clade, TIME, VERBOSE=False):
@@ -810,6 +814,7 @@ def dna_sample_filtering(samples_coverages, num_ref_genomes, avg_genome_length, 
     sample2color = {}
     median_normalized_covs = defaultdict(list)
     norm_samples_coverages = defaultdict(dict)
+    sample_stats = defaultdict(dict)
 
     # reduce expected number of gene-families, in case of only 1,2 or 3 ref. genomes in DB
     orig_avg_genome_length=avg_genome_length
@@ -867,10 +872,11 @@ def dna_sample_filtering(samples_coverages, num_ref_genomes, avg_genome_length, 
         # samples_coverages[sample] = {f : samples_coverages[sample][f] / median[sample] for f in samples_coverages[sample]}
 
         # min coverage & plateau filter
-        mediancov = median[sample]
+        mediancov = median[sample] # self-defined median func: median of avg_genome_length, see above
         leftcov   = median_normalized_covs[sample][int(avg_genome_length * 0.3)]
         rightcov  = median_normalized_covs[sample][int(avg_genome_length * 0.7)]
         zerocov   = median_normalized_covs[sample][int(avg_genome_length * 1.25)]
+        sample_stats[sample_id] = {'strainCoverage' : mediancov}
         if VERBOSE:
             print(' [I] ' + sample_id + ' median coverage: ' + str(round(mediancov,2)) +
                   '; left-side cov: ' + str(round(leftcov,2)) +
@@ -889,12 +895,17 @@ def dna_sample_filtering(samples_coverages, num_ref_genomes, avg_genome_length, 
                 if VERBOSE:
                     print('     ' + sample_id + ': no strain detected, sample does not pass RIGHT-side coverage threshold.')        
         if sample2accepted[sample]:
+            sample_stats[sample_id].update({'strainIsPresent' : True})
+            sample_stats[sample_id].update({'Multistrain' : zerocov > th_max_zero})
             if VERBOSE: print('     ' + sample_id + ' OK - strain detected')
             if zerocov > th_max_zero:
                 # to do: add to dict
                 if VERBOSE: print('     ' + sample_id + ' WARNING: sample may contain multiple strains')
+        else:
+            sample_stats[sample_id].update({'strainIsPresent' : False})
+            sample_stats[sample_id].update({'Multistrain' : False})
     accepted_samples_list = sorted([s for s in sample2accepted if sample2accepted[s]])
-    return sample2accepted, accepted_samples_list, norm_samples_coverages, sample2famcovlist, sample2color, median_normalized_covs, median
+    return sample2accepted, accepted_samples_list, norm_samples_coverages, sample2famcovlist, sample2color, median_normalized_covs, median, sample_stats
 
 # ----------------------------------------------------------------------------------------------------
 
@@ -1465,7 +1476,7 @@ def main():
     # Filter DNA samples according to their median coverage value and plot coverage plateau
     if VERBOSE:
         print('\nSTEP 5: Strain presence/absence filter based on coverage plateau curve...')
-    sample2accepted, accepted_samples, norm_dna_samples_covs, sample2famcovlist, sample2color, median_normalized_covs, sample2median = dna_sample_filtering(dna_samples_covs, num_ref_genomes, avg_genome_length, args['min_coverage'], args['left_max'], args['right_min'], families, args['clade'], TIME, VERBOSE)
+    sample2accepted, accepted_samples, norm_dna_samples_covs, sample2famcovlist, sample2color, median_normalized_covs, sample2median, sample_stats = dna_sample_filtering(dna_samples_covs, num_ref_genomes, avg_genome_length, args['min_coverage'], args['left_max'], args['right_min'], families, args['clade'], TIME, VERBOSE)
     result = plot_dna_coverage(sample2accepted, norm_dna_samples_covs, sample2famcovlist, sample2color, median_normalized_covs, avg_genome_length, args['clade'], args['o_covplot'], args['o_covplot_normed'], INTERACTIVE, TIME, VERBOSE)
 
 
@@ -1473,7 +1484,7 @@ def main():
     if VERBOSE: print('\nSTEP 6a: Define multicopy, strain-specific, and non-present gene-families (1,-1,-2,-3 matrix, option --o_idx)')
     sample2family2dnaidx, TIME = dna_indexing(accepted_samples, norm_dna_samples_covs, args['th_zero'], args['th_present'], args['th_multicopy'], args['o_idx'], families, args['clade'], TIME, VERBOSE)
     if VERBOSE: print('\nSTEP 6b: Get presence/absence of gene-families (1,-1 matrix, option --o_dna)')
-    dna_sample2family2presence, sample2numGeneFamilies, TIME = dna_presencing(sample2accepted, dna_files_list, args['i_dna'][COVERAGES_KEY], sample2family2dnaidx, args['o_dna'], families, args['clade'], avg_genome_length, TIME, VERBOSE)
+    dna_sample2family2presence, sample_stats, TIME = dna_presencing(sample2accepted, dna_files_list, args['i_dna'][COVERAGES_KEY], sample2family2dnaidx, args['o_dna'], families, args['clade'], avg_genome_length, sample_stats, TIME, VERBOSE)
 
     if ADD_STRAINS or args['strain_hit_genes_perc'] != '':
         if VERBOSE: print('\nSTEP 6c: Calculate percent of identical gene-families between sample-strains and reference-genomes... (option --strain_hit_genes_perc)')
@@ -1506,7 +1517,7 @@ def main():
     end_program(time.time() - TOTAL_TIME) 
 
     # WARNING for presence of multiple strains in a sample 
-    check_for_multistrains(sample2numGeneFamilies, avg_genome_length, VERBOSE)
+    print_multistrain_warning(sample_stats, avg_genome_length, VERBOSE)
 
 
 # ------------------------------------------------------------------------------
