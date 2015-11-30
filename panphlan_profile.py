@@ -706,8 +706,8 @@ def print_multistrain_warning(sample_stats, avg_genome_length, VERBOSE):
             n = sample_stats[sampleID]['numberGeneFamilies']
             if n > 1.1 * avg_genome_length:
                 print('QUALITY WARNING: gene-families of sample ' + sampleID + ' may come from multiple strains \n  number of gene-families: '+ str(n) +' is 10% higher than expected number (average of ref. genomes): ' + str(avg_genome_length))
-            if n < 0.8 * avg_genome_length:
-                print('QUALITY WARNING: sample ' + sampleID + ' shows too low number of gene-families, due to low coverage or multiple strains  \n  number of gene-families: '+ str(n) +' is 20% lower than expected number (average of ref. genomes): ' + str(avg_genome_length))
+            if n < 0.75 * avg_genome_length:
+                print('QUALITY WARNING: sample ' + sampleID + ' shows too low number of gene-families, due to low coverage or multiple strains  \n  number of gene-families: '+ str(n) +' is 25% lower than expected number (average of ref. genomes): ' + str(avg_genome_length))
     print('\n')    
 # -----------------------------------------------------------------------------
 
