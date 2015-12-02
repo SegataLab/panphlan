@@ -145,27 +145,19 @@ class PanPhlAnJoinParser(ArgumentParser):
 def end_program(total_time):
     print('\n[TERMINATING...] ' + __file__ + ', ' + str(round(total_time / 60.0, 2)) + ' minutes.\n')
 
-
-
 def show_interruption_message():
     sys.stderr.flush()
     sys.stderr.write('\r')
     sys.stderr.write(INTERRUPTION_MESSAGE)
 
-
-
 def show_error_message(error):
     sys.stderr.write('[E] Execution has encountered an error!\n')
     sys.stderr.write('    ' + str(error) + '\n')
-
-
 
 def time_message(start_time, message):
     current_time = time.time()
     print(' [I] ' + message + ' Execution time: ' + str(round(current_time - start_time, 2)) + ' seconds.')
     return current_time
-
-
 
 def find(pattern, path):
     '''
@@ -178,8 +170,6 @@ def find(pattern, path):
                 target = os.path.join(root, name)
                 result.append(target)
     return result
-
-
 
 def check_output(opath, odefault, goal, VERBOSE):
     '''
@@ -237,9 +227,7 @@ def is_present(family, sample2family2presence):
         if sample2family2presence[s][family]:
             return True
     return False
-
 # -----------------------------------------------------------------------------
-
 def print_presence_absence_profiles(sample_order, sample2family2presence, families, fileout, TIME, VERBOSE):
     '''
     Print presence/absence (1/0) family profiles (--o_dna option)
@@ -259,18 +247,17 @@ def print_presence_absence_profiles(sample_order, sample2family2presence, famili
                 csv.write(p)
             csv.write('\n')
     TIME = time_message(TIME, 'Presence/absence profiles printed to ' + fileout)
-
 # -----------------------------------------------------------------------------
-def build_strain2family2presence(strains_list, families, genome2families, TIME, VERBOSE):
+def build_strain2family2presence(ref_genomes, families, genome2families, TIME, VERBOSE):
     '''
     Build the dictionary from strain to gene family to presence
     { STRAIN : { GENE FAMILY : PRESENCE(True or False) } }
     '''
     # Build the dictionary strain2family2presence
     strain2family2presence = defaultdict(dict)
-    numof_strains = len(strains_list)
+    numof_strains = len(ref_genomes)
     i = 1
-    for s in strains_list:
+    for s in ref_genomes:
         if VERBOSE:
             print('[I] [' + str(i) + '/' + str(numof_strains) + '] Analysing reference strain ' + s + '...')
             i += 1
@@ -283,28 +270,28 @@ def build_strain2family2presence(strains_list, families, genome2families, TIME, 
         TIME = time_message(TIME, 'Gene families presence/absence in strain reference genomes computed.')
     return TIME, strain2family2presence
 # -----------------------------------------------------------------------------
-def get_strains(pangenome_file, TIME, VERBOSE):
-    '''
-    Return the list of strains (reference genomes) from the pangenome
-    '''
-    strains = set()
-    with open(pangenome_file, 'r') as csv:
-        for line in csv:
-            genome = line.strip().split('\t')[GENOME_INDEX]
-            strains.add(genome)
-    if VERBOSE:
-        TIME = time_message(TIME, 'Extracted ' + str(len(strains)) + ' strains (reference genomes) from the pangenome.')
-    return TIME, sorted(strains)
+# def get_strains(pangenome_file, TIME, VERBOSE):
+#     '''
+#     Return the list of strains (reference genomes) from the pangenome
+#     '''
+#     strains = set()
+#     with open(pangenome_file, 'r') as csv:
+#         for line in csv:
+#             genome = line.strip().split('\t')[GENOME_INDEX]
+#             strains.add(genome)
+#     if VERBOSE:
+#         TIME = time_message(TIME, 'Extracted ' + str(len(strains)) + ' strains (reference genomes) from the pangenome.')
+#     return TIME, sorted(strains)
 # -----------------------------------------------------------------------------
-def strains_filtering(strains_list, strain2family2presence, similarity, samples_panfamilies, families, TIME, VERBOSE):
+def strains_filtering(ref_genomes, strain2family2presence, similarity, samples_panfamilies, families, TIME, VERBOSE):
     '''
     Filter out unacceptable strains (reference genomes in the pangenome)
     '''
     # Rejection 2 (vertical filtering)
-    numof_strains = len(strains_list)
+    numof_strains = len(ref_genomes)
     rejected_strains = []
     i = 1
-    for s in strains_list:
+    for s in ref_genomes:
         if VERBOSE:
             print('[I] [' + str(i) + '/' + str(numof_strains) + '] Analysing strain ' + s + '...')
             i += 1
@@ -522,7 +509,7 @@ def strains_gene_hit_percentage(ss_presence, genome2families, accepted_samples, 
     #     where x = percentage, z = total number of gene families in the strain
     # ss_presence = { STRAIN or SAMPLE : { GENE FAMILY : PRESENCE } }
     strain2sample2hit = {}
-    strains_list = sorted(genome2families.keys())
+    ref_genomes = sorted(genome2families.keys())
     samples_list = sorted([get_sampleID_from_path(s, clade) for s in accepted_samples.keys() if accepted_samples[s]])
 
     if len(samples_list) > 0:
@@ -545,7 +532,7 @@ def strains_gene_hit_percentage(ss_presence, genome2families, accepted_samples, 
         try:
             with open(out_channel, mode='w') as ocsv:
                 ocsv.write('strainID\tnumber_of_genes\t' + '\t'.join(samples_list) + '\n')
-                for strain in strains_list:
+                for strain in ref_genomes:
                     numof_families = len(genome2families[strain])
                     ocsv.write(strain + '\t' + str(numof_families))
                     for sample in samples_list:
@@ -563,7 +550,7 @@ def strains_gene_hit_percentage(ss_presence, genome2families, accepted_samples, 
         print('[W] No file has been written for strains gene hit percentages because there is no accepted samples.')
     return strain2sample2hit, TIME
 # ------------------------------------------------------------------------------
-def samples_strains_presences(sample2family2presence, strains_list, strain2family2presence, genome_length, similarity, out_channel, families, clade, TO_BE_PRINTED, TIME, VERBOSE):
+def samples_strains_presences(sample2family2presence, ref_genomes, strain2family2presence, genome_length, similarity, out_channel, families, clade, TO_BE_PRINTED, TIME, VERBOSE):
     '''
     Compute gene families presence/absence for strains' genomes and merge them with samples ones
 
@@ -579,7 +566,7 @@ def samples_strains_presences(sample2family2presence, strains_list, strain2famil
 
     # Get all present (in at least one sample) families
     TIME, samples_panfamilies = get_samples_panfamilies(families, sample2family2presence, TIME, VERBOSE)
-    TIME, selected_strains, never_present_families = strains_filtering(strains_list, strain2family2presence, similarity, samples_panfamilies, families, TIME, VERBOSE)
+    TIME, selected_strains, never_present_families = strains_filtering(ref_genomes, strain2family2presence, similarity, samples_panfamilies, families, TIME, VERBOSE)
 
     # Create sorted list of sample/strains names
     sample_and_strain_sorted_list = []
@@ -1027,9 +1014,10 @@ def families_coverages(gene2cov, gene2family, lengths, VERBOSE):
 
     return family2cov
 # -----------------------------------------------------------------------------
-def build_mappings(pangenome_file, VERBOSE):
+def read_pangenome(panphlan_clade, VERBOSE):
     '''
-    Build the following data structures:
+    1) Search pangenome file, exit if not present
+    2) Build the following data structures:
      - (dict) length for each gene
      - (dict) family for each gene_coverages
      - (list) sorted list of family
@@ -1040,7 +1028,23 @@ def build_mappings(pangenome_file, VERBOSE):
     families = set()
     genome_lengths = defaultdict(int)
     genome2families = defaultdict(set)
-
+    
+    # search pangenome file (1) in local pwd (2) in $BOWTIE2_INDEXES
+    clade=panphlan_clade.replace('panphlan_','')
+    filename = 'panphlan_' + clade + '_pangenome.csv'
+    path_local  = os.path.join(os.getcwd(),filename)
+    path_bowtie = os.path.join(os.environ['BOWTIE2_INDEXES'],filename)
+    if os.path.exists(path_local):
+        pangenome_file=path_local
+        if VERBOSE: print(' [I] Pangenome file: ./' + filename)
+    elif os.path.exists(path_bowtie):
+        pangenome_file = path_bowtie
+        if VERBOSE: print(' [I] Pangenome file: ' + pangenome_file)
+    else:
+        show_error_message('Error: pangenome file "' + filename + '" not found.')
+        sys.exit(INEXISTENCE_ERROR_CODE)
+     
+    # read pangnome file
     with open(pangenome_file, mode='r') as f:
         for line in f:
             words = line.strip().split('\t')
@@ -1054,13 +1058,14 @@ def build_mappings(pangenome_file, VERBOSE):
     genome_lengths    = dict((g, len(genome2families[g])) for g in genome2families)
     num_ref_genomes   = len(genome_lengths)
     avg_genome_length = int(numpy.median(list(genome_lengths.values())))
-
+    ref_genomes      = sorted(genome2families.keys())
+    
     if VERBOSE:
-        print('[I] Pangenome info: ')
+        print(' [I] Pangenome info: ')
         print('     Number of reference genomes: '                + str(num_ref_genomes))
         print('     Average number of gene-families per genome: ' + str(avg_genome_length))
-        print('     Total number of pangenome gene-families '               + str(len(families)))
-    return gene_lengths, gene2family, sorted(list(families)), num_ref_genomes, avg_genome_length, genome2families
+        print('     Total number of pangenome gene-families '     + str(len(families)))
+    return gene_lengths, gene2family, sorted(list(families)), num_ref_genomes, avg_genome_length, genome2families, ref_genomes
 # -----------------------------------------------------------------------------
 def dict_from_file(input_file):
     '''
@@ -1377,15 +1382,19 @@ def main():
 
     args = check_args()    
         
-    # print('\nSTEP 0. Initialization...')
     TOTAL_TIME = time.time()
-    TIME = time.time()
+    TIME       = time.time()
 
-    VERBOSE = args['verbose']
+    VERBOSE     = args['verbose']
     INTERACTIVE = args['interactive']
     ADD_STRAINS = args['add_strains']
-    RNASEQ = True if args['sample_pairs'] else False
+    RNASEQ      = True if args['sample_pairs'] else False
 
+    # Create pangenome dicts: gene->family, genome->families, gene->length
+    if VERBOSE: print('\nSTEP 2. Read pangenome data...')
+    gene_lenghts, gene2family, families, num_ref_genomes, avg_genome_length, genome2families, ref_genomes = read_pangenome(args['clade'], VERBOSE)
+
+    
     # read mapping result files
     if VERBOSE:
         print('\nSTEP 1. Read and merge mapping results ...')
@@ -1404,25 +1413,18 @@ def main():
 
 
 
-    # Create dicts: gene->family, genome->families, gene->length
-    if VERBOSE:
-        print('\nSTEP 2. Read pangenome data...')
-    gene_lenghts, gene2family, families, num_ref_genomes, avg_genome_length, genome2families = build_mappings(args['i_dna'][PANGENOME_KEY], VERBOSE)
-    
-
-
-    # Strains-only presence/absence matrix (without samples)
-    strains_list = []
+    # Presence/absence matrix only of reference genomes, no samples
+    # ref_genomes = []
     if ADD_STRAINS or args['strain_hit_genes_perc'] != '':
         if VERBOSE:
             print('\nSTEP 3a. Extracting reference genomes gene repertoire...')
-        TIME, strains_list = get_strains(args['i_dna'][PANGENOME_KEY], TIME, VERBOSE)
-        TIME, strain2family2presence = build_strain2family2presence(strains_list, families, genome2families, TIME, VERBOSE)
+        # TIME, ref_genomes = get_strains(args['i_dna'][PANGENOME_KEY], TIME, VERBOSE)
+        TIME, strain2family2presence = build_strain2family2presence(ref_genomes, families, genome2families, TIME, VERBOSE)
         if ADD_STRAINS and args['i_dna'][COVERAGES_KEY] == None:
             if VERBOSE:
                 print('\nSTEP 3b. Printing presence/absence binary matrix only for reference genomes...')
             # TODO
-            TIME = print_presence_absence_profiles(strains_list, strain2family2presence, families, args['o_dna'], TIME, VERBOSE)
+            TIME = print_presence_absence_profiles(ref_genomes, strain2family2presence, families, args['o_dna'], TIME, VERBOSE)
             end_program(time.time() - TOTAL_TIME)
             sys.exit(0) 
 
@@ -1455,7 +1457,7 @@ def main():
 
     if ADD_STRAINS or args['strain_hit_genes_perc'] != '':
         if VERBOSE: print('\nSTEP 6c: Calculate percent of identical gene-families between sample-strains and reference-genomes... (option --strain_hit_genes_perc)')
-        ss_presence, TIME = samples_strains_presences(dna_sample2family2presence, strains_list, strain2family2presence, avg_genome_length, args['strain_similarity_perc'], args['o_dna'], families, args['clade'], ADD_STRAINS, TIME, VERBOSE)
+        ss_presence, TIME = samples_strains_presences(dna_sample2family2presence, ref_genomes, strain2family2presence, avg_genome_length, args['strain_similarity_perc'], args['o_dna'], families, args['clade'], ADD_STRAINS, TIME, VERBOSE)
         # ss_presence = { STRAIN or SAMPLE : { GENE FAMILY : PRESENCE } }
         if args['strain_hit_genes_perc'] != '':
             if VERBOSE: print('\nSTEP 6d: Get percent of sample-strain gene-families present in reference-genomes (option --strain_hit_genes_perc)')
