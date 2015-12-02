@@ -899,7 +899,7 @@ def dna_sample_filtering(samples_coverages, num_ref_genomes, avg_genome_length, 
 # ----------------------------------------------------------------------------------------------------
 def plot_dna_coverage(sample2accepted, samples_coverages, sample2famcovlist, sample2color, median_normalized_covs, genome_length, clade, plot1_name, plot2_name, INTERACTIVE, TIME, VERBOSE=False):
     '''
-    Plot gene-family coverage plots, saved as pdf file.
+    Plot gene-family coverage plots as pdf file.
     a) absolute coverage
     b) median normalized coverage
     Accepted samples are plotted in colors, rejected samples in gray.
@@ -909,7 +909,7 @@ def plot_dna_coverage(sample2accepted, samples_coverages, sample2famcovlist, sam
     try:
         if not INTERACTIVE:        # save to file
             import matplotlib      # for non-interactive plots on server without X11
-            matplotlib.use('Agg')  # set use('Agg') before import pylab
+            matplotlib.use('Agg')  # set 'Agg' before import pylab
         import matplotlib.pyplot as plt    
         try:
             from pylab import legend, savefig
@@ -920,7 +920,7 @@ def plot_dna_coverage(sample2accepted, samples_coverages, sample2famcovlist, sam
                 if sample2accepted[s]:
                     accepted2samples[True].append(s)
                 else:
-                    accepted2samples[False].append(s)        
+                    accepted2samples[False].append(s)
             sorted_samples = accepted2samples[False]
             sorted_samples.extend(accepted2samples[True])
             num_accepted=len(accepted2samples[True])
@@ -936,7 +936,7 @@ def plot_dna_coverage(sample2accepted, samples_coverages, sample2famcovlist, sam
                     else:
                         used_colors.append(color)
 
-                # Family coverage plot
+                # Absolute coverage plot
                 fig1 = None
                 if not plot1_name == '':
                     plt.suptitle('Gene families coverages')
@@ -949,7 +949,7 @@ def plot_dna_coverage(sample2accepted, samples_coverages, sample2famcovlist, sam
                         if sample2accepted[sample]:
                             plt.plot(range(1, len(covs) + 1), covs, sample2color[sample], label=sample_id)
                         else:
-                            plt.plot(range(1, len(covs) + 1), covs, COLOR_GREY)      
+                            plt.plot(range(1, len(covs) + 1), covs, COLOR_GREY)
                     plt.axis([0.0, genome_length * 1.5, 0.0, 1000.0])
                     try:
                         if num_accepted > 0: plt.legend(loc='upper right', fontsize='xx-small')
@@ -993,7 +993,7 @@ def plot_dna_coverage(sample2accepted, samples_coverages, sample2famcovlist, sam
             del(samples)
             del(accepted2samples)
             return True
-        
+
         except ImportError:
             print(' [W] "pylab" module is not installed.')
             print('     To visualize and save charts, you need both "matplotlib" and "pylab" modules.')
