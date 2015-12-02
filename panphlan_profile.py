@@ -897,19 +897,22 @@ def dna_sample_filtering(samples_coverages, num_ref_genomes, avg_genome_length, 
     return sample2accepted, accepted_samples_list, norm_samples_coverages, sample2famcovlist, sample2color, median_normalized_covs, median, sample_stats
 
 # ----------------------------------------------------------------------------------------------------
-
 def plot_dna_coverage(sample2accepted, samples_coverages, sample2famcovlist, sample2color, median_normalized_covs, genome_length, clade, plot1_name, plot2_name, INTERACTIVE, TIME, VERBOSE=False):
     '''
-    Draw into two .pdf files the plots for gene families normalized and unnormalized coverages
-    Accepted sample present a colored trend, while rejected ones are drawn in grey
+    Plot gene-family coverage plots, saved as pdf file.
+    a) absolute coverage
+    b) median normalized coverage
+    Accepted samples are plotted in colors, rejected samples in gray.
     '''
-
+    if VERBOSE:
+        print(' [I] Plot gene-family coverage curves')
     try:
-        import matplotlib      # for non-interactive plots on
-        matplotlib.use('Agg')  # server without X11, only save to file (run before pylab)
-        from pylab import legend, savefig
+        if not INTERACTIVE:        # save to file
+            import matplotlib      # for non-interactive plots on server without X11
+            matplotlib.use('Agg')  # set use('Agg') before import pylab
+        import matplotlib.pyplot as plt    
         try:
-            import matplotlib.pyplot as plt
+            from pylab import legend, savefig
 
             samples = sorted(samples_coverages.keys())
             accepted2samples = defaultdict(list)
@@ -917,9 +920,10 @@ def plot_dna_coverage(sample2accepted, samples_coverages, sample2famcovlist, sam
                 if sample2accepted[s]:
                     accepted2samples[True].append(s)
                 else:
-                    accepted2samples[False].append(s)
+                    accepted2samples[False].append(s)        
             sorted_samples = accepted2samples[False]
             sorted_samples.extend(accepted2samples[True])
+            num_accepted=len(accepted2samples[True])
 
             # Plotting...
             if not plot1_name == '' or not plot2_name == '':
@@ -945,13 +949,13 @@ def plot_dna_coverage(sample2accepted, samples_coverages, sample2famcovlist, sam
                         if sample2accepted[sample]:
                             plt.plot(range(1, len(covs) + 1), covs, sample2color[sample], label=sample_id)
                         else:
-                            plt.plot(range(1, len(covs) + 1), covs, COLOR_GREY)
+                            plt.plot(range(1, len(covs) + 1), covs, COLOR_GREY)      
                     plt.axis([0.0, genome_length * 1.5, 0.0, 1000.0])
                     try:
-                        plt.legend(loc='upper right', fontsize='xx-small')
+                        if num_accepted > 0: plt.legend(loc='upper right', fontsize='xx-small')
                     except TypeError:
-                        print('[W] pylab.legend fontsize does not work (old module version).')
-                    savefig(plot1_name)
+                        print(' [W] pylab.legend fontsize does not work (please update your "pylab" module version).')  
+                    savefig(plot1_name) 
                     if INTERACTIVE:
                         fig1 = plt.figure(0)
                     plt.close()
@@ -970,6 +974,7 @@ def plot_dna_coverage(sample2accepted, samples_coverages, sample2famcovlist, sam
                         else:
                             plt.plot(range(1, len(covs) + 1), covs, COLOR_GREY)
                     plt.axis([0.0, genome_length * 1.5, 0.0, 9.0])
+                    
                     # thresholds need to adapted from dna_sample_filtering
                     # plt.plot((0.0, genome_length * 1.5), (th_present, th_present), 'k--') # th_present horizontal
                     # plt.plot((0.9 * genome_length, 0.9 * genome_length), (0.0, 9.0), 'k--') # genome length lowerbound vertical
@@ -977,11 +982,10 @@ def plot_dna_coverage(sample2accepted, samples_coverages, sample2famcovlist, sam
                     # plt.plot([genome_length * 0.3], [left_max], 'ro') # left_max intersected with genome length * 0.3
                     # plt.plot([genome_length * 0.7], [right_min], 'ro') # right_min intersected with genome length * 0.7
 
-                    
                     try:
-                        plt.legend(loc='upper right', fontsize='xx-small')
+                        if num_accepted > 0: plt.legend(loc='upper right', fontsize='xx-small')
                     except TypeError:
-                        print('[W] pylab.legend fontsize does not work (old module version).')
+                        print(' [W] pylab.legend fontsize does not work (please update your "pylab" module version).')
                     savefig(plot2_name)
                     if INTERACTIVE:
                         fig2 = plt.plot()
@@ -989,17 +993,14 @@ def plot_dna_coverage(sample2accepted, samples_coverages, sample2famcovlist, sam
             del(samples)
             del(accepted2samples)
             return True
-
+        
         except ImportError:
-            print('[W] "matplotlib" module is not installed.')
+            print(' [W] "pylab" module is not installed.')
+            print('     To visualize and save charts, you need both "matplotlib" and "pylab" modules.')
     except ImportError:
-        print('[W] "pylab" module is not installed.')
-        print('    To visualize and save charts, you need both "matplotlib" and "pylab" modules.')
-
+        print(' [W] "matplotlib" module is not installed.')    
     return False
-
 # -----------------------------------------------------------------------------
-
 def print_coverage_matrix(dna_files_list, dna_file2id, dna_samples_covs, out_channel, families, clade, TIME, VERBOSE):
     '''
     TODO
