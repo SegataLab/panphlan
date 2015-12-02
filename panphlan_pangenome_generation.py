@@ -18,8 +18,8 @@ from __future__ import with_statement
 # https://bitbucket.org/CibioCM/panphlan
 # ==============================================================================
 
-__author__  = 'Thomas Tolio, Matthias Scholz, Nicola Segata (panphlan-users@googlegroups.com)'
-__version__ = '1.1.2.3'
+__author__  = 'Matthias Scholz, Thomas Tolio, Nicola Segata (panphlan-users@googlegroups.com)'
+__version__ = '1.1.2.4'
 __date__    = '28 August 2015'
 
 # Imports
@@ -74,7 +74,7 @@ class PanPhlAnGenParser(ArgumentParser):
         self.add_argument('-c','--clade',    metavar='CLADE_NAME',           type=str,   required=True,  help='Name of the specie to consider, i.e. the basename of the index for the reference genome used by Bowtie2 to align reads.')
         self.add_argument('-o','--output',   metavar='OUTPUT_FOLDER',        type=str,   required=True,  help='Directory where to store the produced files (six .bt2 files for Bowtie2 indexes, one .csv file for the pangenome).')
         self.add_argument('--th',            metavar='IDENTITY_PERCENATGE',  type=float, default=95.0,   help='Threshold of gene sequence similarity (in percentage). Default value is 95.0 %%.')
-        self.add_argument('--tmp',           metavar='TEMP_FOLDER',          type=str,   default='TMP_panphlan', help='Alternative folder for temporary files.')
+        self.add_argument('--tmp',           metavar='TEMP_FOLDER',          type=str,   default='TMP_panphlan_db', help='Alternative folder for temporary files.')
         self.add_argument('--uc',            action='store_true',                                        help='Defines if to keep usearch7 output (mainly centroids.ffn and the pangenome-clusters)')
         self.add_argument('--verbose',       action='store_true',                                        help='Defines if the standard output must be verbose or not.')
         self.add_argument('-v', '--version', action='version',   version="PanPhlAn version "+__version__+"\t("+__date__+")", help='Prints the current PanPhlAn version and exits.')
