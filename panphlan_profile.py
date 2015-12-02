@@ -18,9 +18,9 @@ from __future__ import with_statement
 # https://bitbucket.org/CibioCM/panphlan
 # ==============================================================================
 
-__author__  = 'Thomas Tolio, Matthias Scholz, Nicola Segata (panphlan-users@googlegroups.com)'
-__version__ = '1.1.1'
-__date__    = '11 November 2015'
+__author__  = 'Matthias Scholz, Thomas Tolio, Nicola Segata (panphlan-users@googlegroups.com)'
+__version__ = '1.1.2'
+__date__    = '2 December 2015'
 
 # Imports
 from argparse import ArgumentParser
@@ -214,18 +214,6 @@ def get_sampleID_from_path(sample_path, clade):
     c=clade.replace('panphlan_','')
     sampleID = filename.replace( '_' + c ,'')
     return sampleID
-
-# def sample_name(sample_path, clade):
-#     # simplest sample name "some/path/panphlan_SAMPLE_clade.ext"
-#     for ext in EXTENSIONS:
-#         if '.' + ext in sample_path:
-#             sample_path = sample_path.replace('.' + ext, '')
-#     sample_path = sample_path.split('/')[-1]
-#     c = '_' + clade
-#     c = c.replace('panphlan_', '')
-#     return sample_path.replace('panphlan_', '').replace(c, '')
-
-
 
 def random_color(used):
     '''
@@ -917,6 +905,8 @@ def plot_dna_coverage(sample2accepted, samples_coverages, sample2famcovlist, sam
     '''
 
     try:
+        import matplotlib      # for non-interactive plots on
+        matplotlib.use('Agg')  # server without X11, only save to file (run before pylab)
         from pylab import legend, savefig
         try:
             import matplotlib.pyplot as plt
