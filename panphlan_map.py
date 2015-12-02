@@ -979,11 +979,11 @@ def check_args():
 
     # Check: TEMP_FOLDER ------------------------------------------------------
     # default TMP_panphlan_map, since system folder /tmp can have space limits  
-    tmp_path = os.path.join(args['tmp'],'')
+    tmp_path = os.path.join(args_set['tmp'],'')
     if not os.path.exists(os.path.dirname(tmp_path)):
         os.makedirs(tmp_path)
-    args['tmp'] = tmp_path
-    if VERBOSE: print('[I] Temporary folder: ' + args['tmp'])
+    args_set['tmp'] = tmp_path
+    if VERBOSE: print('[I] Temporary folder: ' + args_set['tmp'])
 
     return args_set
 
