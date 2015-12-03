@@ -1114,25 +1114,26 @@ def check_args():
     # dna2rna := { DNA_ID : RNA_ID }
     dna2rna = {}
 
-    pangenome_file = []
+    pangenome_file=['']
+    # pangenome_file = []
     if idna == '':
         # --i_dna NOT defined: search pangenome file for strain binary matrix printing
-        pangenome_file_pattern = args['clade'] + '_pangenome.csv'
-        if VERBOSE:
-            print('[I] Searching for ' + pangenome_file_pattern + '...')
-        pangenome_file = find(pangenome_file_pattern, '.') # search first in working directory
-        if pangenome_file == []:
-            pangenome_file = find(pangenome_file_pattern, os.environ['BOWTIE2_INDEXES']) # finally search in environment folder
-            if pangenome_file == []:
-                show_error_message('Pangenome file for specie ' + args['clade'] + ' is not found.')
-                sys.exit(INEXISTENCE_ERROR_CODE)
-        if VERBOSE:
-            if len(pangenome_file) > 1:
-                print('[W] Found more than one matching pangenome files. They are:\n\t' + '\n\t'.join(pangenome_file))
-                print('    Chosen: ' + pangenome_file[0])
-                print('    If choice is not good, please make matchable the desired file only.')
-            elif len(pangenome_file) == 1:
-                print('[I] Pangenome file: ' + pangenome_file[0])        
+        # pangenome_file_pattern = args['clade'] + '_pangenome.csv'
+        # if VERBOSE:
+        #    print('[I] Searching for ' + pangenome_file_pattern + '...')
+        #pangenome_file = find(pangenome_file_pattern, '.') # search first in working directory
+        #if pangenome_file == []:
+        #    pangenome_file = find(pangenome_file_pattern, os.environ['BOWTIE2_INDEXES']) # finally search in environment folder
+        #    if pangenome_file == []:
+        #        show_error_message('Pangenome file for specie ' + args['clade'] + ' is not found.')
+        #        sys.exit(INEXISTENCE_ERROR_CODE)
+        #if VERBOSE:
+        #    if len(pangenome_file) > 1:
+        #        print('[W] Found more than one matching pangenome files. They are:\n\t' + '\n\t'.join(pangenome_file))
+        #        print('    Chosen: ' + pangenome_file[0])
+        #        print('    If choice is not good, please make matchable the desired file only.')
+        #    elif len(pangenome_file) == 1:
+        #        print('[I] Pangenome file: ' + pangenome_file[0])        
         args['i_dna'] = {PANGENOME_KEY : pangenome_file[0], COVERAGES_KEY : None}
         
     else:
@@ -1186,21 +1187,21 @@ def check_args():
                         else:
                             rna_id2file[dna2rna[d]] = rna_path[0]
                     # Search pangenome file
-                    pangenome_file_pattern = args['clade'] + '_pangenome.csv'
-                    if VERBOSE:
-                        print('[I] Searching for ' + pangenome_file_pattern + '...')
-                    pangenome_file = find(pangenome_file_pattern, '.') # search first in working directory
-                    if pangenome_file == []:
-                        pangenome_file = find(pangenome_file_pattern, idna) # search in DNA input folder
-                        if pangenome_file == []:
-                            pangenome_file = find(pangenome_file_pattern, os.environ['BOWTIE2_INDEXES']) # finally search in environment folder
-                            if pangenome_file == []:
-                                show_error_message('Pangenome file for specie ' + args['clade'] + ' is not found.')
-                                sys.exit(INEXISTENCE_ERROR_CODE)
-                    if VERBOSE and len(pangenome_file) > 1:
-                        print('[W] Found more than one matching pangenome files. They are:\n\t' + '\n\t'.join(pangenome_file))
-                        print('    Chosen: ' + pangenome_file[0])
-                        print('    If choice is not good, please make matchable only the desired file.')
+                    #pangenome_file_pattern = args['clade'] + '_pangenome.csv'
+                    #if VERBOSE:
+                    #    print('[I] Searching for ' + pangenome_file_pattern + '...')
+                    #pangenome_file = find(pangenome_file_pattern, '.') # search first in working directory
+                    #if pangenome_file == []:
+                    #    pangenome_file = find(pangenome_file_pattern, idna) # search in DNA input folder
+                    #    if pangenome_file == []:
+                    #        pangenome_file = find(pangenome_file_pattern, os.environ['BOWTIE2_INDEXES']) # finally search in environment folder
+                    #        if pangenome_file == []:
+                    #            show_error_message('Pangenome file for specie ' + args['clade'] + ' is not found.')
+                    #            sys.exit(INEXISTENCE_ERROR_CODE)
+                    #if VERBOSE and len(pangenome_file) > 1:
+                    #    print('[W] Found more than one matching pangenome files. They are:\n\t' + '\n\t'.join(pangenome_file))
+                    #    print('    Chosen: ' + pangenome_file[0])
+                    #    print('    If choice is not good, please make matchable only the desired file.')
                     # Build the comfortable supercomplex of DNA/RNA/pangenome/mapping files
                     args['sample_pairs'] = dna2rna
                     args['i_dna'] = {PANGENOME_KEY : pangenome_file[0], COVERAGES_KEY : dna_file2id}
@@ -1240,17 +1241,17 @@ def check_args():
             samples_files = dict((f, get_sampleID_from_path(f, args['clade'])) for f in covs_files)
             
             # Find pangenome file
-            pangenome_file_pattern = '*' + args['clade'].replace('panphlan_', '') + '_pangenome.csv'
-            if VERBOSE:
-                print('[I] Searching for ' + pangenome_file_pattern + '...')
-            pangenome_file = find(pangenome_file_pattern, '.') # search first in working directory
-            if pangenome_file == []:
-                pangenome_file = find(pangenome_file_pattern, idna) # search in DNA input folder
-                if pangenome_file == []:
-                    pangenome_file = find(pangenome_file_pattern, os.environ['BOWTIE2_INDEXES']) # finally search in environment folder
-                    if pangenome_file == []:
-                        show_error_message('Any pangenome file has not been found.')
-                        sys.exit(INEXISTENCE_ERROR_CODE)
+            #pangenome_file_pattern = '*' + args['clade'].replace('panphlan_', '') + '_pangenome.csv'
+            #if VERBOSE:
+            #    print('[I] Searching for ' + pangenome_file_pattern + '...')
+            #pangenome_file = find(pangenome_file_pattern, '.') # search first in working directory
+            #if pangenome_file == []:
+            #    pangenome_file = find(pangenome_file_pattern, idna) # search in DNA input folder
+            #    if pangenome_file == []:
+            #        pangenome_file = find(pangenome_file_pattern, os.environ['BOWTIE2_INDEXES']) # finally search in environment folder
+            #        if pangenome_file == []:
+            #            show_error_message('Any pangenome file has not been found.')
+            #            sys.exit(INEXISTENCE_ERROR_CODE)
 
             # TODO choose only one pangenome file if more than one are found
 
@@ -1258,7 +1259,7 @@ def check_args():
             if VERBOSE:
                 print('[I] Input folder: ' + idna)
                 print('[I] Gene coverages files:\n\t' + '\n\t'.join(sorted(covs_files)))
-                print('[I] Pangenome file: ' + str(pangenome_file[0]))
+                # print('[I] Pangenome file: ' + str(pangenome_file[0]))
 
     # Check OUTPUT_FILE
     args['o_dna'] = check_output(args['o_dna'], '', 'gene families presence/absence matrix', VERBOSE)
