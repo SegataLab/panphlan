@@ -81,8 +81,8 @@ FILEFORMAT_ERROR_CODE   =  3 # file of DNA RNA sample pairs
 
 # Strings
 PANPHLAN        = 'panphlan_'
-COVERAGES_KEY   = 'coverages'
-PANGENOME_KEY   = 'pangenome'
+# COVERAGES_KEY   = 'coverages'
+# PANGENOME_KEY   = 'pangenome'
 NO_RNA_FILE_KEY = '# NA #'
 INTERRUPTION_MESSAGE    = '[E] Execution has been manually halted.\n'
 
@@ -1061,7 +1061,6 @@ def read_pangenome(panphlan_clade, VERBOSE):
     ref_genomes      = sorted(genome2families.keys())
     
     if VERBOSE:
-        print(' [I] Pangenome info: ')
         print('     Number of reference genomes: '                + str(num_ref_genomes))
         print('     Average number of gene-families per genome: ' + str(avg_genome_length))
         print('     Total number of pangenome gene-families '     + str(len(families)))
@@ -1134,8 +1133,8 @@ def check_args():
         #        print('    If choice is not good, please make matchable the desired file only.')
         #    elif len(pangenome_file) == 1:
         #        print('[I] Pangenome file: ' + pangenome_file[0])        
-        args['i_dna'] = {PANGENOME_KEY : pangenome_file[0], COVERAGES_KEY : None}
-        
+        # args['i_dna'] = {PANGENOME_KEY : pangenome_file[0], COVERAGES_KEY : None}
+        args['i_dna'] = None
     else:
         # Normal pipeline
         if not pairs_path == None:
@@ -1204,7 +1203,8 @@ def check_args():
                     #    print('    If choice is not good, please make matchable only the desired file.')
                     # Build the comfortable supercomplex of DNA/RNA/pangenome/mapping files
                     args['sample_pairs'] = dna2rna
-                    args['i_dna'] = {PANGENOME_KEY : pangenome_file[0], COVERAGES_KEY : dna_file2id}
+                    # args['i_dna'] = {PANGENOME_KEY : pangenome_file[0], COVERAGES_KEY : dna_file2id}
+                    args['i_dna'] = dna_file2id
                     args['i_rna'] = rna_id2file
                     if VERBOSE:
                         print('[I] Input folder for DNAs: ' + idna)
@@ -1255,7 +1255,8 @@ def check_args():
 
             # TODO choose only one pangenome file if more than one are found
 
-            args['i_dna'] = {PANGENOME_KEY : pangenome_file[0], COVERAGES_KEY : samples_files}
+            # args['i_dna'] = {PANGENOME_KEY : pangenome_file[0], COVERAGES_KEY : samples_files}
+            args['i_dna'] = samples_files            
             if VERBOSE:
                 print('[I] Input folder: ' + idna)
                 print('[I] Gene coverages files:\n\t' + '\n\t'.join(sorted(covs_files)))
@@ -1401,8 +1402,10 @@ def main():
         print('\nSTEP 1. Read and merge mapping results ...')
     dna_samples_covs = {}
     rna_samples_covs = {}
-    if not args['i_dna'][COVERAGES_KEY] == None:
-        dna_files_list = sorted(args['i_dna'][COVERAGES_KEY].keys())
+    #if not args['i_dna'][COVERAGES_KEY] == None:
+    if not args['i_dna'] == None:
+        # dna_files_list = sorted(args['i_dna'][COVERAGES_KEY].keys())
+        dna_files_list = sorted(args['i_dna'].keys())
         for dna_covs_file in dna_files_list:
             dna_samples_covs[dna_covs_file] = dict_from_file(dna_covs_file)
         if RNASEQ:
@@ -1421,7 +1424,8 @@ def main():
             print('\nSTEP 3a. Extracting reference genomes gene repertoire...')
         # TIME, ref_genomes = get_strains(args['i_dna'][PANGENOME_KEY], TIME, VERBOSE)
         TIME, strain2family2presence = build_strain2family2presence(ref_genomes, families, genome2families, TIME, VERBOSE)
-        if ADD_STRAINS and args['i_dna'][COVERAGES_KEY] == None:
+        # if ADD_STRAINS and args['i_dna'][COVERAGES_KEY] == None:
+        if ADD_STRAINS and args['i_dna'] == None:
             if VERBOSE:
                 print('\nSTEP 3b. Printing presence/absence binary matrix only for reference genomes...')
             # TODO
@@ -1440,7 +1444,8 @@ def main():
     
     # Get samples list
     # Print coverages in file
-    TIME = print_coverage_matrix(dna_files_list, args['i_dna'][COVERAGES_KEY], dna_samples_covs, args['o_cov'], families, args['clade'], TIME, VERBOSE)
+    # TIME = print_coverage_matrix(dna_files_list, args['i_dna'][COVERAGES_KEY], dna_samples_covs, args['o_cov'], families, args['clade'], TIME, VERBOSE)
+    TIME = print_coverage_matrix(dna_files_list, args['i_dna'], dna_samples_covs, args['o_cov'], families, args['clade'], TIME, VERBOSE)
     
 
     # Filter DNA samples according to their median coverage value and plot coverage plateau
@@ -1454,7 +1459,8 @@ def main():
     if VERBOSE: print('\nSTEP 6a: Define multicopy, strain-specific, and non-present gene-families (1,-1,-2,-3 matrix, option --o_idx)')
     sample2family2dnaidx, TIME = dna_indexing(accepted_samples, norm_dna_samples_covs, args['th_zero'], args['th_present'], args['th_multicopy'], args['o_idx'], families, args['clade'], TIME, VERBOSE)
     if VERBOSE: print('\nSTEP 6b: Get presence/absence of gene-families (1,-1 matrix, option --o_dna)')
-    dna_sample2family2presence, sample_stats, TIME = dna_presencing(sample2accepted, dna_files_list, args['i_dna'][COVERAGES_KEY], sample2family2dnaidx, args['o_dna'], families, args['clade'], avg_genome_length, sample_stats, TIME, VERBOSE)
+    # dna_sample2family2presence, sample_stats, TIME = dna_presencing(sample2accepted, dna_files_list, args['i_dna'][COVERAGES_KEY], sample2family2dnaidx, args['o_dna'], families, args['clade'], avg_genome_length, sample_stats, TIME, VERBOSE)
+    dna_sample2family2presence, sample_stats, TIME = dna_presencing(sample2accepted, dna_files_list, args['i_dna'], sample2family2dnaidx, args['o_dna'], families, args['clade'], avg_genome_length, sample_stats, TIME, VERBOSE)
 
     if ADD_STRAINS or args['strain_hit_genes_perc'] != '':
         if VERBOSE: print('\nSTEP 6c: Calculate percent of identical gene-families between sample-strains and reference-genomes... (option --strain_hit_genes_perc)')
@@ -1482,7 +1488,8 @@ def main():
     # DNA (and RNA) indexing
     if RNASEQ:
         if VERBOSE: print('\nSTEP 8. RNA-seq: Get strain-specific gene transcription profiles')
-        rna_seq(args['o_rna'], sample2family2dnaidx, dna_samples_covs, sample2accepted, rna_id_list, rna_samples_covs, args['rna_max_zeros'], args['sample_pairs'], args['i_dna'][COVERAGES_KEY], args['i_rna'], families, CONST_C, args['np'], args['nan'], args['clade'], args['rna_norm_percentile'], TIME, VERBOSE)
+        # rna_seq(args['o_rna'], sample2family2dnaidx, dna_samples_covs, sample2accepted, rna_id_list, rna_samples_covs, args['rna_max_zeros'], args['sample_pairs'], args['i_dna'][COVERAGES_KEY], args['i_rna'], families, CONST_C, args['np'], args['nan'], args['clade'], args['rna_norm_percentile'], TIME, VERBOSE)
+        rna_seq(args['o_rna'], sample2family2dnaidx, dna_samples_covs, sample2accepted, rna_id_list, rna_samples_covs, args['rna_max_zeros'], args['sample_pairs'], args['i_dna'], args['i_rna'], families, CONST_C, args['np'], args['nan'], args['clade'], args['rna_norm_percentile'], TIME, VERBOSE)
 
     end_program(time.time() - TOTAL_TIME) 
 
