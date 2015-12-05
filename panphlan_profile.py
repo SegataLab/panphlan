@@ -19,8 +19,8 @@ from __future__ import with_statement
 # ==============================================================================
 
 __author__  = 'Matthias Scholz, Thomas Tolio, Nicola Segata (panphlan-users@googlegroups.com)'
-__version__ = '1.1.2'
-__date__    = '2 December 2015'
+__version__ = '1.1.3'
+__date__    = '5 December 2015'
 
 # Imports
 from argparse import ArgumentParser
@@ -81,8 +81,6 @@ FILEFORMAT_ERROR_CODE   =  3 # file of DNA RNA sample pairs
 
 # Strings
 PANPHLAN        = 'panphlan_'
-# COVERAGES_KEY   = 'coverages'
-# PANGENOME_KEY   = 'pangenome'
 NO_RNA_FILE_KEY = '# NA #'
 INTERRUPTION_MESSAGE    = '[E] Execution has been manually halted.\n'
 
@@ -269,19 +267,6 @@ def build_strain2family2presence(ref_genomes, families, genome2families, TIME, V
     if VERBOSE:
         TIME = time_message(TIME, 'Gene families presence/absence in strain reference genomes computed.')
     return TIME, strain2family2presence
-# -----------------------------------------------------------------------------
-# def get_strains(pangenome_file, TIME, VERBOSE):
-#     '''
-#     Return the list of strains (reference genomes) from the pangenome
-#     '''
-#     strains = set()
-#     with open(pangenome_file, 'r') as csv:
-#         for line in csv:
-#             genome = line.strip().split('\t')[GENOME_INDEX]
-#             strains.add(genome)
-#     if VERBOSE:
-#         TIME = time_message(TIME, 'Extracted ' + str(len(strains)) + ' strains (reference genomes) from the pangenome.')
-#     return TIME, sorted(strains)
 # -----------------------------------------------------------------------------
 def strains_filtering(ref_genomes, strain2family2presence, similarity, samples_panfamilies, families, TIME, VERBOSE):
     '''
@@ -1029,7 +1014,7 @@ def read_pangenome(panphlan_clade, VERBOSE):
     genome_lengths = defaultdict(int)
     genome2families = defaultdict(set)
     
-    # search pangenome file (1) in local pwd (2) in $BOWTIE2_INDEXES
+    # search pangenome file: first in local pwd; second in $BOWTIE2_INDEXES
     clade=panphlan_clade.replace('panphlan_','')
     filename = 'panphlan_' + clade + '_pangenome.csv'
     path_local  = os.path.join(os.getcwd(),filename)
@@ -1114,26 +1099,7 @@ def check_args():
     dna2rna = {}
 
     pangenome_file=['']
-    # pangenome_file = []
     if idna == '':
-        # --i_dna NOT defined: search pangenome file for strain binary matrix printing
-        # pangenome_file_pattern = args['clade'] + '_pangenome.csv'
-        # if VERBOSE:
-        #    print('[I] Searching for ' + pangenome_file_pattern + '...')
-        #pangenome_file = find(pangenome_file_pattern, '.') # search first in working directory
-        #if pangenome_file == []:
-        #    pangenome_file = find(pangenome_file_pattern, os.environ['BOWTIE2_INDEXES']) # finally search in environment folder
-        #    if pangenome_file == []:
-        #        show_error_message('Pangenome file for specie ' + args['clade'] + ' is not found.')
-        #        sys.exit(INEXISTENCE_ERROR_CODE)
-        #if VERBOSE:
-        #    if len(pangenome_file) > 1:
-        #        print('[W] Found more than one matching pangenome files. They are:\n\t' + '\n\t'.join(pangenome_file))
-        #        print('    Chosen: ' + pangenome_file[0])
-        #        print('    If choice is not good, please make matchable the desired file only.')
-        #    elif len(pangenome_file) == 1:
-        #        print('[I] Pangenome file: ' + pangenome_file[0])        
-        # args['i_dna'] = {PANGENOME_KEY : pangenome_file[0], COVERAGES_KEY : None}
         args['i_dna'] = None
     else:
         # Normal pipeline
@@ -1185,31 +1151,12 @@ def check_args():
                             rna_id2file[dna2rna[d]] = NO_RNA_FILE_KEY
                         else:
                             rna_id2file[dna2rna[d]] = rna_path[0]
-                    # Search pangenome file
-                    #pangenome_file_pattern = args['clade'] + '_pangenome.csv'
-                    #if VERBOSE:
-                    #    print('[I] Searching for ' + pangenome_file_pattern + '...')
-                    #pangenome_file = find(pangenome_file_pattern, '.') # search first in working directory
-                    #if pangenome_file == []:
-                    #    pangenome_file = find(pangenome_file_pattern, idna) # search in DNA input folder
-                    #    if pangenome_file == []:
-                    #        pangenome_file = find(pangenome_file_pattern, os.environ['BOWTIE2_INDEXES']) # finally search in environment folder
-                    #        if pangenome_file == []:
-                    #            show_error_message('Pangenome file for specie ' + args['clade'] + ' is not found.')
-                    #            sys.exit(INEXISTENCE_ERROR_CODE)
-                    #if VERBOSE and len(pangenome_file) > 1:
-                    #    print('[W] Found more than one matching pangenome files. They are:\n\t' + '\n\t'.join(pangenome_file))
-                    #    print('    Chosen: ' + pangenome_file[0])
-                    #    print('    If choice is not good, please make matchable only the desired file.')
-                    # Build the comfortable supercomplex of DNA/RNA/pangenome/mapping files
                     args['sample_pairs'] = dna2rna
-                    # args['i_dna'] = {PANGENOME_KEY : pangenome_file[0], COVERAGES_KEY : dna_file2id}
                     args['i_dna'] = dna_file2id
                     args['i_rna'] = rna_id2file
                     if VERBOSE:
                         print('[I] Input folder for DNAs: ' + idna)
                         print('[I] Input folder for RNAs: ' + irna)
-                        print('[I] Pangenome file:        ' + str(pangenome_file[0]))
                         print('[I] Gene coverages files:\n\t' + '\n\t'.join(sorted(list(dna_file2id.keys()))))
                         print('[I] Trascripts coverages files:\n\t' + '\n\t'.join(sorted(list(rna_id2file.values()))))
                         print('[I] DNA-RNA projects mapping:\n\t' + '\n\t'.join(k+' >>> '+v for k,v in sorted(dna2rna.items())))
@@ -1239,28 +1186,13 @@ def check_args():
             if VERBOSE:
                 print('[I] Found ' + str(len(covs_files)) + ' abundances files.')
             samples_files = dict((f, get_sampleID_from_path(f, args['clade'])) for f in covs_files)
-            
-            # Find pangenome file
-            #pangenome_file_pattern = '*' + args['clade'].replace('panphlan_', '') + '_pangenome.csv'
-            #if VERBOSE:
-            #    print('[I] Searching for ' + pangenome_file_pattern + '...')
-            #pangenome_file = find(pangenome_file_pattern, '.') # search first in working directory
-            #if pangenome_file == []:
-            #    pangenome_file = find(pangenome_file_pattern, idna) # search in DNA input folder
-            #    if pangenome_file == []:
-            #        pangenome_file = find(pangenome_file_pattern, os.environ['BOWTIE2_INDEXES']) # finally search in environment folder
-            #        if pangenome_file == []:
-            #            show_error_message('Any pangenome file has not been found.')
-            #            sys.exit(INEXISTENCE_ERROR_CODE)
 
             # TODO choose only one pangenome file if more than one are found
 
-            # args['i_dna'] = {PANGENOME_KEY : pangenome_file[0], COVERAGES_KEY : samples_files}
             args['i_dna'] = samples_files            
             if VERBOSE:
                 print('[I] Input folder: ' + idna)
                 print('[I] Gene coverages files:\n\t' + '\n\t'.join(sorted(covs_files)))
-                # print('[I] Pangenome file: ' + str(pangenome_file[0]))
 
     # Check OUTPUT_FILE
     args['o_dna'] = check_output(args['o_dna'], '', 'gene families presence/absence matrix', VERBOSE)
@@ -1402,9 +1334,7 @@ def main():
         print('\nSTEP 1. Read and merge mapping results ...')
     dna_samples_covs = {}
     rna_samples_covs = {}
-    #if not args['i_dna'][COVERAGES_KEY] == None:
     if not args['i_dna'] == None:
-        # dna_files_list = sorted(args['i_dna'][COVERAGES_KEY].keys())
         dna_files_list = sorted(args['i_dna'].keys())
         for dna_covs_file in dna_files_list:
             dna_samples_covs[dna_covs_file] = dict_from_file(dna_covs_file)
@@ -1418,13 +1348,10 @@ def main():
 
 
     # Presence/absence matrix only of reference genomes, no samples
-    # ref_genomes = []
     if ADD_STRAINS or args['strain_hit_genes_perc'] != '':
         if VERBOSE:
             print('\nSTEP 3a. Extracting reference genomes gene repertoire...')
-        # TIME, ref_genomes = get_strains(args['i_dna'][PANGENOME_KEY], TIME, VERBOSE)
         TIME, strain2family2presence = build_strain2family2presence(ref_genomes, families, genome2families, TIME, VERBOSE)
-        # if ADD_STRAINS and args['i_dna'][COVERAGES_KEY] == None:
         if ADD_STRAINS and args['i_dna'] == None:
             if VERBOSE:
                 print('\nSTEP 3b. Printing presence/absence binary matrix only for reference genomes...')
@@ -1444,7 +1371,6 @@ def main():
     
     # Get samples list
     # Print coverages in file
-    # TIME = print_coverage_matrix(dna_files_list, args['i_dna'][COVERAGES_KEY], dna_samples_covs, args['o_cov'], families, args['clade'], TIME, VERBOSE)
     TIME = print_coverage_matrix(dna_files_list, args['i_dna'], dna_samples_covs, args['o_cov'], families, args['clade'], TIME, VERBOSE)
     
 
@@ -1459,7 +1385,6 @@ def main():
     if VERBOSE: print('\nSTEP 6a: Define multicopy, strain-specific, and non-present gene-families (1,-1,-2,-3 matrix, option --o_idx)')
     sample2family2dnaidx, TIME = dna_indexing(accepted_samples, norm_dna_samples_covs, args['th_zero'], args['th_present'], args['th_multicopy'], args['o_idx'], families, args['clade'], TIME, VERBOSE)
     if VERBOSE: print('\nSTEP 6b: Get presence/absence of gene-families (1,-1 matrix, option --o_dna)')
-    # dna_sample2family2presence, sample_stats, TIME = dna_presencing(sample2accepted, dna_files_list, args['i_dna'][COVERAGES_KEY], sample2family2dnaidx, args['o_dna'], families, args['clade'], avg_genome_length, sample_stats, TIME, VERBOSE)
     dna_sample2family2presence, sample_stats, TIME = dna_presencing(sample2accepted, dna_files_list, args['i_dna'], sample2family2dnaidx, args['o_dna'], families, args['clade'], avg_genome_length, sample_stats, TIME, VERBOSE)
 
     if ADD_STRAINS or args['strain_hit_genes_perc'] != '':
@@ -1488,7 +1413,6 @@ def main():
     # DNA (and RNA) indexing
     if RNASEQ:
         if VERBOSE: print('\nSTEP 8. RNA-seq: Get strain-specific gene transcription profiles')
-        # rna_seq(args['o_rna'], sample2family2dnaidx, dna_samples_covs, sample2accepted, rna_id_list, rna_samples_covs, args['rna_max_zeros'], args['sample_pairs'], args['i_dna'][COVERAGES_KEY], args['i_rna'], families, CONST_C, args['np'], args['nan'], args['clade'], args['rna_norm_percentile'], TIME, VERBOSE)
         rna_seq(args['o_rna'], sample2family2dnaidx, dna_samples_covs, sample2accepted, rna_id_list, rna_samples_covs, args['rna_max_zeros'], args['sample_pairs'], args['i_dna'], args['i_rna'], families, CONST_C, args['np'], args['nan'], args['clade'], args['rna_norm_percentile'], TIME, VERBOSE)
 
     end_program(time.time() - TOTAL_TIME) 
