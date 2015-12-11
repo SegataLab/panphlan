@@ -37,9 +37,6 @@ except ImportError as err:
     sys.exit(2)
 
 
-# Formula's constants
-CONST_C         = 10
-
 # Pangenome CSV file constants
 FAMILY_INDEX    = 0
 GENE_INDEX      = 1
@@ -347,7 +344,7 @@ def get_samples_panfamilies(families, sample2family2presence, TIME, VERBOSE):
         TIME = time_message(TIME, 'Extracted ' + str(len(panfamilies)) + ' gene families present in the samples.')
     return TIME, sorted(panfamilies)
 # -----------------------------------------------------------------------------
-def rna_seq(out_channel, sample2family2dnaidx, dna_sample2family2cov, dna_accepted_samples, rna_samples_list, rna_sample2family2cov, rna_max_zeroes, dna2rna, dna_file2id, rna_id2file, families, c, np_symbol, nan_symbol, clade, rna_norm_percentile, TIME, VERBOSE):
+def rna_seq(out_channel, sample2family2dnaidx, dna_sample2family2cov, dna_accepted_samples, rna_samples_list, rna_sample2family2cov, rna_max_zeroes, dna2rna, dna_file2id, rna_id2file, families, np_symbol, nan_symbol, clade, rna_norm_percentile, TIME, VERBOSE):
     '''
     DESCRIPTION
         1.  convert DNA samples to get (1,-1,-2,-3) DNA index matrix and DNA coverage values
@@ -456,7 +453,7 @@ def rna_seq(out_channel, sample2family2dnaidx, dna_sample2family2cov, dna_accept
             if type(v) is str:
                 sample2family2log_norm[dna_sample][f] = sample2family2median_norm[dna_sample][f]
             else:
-                sample2family2log_norm[dna_sample][f] = 0.0 if v == 0.0 else (numpy.log2(v) / c) + 1.0
+                sample2family2log_norm[dna_sample][f] = 0.0 if v == 0.0 else (numpy.log2(v) / 10) + 1.0
 
     # Print
     rnaseq_accepted_samples.sort()
