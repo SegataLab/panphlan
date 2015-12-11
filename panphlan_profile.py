@@ -1095,9 +1095,9 @@ def check_args():
     # dna2rna := { DNA_ID : RNA_ID }
     dna2rna = {}
 
-    pangenome_file=['']
-    if idna == '':
+    if idna == '': # if no samples, print presence/absence of reference genomes
         args['i_dna'] = None
+        args['add_strains'] = True
     else:
         # Normal pipeline
         if not pairs_path == None:
