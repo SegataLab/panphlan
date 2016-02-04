@@ -3,7 +3,7 @@
 from __future__ import with_statement 
 
 # ==============================================================================
-# PanPhlAn v1.0: PANgenome-based PHyLogenomic ANalysis
+# PanPhlAn v1.2: PANgenome-based PHyLogenomic ANalysis
 #                for detecting and characterizing strains in metagenomic samples
 #
 # Authors:  Matthias Scholz, algorithm design
@@ -19,8 +19,8 @@ from __future__ import with_statement
 # ==============================================================================
 
 __author__  = 'Matthias Scholz, Thomas Tolio, Nicola Segata (panphlan-users@googlegroups.com)'
-__version__ = '1.1.5'
-__date__    = '14 December 2015'
+__version__ = '1.2.0'
+__date__    = '4 February 2016'
 
 # Imports
 from argparse import ArgumentParser
