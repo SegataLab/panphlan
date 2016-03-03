@@ -234,17 +234,17 @@ def correct_output_name(opath, ipath, panphlan_clade, VERBOSE):
     # create output directory   
     if outdir: # no empty dir string
         if os.path.exists(outdir):
-            if VERBOSE: print(' [I] Mapping result directory: ' + outdir)
+            if VERBOSE: print('[I] Mapping result directory: ' + outdir)
         else:
-            if VERBOSE: print(' [I] Create mapping result directory: ' + outdir)
+            if VERBOSE: print('[I] Create mapping result directory: ' + outdir)
             os.makedirs(outdir)
     else:
-        if VERBOSE: print(' [I] Mapping results are saves in working directory.')
+        if VERBOSE: print('[I] Mapping results are saves in working directory.')
 
     opath = outdir + outfilename
 
     if not orig_path==opath:
-        print(' [I] Extend output filename "' + orig_path + '" to "' + opath + '"')
+        print('[I] Extend output filename "' + orig_path + '" to "' + opath + '"')
 
     return opath
 
@@ -872,6 +872,9 @@ def check_args():
         else:
             # Take the input format
             iextension = args_set['input_format']
+            # VERBOSE does not work, otherwise
+            ifastx = ''
+            idecompress = ''
             # If -f is not defined, then automatically detect input format
             if iextension == None:
                 iextension, ifastx, idecompress = detect_input_format(ipath)
