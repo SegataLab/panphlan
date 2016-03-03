@@ -1,7 +1,5 @@
 #!/usr/bin/env python
 
-from __future__ import with_statement 
-
 # ==============================================================================
 # PanPhlAn v1.2: PANgenome-based PHyLogenomic ANalysis
 #                for detecting and characterizing strains in metagenomic samples
@@ -18,15 +16,15 @@ from __future__ import with_statement
 # https://bitbucket.org/CibioCM/panphlan
 # ==============================================================================
 
-__author__  = 'Matthias Scholz, Thomas Tolio, Nicola Segata (panphlan-users@googlegroups.com)'
-__version__ = '1.2.0'
-__date__    = '4 February 2016'
-
-# Imports
+from __future__ import with_statement 
 from argparse import ArgumentParser
 from collections import defaultdict
 from shutil import copyfileobj
 import bz2, fnmatch, multiprocessing, operator, os, subprocess, sys, tempfile, time
+
+__author__  = 'Matthias Scholz, Thomas Tolio, Nicola Segata (panphlan-users@googlegroups.com)'
+__version__ = '1.2.1'
+__date__    = '4 February 2016'
 
 # Parameter constants
 MAX_NUMOF_PROCESSORS    = 12
@@ -66,7 +64,8 @@ TAR_GZ                  = 'tar.gz'
 SRA                     = 'sra'
 
 COMPRESSED_FORMATS      = [BZ2, GZ]
-ARCHIVE_FORMATS         = [TAR_BZ2, TAR_GZ, SRA] 
+ARCHIVE_FORMATS         = [TAR_BZ2, TAR_GZ, SRA]
+FILE_EXTENSION          = ''
 # KNOWN_INPUT_FORMATS     = [TAR_BZ2, TAR_GZ, BZ2, GZ, SRA, FASTQ, BAM] # old, but still used 
 
 # input file endings, expected fasta or fastq format, decompression command 
@@ -116,7 +115,7 @@ class PanPhlAnParser(ArgumentParser):
     def __init__(self):
         ArgumentParser.__init__(self)
         self.add_argument('-i','--input',           metavar='INPUT_FILE',                   type=str,                                                   help='File(s) containing the unpaired reads to be aligned using Bowtie2. If not specified, Bowtie2 gets the read from the stdin filehandle.')
-        self.add_argument('-f', '--input_format',   metavar='INPUT_FORMAT',                 type=str,                                                   help='Old option, will be removed in future version')
+        # self.add_argument('-f', '--input_format',   metavar='INPUT_FORMAT',                 type=str,                                                   help='Old option, will be removed in future version')
         self.add_argument('--fastx',                metavar='FASTX_FORMAT',                 type=str,   default='fastq',choices=['fastq','fasta','bam'],help='Read input format (fasta or fastq), default: fastq, if not fasta recognized by file ending.')
         self.add_argument('-c','--clade',           metavar='CLADE_NAME',                   type=str,                                   required=True,  help='Name of the specie to consider, i.e. the basename of the index for the reference genome used by Bowtie2 to align reads.')
         self.add_argument('-o','--output',          metavar='OUTPUT_FILE',                  type=str,   default='map_results/',                         help='Mapping result output-file: path/sampleID_clade.csv')
@@ -861,24 +860,17 @@ def check_args():
         # Input format "fastq" is set by default because the stdin is a fasta/q stream
         # i.e. the program has not to decompress anything, the user does
         args_set['input'] = ('-', args_set['fastx'],'','')
-        # args_set['input_format'] = FASTQ
-        args_set['input_format'] = args_set['fastx']
+        # FILE_EXTENSION = FASTQ
+        FILE_EXTENSION = args_set['fastx']
     else:
         # If the file does not exist, halts the program
         if not os.path.exists(ipath):
             show_error_message('Specified input file does not exist.')
             sys.exit(INEXISTENCE_ERROR_CODE)
-        
         else:
-            # Take the input format
-            iextension = args_set['input_format']
-            # VERBOSE does not work, otherwise
-            ifastx = ''
-            idecompress = ''
-            # If -f is not defined, then automatically detect input format
-            if iextension == None:
-                iextension, ifastx, idecompress = detect_input_format(ipath)
-                args_set['input_format'] = iextension
+            # detect sample file format
+            iextension, ifastx, idecompress = detect_input_format(ipath)
+            FILE_EXTENSION = iextension
                 
             if VERBOSE:
                 print('[I] Input file: ' + ipath + '. Detected extension: ' + iextension + '; format: ' + ifastx)
@@ -902,7 +894,7 @@ def check_args():
     bpath = args_set['out_bam']
     # If --out_bam is defined, and input formt is different from BAM...
     if not bpath == None:
-        if args_set['input_format'] != BAM:
+        if FILE_EXTENSION != BAM:
 
             # Create the path if not exists
             folders = os.path.dirname(bpath)
@@ -984,7 +976,7 @@ def main():
     bowtie2, samtools = check_installed_tools(args['clade'], VERBOSE, PLATFORM)
     indexes_folder = bowtie2[1]
     pangenome_file = get_pangenome_file(indexes_folder, args['clade'], VERBOSE)
-    if args['input_format'] == SRA:
+    if FILE_EXTENSION == SRA:
         check_fastqdump(VERBOSE, PLATFORM)
 
     sorted_bam_file = ''
