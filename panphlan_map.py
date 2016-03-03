@@ -27,7 +27,7 @@ __version__ = '1.2.1'
 __date__    = '4 February 2016'
 
 # Parameter constants
-MAX_NUMOF_PROCESSORS    = 12
+# MAX_NUMOF_PROCESSORS    = 12
 DEFAULT_READ_LENGTH     = 80
 PANPHLAN                = 'panphlan_'
 TEMPORARY_FILE          = 't'
@@ -922,7 +922,8 @@ def check_args():
 
     # Check: NUMOF_PROCESSORS -------------------------------------------------
     # If we set less than 1 processors or more than the processors we really have, then set the minimum default
-    max_available_numof_processors = min(MAX_NUMOF_PROCESSORS, multiprocessing.cpu_count())
+      # max_available_numof_processors = min(MAX_NUMOF_PROCESSORS, multiprocessing.cpu_count())
+    max_available_numof_processors = multiprocessing.cpu_count()
     if args_set['nproc'] < 1 or args_set['nproc'] > max_available_numof_processors:
         args_set['nproc'] = max_available_numof_processors
         print('[W] Set number of processors to the maximal number on your machine: ' + str(args_set['nproc']))
