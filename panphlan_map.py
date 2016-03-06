@@ -23,8 +23,8 @@ from shutil import copyfileobj
 import bz2, fnmatch, multiprocessing, operator, os, subprocess, sys, tempfile, time
 
 __author__  = 'Matthias Scholz, Thomas Tolio, Nicola Segata (panphlan-users@googlegroups.com)'
-__version__ = '1.2.1'
-__date__    = '4 February 2016'
+__version__ = '1.2.1.1'
+__date__    = '6 March 2016'
 
 # Parameter constants
 # MAX_NUMOF_PROCESSORS    = 12
@@ -390,7 +390,7 @@ def get_pangenome_file(bowtie2_indexes_dir, clade, VERBOSE):
         sys.stderr.write('[E] Cannot find the pangenome file for ' + clade + ' in directory ' + bowtie2_indexes_dir)
         sys.exit(PANGENOME_ERROR_CODE)
     else:
-        print('Pangenome file is "' + pangenome[0] + '".')
+        print('[I] Pangenome file: ' + pangenome[0])
     return pangenome[0]
 
             
@@ -753,10 +753,13 @@ def check_samtools(VERBOSE = False, PLATFORM = 'lin'):
             samtools = subprocess.Popen(['where', 'samtools'], stdout=subprocess.PIPE).communicate()[0]
         else: # Linux, Mac, ...    
             samtools = subprocess.Popen(['which', 'samtools'], stdout=subprocess.PIPE).communicate()[0]
+        samtools_version = subprocess.Popen(['samtools', '--version'], stdout=subprocess.PIPE).communicate()[0]
+        samtools_version = samtools_version.split('\n')[0].split()[1]
         if VERBOSE:
-            print('[I] Samtools is already installed in the system in path ' + str(samtools.strip()))
+            print('[I] Samtools version ' + str(samtools_version) + ';  path: ' + str(samtools.strip()) )
     except Exception as err:
-        show_error_message(err)
+        # show_error_message(err)
+        print('\n[E] Error: Cannot find Samtools, please install from http://www.htslib.org/ \n')
         sys.exit(UNINSTALLED_ERROR_CODE)
     return samtools
 
@@ -776,10 +779,9 @@ def check_bowtie2(clade, VERBOSE=False, PLATFORM='lin'):
         bowtie2_version = bowtie2_version.split()[2]
         if VERBOSE:
             print('[I] Bowtie2 version ' + str(bowtie2_version) + ';  path: ' + str(bowtie2).strip())
-    
     except Exception as err:
         show_error_message(err)
-        print('\n[E] Please, install Bowtie2.\n')
+        print('\n[E] Please install Bowtie2.\n')
         if VERBOSE:
             print('    Bowtie2 is necessary to generate the specie indexes to use in further PanPhlAn')
             print('    computation. Moreover, after having generated the six index files, Bowtie2 checks')
@@ -911,14 +913,14 @@ def check_args():
                 print('[I] Output BAM file: ' + args_set['out_bam'])
     else:
         if VERBOSE:
-            print('[I] Output BAM file is not defined')
+            print('[I] BAM file will not be saved.')
 
     # Check: NUMOF_MISMATCHES -------------------------------------------------
     if VERBOSE:
         if args_set['th_mismatches'] >= 0:
             print('[I] Maximum number of mismatches: ' + str(args_set['th_mismatches']))
-        else:
-            print('[I] Maximum number of mismatches: infinite.')
+        # else:
+        #    print('[I] Maximum number of mismatches: infinite.')
 
     # Check: NUMOF_PROCESSORS -------------------------------------------------
     # If we set less than 1 processors or more than the processors we really have, then set the minimum default
