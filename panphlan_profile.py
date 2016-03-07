@@ -191,7 +191,7 @@ def check_output(opath, odefault, goal, VERBOSE):
                 show_error_message(err)
                 sys.exit(INEXISTENCE_ERROR_CODE)
         if VERBOSE:
-            print('[I] Output file for' + goal + ': ' + opath)
+            print('[I] Output file for ' + goal + ': ' + opath)
         return opath
 
 def get_sampleID_from_path(sample_path, clade):
