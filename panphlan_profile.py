@@ -172,8 +172,10 @@ def check_output(opath, odefault, goal, VERBOSE):
     '''
     # If path does not exist, then create it
     if opath == None:
-        if VERBOSE:
-            print('[I] Output file is not specified for ' + goal + '. It will be used the standard value ' + odefault + '.')
+        # # no message needed about files, we don't save (confusing), only tell what panphlan saves
+        # if VERBOSE:
+        #    # print('[I] Output file is not specified for ' + goal + '. It will be used the standard value ' + odefault)
+        #    print('[I] No output saved for ' + goal)
         return odefault
 
     else:
@@ -184,12 +186,12 @@ def check_output(opath, odefault, goal, VERBOSE):
                 if not folder == '':
                     os.makedirs(folder)
                     if VERBOSE:
-                        print('[I] Created path for output file: ' + folder)
+                        print('[I] Created output directory: ' + folder)
             except FileNotFoundError as err:
                 show_error_message(err)
                 sys.exit(INEXISTENCE_ERROR_CODE)
         if VERBOSE:
-            print('[I] Output file: ' + opath)
+            print('[I] Output file for' + goal + ': ' + opath)
         return opath
 
 def get_sampleID_from_path(sample_path, clade):
