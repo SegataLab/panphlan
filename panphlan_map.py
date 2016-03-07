@@ -23,8 +23,8 @@ from shutil import copyfileobj
 import bz2, fnmatch, multiprocessing, operator, os, subprocess, sys, tempfile, time
 
 __author__  = 'Matthias Scholz, Thomas Tolio, Nicola Segata (panphlan-users@googlegroups.com)'
-__version__ = '1.2.1.1'
-__date__    = '6 March 2016'
+__version__ = '1.2.1.2'
+__date__    = '7 March 2016'
 
 # Parameter constants
 # MAX_NUMOF_PROCESSORS    = 12
@@ -519,7 +519,7 @@ def remapping(input_pair, out_bam, max_numof_mismatches, memory, tmp_path, TIME,
         print('[I] Rejected ' + str(rejected) + ' reads over ' + str(total) + ' total')
         TIME = time_message(TIME, 'BAM->SAM reconversion and SAM filtering completed.')
 
-    outcome, TIME = bamming(tmp_sam, out_bam, memory, tmp_path, TIME, VERBOSE)
+    outcome, TIME = samtools_sam2bam(tmp_sam, out_bam, memory, tmp_path, TIME, VERBOSE)
     p1.stdout.close()
 
     return outcome, TIME
@@ -527,21 +527,30 @@ def remapping(input_pair, out_bam, max_numof_mismatches, memory, tmp_path, TIME,
 
 # -----------------------------------------------------------------------------
 
-def bamming(in_sam, out_bam, memory, tmp_path, TIME, VERBOSE):
+def samtools_sam2bam(in_sam, out_bam, memory, tmp_path, TIME, VERBOSE):
     '''
-    Covert a SAM fle into BAM file, then sort the BAM
+    Covert a SAM file into BAM file, then sort the BAM
         1.  samtools view -bS <INPUT SAM FILE>
-        2.  samtools sort -m <AMOUNT OF MEMORY> - <OUTPUT BAM FILE>
+        2.  samtools sort
+              samtools version 1.2
+                samtools sort <in.bam> <out.prefix>
+                cat sample.bam | samtools sort - tmp_sorted
+              samtools version 1.3
+                samtools sort <in.bam> -o <out.bam>
+                cat sample.bam | samtools sort - -o tmp_sorted.bam
     '''
     outcome = (None, None)
     try:
+        # get samtools version
+        cmd_out = subprocess.Popen(['samtools', '--version'], stdout=subprocess.PIPE).communicate()[0]
+        samtools_version = float(cmd_out.split('\n')[0].split()[1])
         # 1st command: samtools view -bS <INPUT SAM FILE>
         view_cmd = ['samtools', 'view', '-bS', in_sam.name]
         if VERBOSE:
             print('[I] ' + ' '.join(view_cmd))
         p2 = subprocess.Popen(view_cmd, stdout=subprocess.PIPE)
         if VERBOSE:
-            print('[I] Temporary BAM file has been generated')
+            print('[I] Temporary .bam file has been generated')
 
         try:
             tmp_bam = None
@@ -549,33 +558,37 @@ def bamming(in_sam, out_bam, memory, tmp_path, TIME, VERBOSE):
             sort_cmd = ['samtools', 'sort',
                         ] + ([] if memory <= 0.5 else ['-m', str(int(memory * 1024*1024*1024))])
             
-            # If --out_bam is not defined, then create the BAM file as a temporary file
-            if out_bam == None:
+            if out_bam == None: # .bam file is not saved, only temporary bam file
                 if tmp_path == None:
                     tmp_bam = tempfile.NamedTemporaryFile(delete=False, prefix='panphlan_', suffix='.bam')
                 else:
                     tmp_bam = tempfile.NamedTemporaryFile(delete=False, prefix='panphlan_', suffix='.bam', dir=tmp_path)
                 
                 with tmp_bam:
-                    sort_cmd += ['-', tmp_bam.name[:-4]]
+                    if samtools_version >= 1.3:
+                        sort_cmd += ['-', '-o', tmp_bam.name]
+                    else: # older samtools versions: only prefix, without .bam
+                        sort_cmd += ['-', tmp_bam.name[:-4]] 
                     if VERBOSE:
-                        print('[I] ' + ' '.join(sort_cmd))
+                        print('[I] cmd: ' + ' '.join(sort_cmd))
                     p3 = subprocess.Popen(sort_cmd, stdin=p2.stdout, stdout=tmp_bam)
                     p3.wait() # Wait until previous process has finished its computation (otherwise there will be error raised by Samtools)
                     if VERBOSE:
-                        print('[I] Temporary BAM file ' + tmp_bam.name + ' has been sorted')
+                        print('[I] Temporary .bam file ' + tmp_bam.name + ' has been sorted')
                 outcome = (TEMPORARY_FILE, tmp_bam.name)
             
-            else:
-                sort_cmd += ['-', out_bam[:-4]]
-                # Note that in "out_bam[:-4]" we cut the extension because the Samtools command requires only the prefix name (without the file extension) 
+            else: # .bam file is saved (option -b Bam/sample.bam)
+                if samtools_version >= 1.3:
+                    sort_cmd += ['-', '-o', out_bam]
+                else: # older samtools versions: only prefix, without .bam
+                    sort_cmd += ['-', out_bam[:-4]]
                 if VERBOSE:
-                    print('[I] ' + ' '.join(sort_cmd))
+                    print('[I] cmd: ' + ' '.join(sort_cmd))
                 with open(out_bam, mode='w') as obam:
                     p3 = subprocess.Popen(sort_cmd, stdin=p2.stdout, stdout=obam)
                     p3.wait() # Wait until previous process has finished its computation (otherwise there will be error raised by Samtools)
                 if VERBOSE:
-                    print('[I] User-defined BAM file ' + out_bam + ' has been sorted')
+                    print('[I] User-defined .bam file ' + out_bam + ' has been sorted')
                 outcome = (USER_DEFINED, out_bam)
 
             TIME = time_message(TIME, 'Samtools SAM->BAM translation (view+sort) completed.')
@@ -710,7 +723,7 @@ def mapping(input_set, fastx, is_multi_file, clade, out_bam, min_length, max_num
             print('[I] Rejected ' + str(rejected) + ' reads over ' + str(total) + ' total')
             TIME = time_message(TIME, 'Bowtie2 mapping and SAM filtering completed.')
         
-        outcome, TIME = bamming(tmp_sam, out_bam, memory, tmp_path, TIME, VERBOSE)
+        outcome, TIME = samtools_sam2bam(tmp_sam, out_bam, memory, tmp_path, TIME, VERBOSE)
                 
         p1.stdout.close()
 
