@@ -859,8 +859,6 @@ def plot_dna_coverage(sample2accepted, samples_coverages, sample2famcovlist, sam
     b) median normalized coverage
     Accepted samples are plotted in colors, rejected samples in gray.
     '''
-    if VERBOSE:
-        print(' [I] Plot gene-family coverage curves')
     try:
         if not INTERACTIVE:        # save to file
             import matplotlib      # for non-interactive plots on server without X11
@@ -882,6 +880,8 @@ def plot_dna_coverage(sample2accepted, samples_coverages, sample2famcovlist, sam
 
             # Plotting...
             if not plot1_name == '' or not plot2_name == '':
+                if VERBOSE:
+                    print(' [I] Plot gene-family coverage curves')
                 used_colors = []
                 for sample in accepted2samples[True]:
                     color, reset = random_color(used_colors)
@@ -971,9 +971,8 @@ def print_coverage_matrix(dna_files_list, dna_file2id, dna_samples_covs, out_cha
                     for s in dna_sample_ids:
                         csv.write('\t' + str(format(dna_samples_covs[id2file[s]][f], '.3f')))
                     csv.write('\n')
-
-    if VERBOSE:
-        TIME = time_message(TIME, 'Gene families coverage matrix has been printed in ' + out_channel + '.')
+        if VERBOSE:
+            TIME = time_message(TIME, 'Gene families coverage matrix has been printed in ' + out_channel + ' -')
     return TIME
 # -----------------------------------------------------------------------------
 def families_coverages(gene2cov, gene2family, lengths, VERBOSE):
@@ -1324,13 +1323,13 @@ def main():
     RNASEQ      = True if args['sample_pairs'] else False
 
     # Create pangenome dicts: gene->family, genome->families, gene->length
-    if VERBOSE: print('\nSTEP 2. Read pangenome data...')
+    if VERBOSE: print('\nSTEP 1. Read pangenome data...')
     gene_lenghts, gene2family, families, num_ref_genomes, avg_genome_length, genome2families, ref_genomes = read_pangenome(args['clade'], VERBOSE)
 
     
     # read mapping result files
     if VERBOSE:
-        print('\nSTEP 1. Read and merge mapping results ...')
+        print('\nSTEP 2. Read and merge mapping results ...')
     dna_samples_covs = {}
     rna_samples_covs = {}
     if not args['i_dna'] == None:
@@ -1362,10 +1361,10 @@ def main():
 
     # Merge gene/transcript abundance into family (normalized) coverage
     if VERBOSE:
-        print('\nSTEP 4. Merge single gene abundances to gene family coverages')
+        print('\nSTEP 3. Merge single gene abundances to gene family coverages')
     for sample in dna_files_list:
         if VERBOSE:
-            print('[I] Normalization for DNA sample ' + get_sampleID_from_path(sample, args['clade']) + '...')
+            print(' [I] Normalization for DNA sample ' + get_sampleID_from_path(sample, args['clade']) + '...')
         dna_samples_covs[sample] = families_coverages(dna_samples_covs[sample], gene2family, gene_lenghts, VERBOSE)
     
     # Get samples list
@@ -1375,23 +1374,23 @@ def main():
 
     # Filter DNA samples according to their median coverage value and plot coverage plateau
     if VERBOSE:
-        print('\nSTEP 5: Strain presence/absence filter based on coverage plateau curve...')
+        print('\nSTEP 4: Strain presence/absence filter based on coverage plateau curve...')
     sample2accepted, accepted_samples, norm_dna_samples_covs, sample2famcovlist, sample2color, median_normalized_covs, sample2median, sample_stats = dna_sample_filtering(dna_samples_covs, num_ref_genomes, avg_genome_length, args['min_coverage'], args['left_max'], args['right_min'], families, args['clade'], TIME, VERBOSE)
     result = plot_dna_coverage(sample2accepted, norm_dna_samples_covs, sample2famcovlist, sample2color, median_normalized_covs, avg_genome_length, args['clade'], args['o_covplot'], args['o_covplot_normed'], INTERACTIVE, TIME, VERBOSE)
 
 
     # DNA indexing
-    if VERBOSE: print('\nSTEP 6a: Define multicopy, strain-specific, and non-present gene-families (1,-1,-2,-3 matrix, option --o_idx)')
+    if VERBOSE: print('\nSTEP 5a: Define multicopy, strain-specific, and non-present gene-families (1,-1,-2,-3 matrix, option --o_idx)')
     sample2family2dnaidx, TIME = dna_indexing(accepted_samples, norm_dna_samples_covs, args['th_zero'], args['th_present'], args['th_multicopy'], args['o_idx'], families, args['clade'], TIME, VERBOSE)
-    if VERBOSE: print('\nSTEP 6b: Get presence/absence of gene-families (1,-1 matrix, option --o_dna)')
+    if VERBOSE: print('\nSTEP 5b: Get presence/absence of gene-families (1,-1 matrix, option --o_dna)')
     dna_sample2family2presence, sample_stats, TIME = dna_presencing(sample2accepted, dna_files_list, args['i_dna'], sample2family2dnaidx, args['o_dna'], families, args['clade'], avg_genome_length, sample_stats, TIME, VERBOSE)
 
     if ADD_STRAINS or args['strain_hit_genes_perc'] != '':
-        if VERBOSE: print('\nSTEP 6c: Calculate percent of identical gene-families between sample-strains and reference-genomes... (option --strain_hit_genes_perc)')
+        if VERBOSE: print('\nSTEP 5c: Calculate percent of identical gene-families between sample-strains and reference-genomes... (option --strain_hit_genes_perc)')
         ss_presence, TIME = samples_strains_presences(dna_sample2family2presence, ref_genomes, strain2family2presence, avg_genome_length, args['strain_similarity_perc'], args['o_dna'], families, args['clade'], ADD_STRAINS, TIME, VERBOSE)
         # ss_presence = { STRAIN or SAMPLE : { GENE FAMILY : PRESENCE } }
         if args['strain_hit_genes_perc'] != '':
-            if VERBOSE: print('\nSTEP 6d: Get percent of sample-strain gene-families present in reference-genomes (option --strain_hit_genes_perc)')
+            if VERBOSE: print('\nSTEP 5d: Get percent of sample-strain gene-families present in reference-genomes (option --strain_hit_genes_perc)')
             strain2sample2hit, TIME = strains_gene_hit_percentage(ss_presence, genome2families, sample2accepted, args['strain_hit_genes_perc'], args['clade'], TIME, VERBOSE)
 
 
@@ -1399,7 +1398,7 @@ def main():
     rna_file_list = []
     if RNASEQ:
         if VERBOSE:
-            print('\nSTEP 7. RNA-seq: Merge single gene transcript abundances to gene-family transcript coverages')
+            print('\nSTEP 6. RNA-seq: Merge single gene transcript abundances to gene-family transcript coverages')
         for sample_id in rna_id_list:
             sample = args['i_rna'][sample_id]
             if not sample == NO_RNA_FILE_KEY:
