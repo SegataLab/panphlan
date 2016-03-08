@@ -965,6 +965,7 @@ def check_args():
         os.makedirs(tmp_path)
     args_set['tmp'] = tmp_path
     if VERBOSE: print('[I] Temporary folder: ' + args_set['tmp'])
+    # TMP folder is not removed after finishing, since it might be used by a parallel _map run.
 
     return args_set
 
