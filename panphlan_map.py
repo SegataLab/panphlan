@@ -543,7 +543,7 @@ def samtools_sam2bam(in_sam, out_bam, memory, tmp_path, TIME, VERBOSE):
     try:
         # get samtools version
         cmd_out = subprocess.Popen(['samtools', '--version'], stdout=subprocess.PIPE).communicate()[0]
-        samtools_version = float(cmd_out.split('\n')[0].split()[1])
+        samtools_version = float(cmd_out.decode().split('\n')[0].split()[1])
         # 1st command: samtools view -bS <INPUT SAM FILE>
         view_cmd = ['samtools', 'view', '-bS', in_sam.name]
         if VERBOSE:
@@ -767,7 +767,7 @@ def check_samtools(VERBOSE = False, PLATFORM = 'lin'):
         else: # Linux, Mac, ...    
             samtools = subprocess.Popen(['which', 'samtools'], stdout=subprocess.PIPE).communicate()[0]
         samtools_version = subprocess.Popen(['samtools', '--version'], stdout=subprocess.PIPE).communicate()[0]
-        samtools_version = samtools_version.split('\n')[0].split()[1]
+        samtools_version = samtools_version.decode().split('\n')[0].split()[1]
         if VERBOSE:
             print('[I] Samtools version ' + str(samtools_version) + ';  path: ' + str(samtools.strip()) )
     except Exception as err:
