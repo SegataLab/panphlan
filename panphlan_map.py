@@ -209,26 +209,34 @@ def correct_output_name(opath, ipath, panphlan_clade, VERBOSE):
         b) -o ERR260216 (adding: _ecoli12.csv(.bz2) )
         c) -o ERR260216_ecoli12.csv.bz2 (avoid double .bz2.bz2)
         d) -o ERR260216_ecoli12.csv (normal case, keep like it was)
+        e) -o ERR.260216_ecoli12.csv (allow dot in sample-name)
     '''
     clade=panphlan_clade.replace('panphlan_','')
     orig_path = opath
     
-    # get out-filename without extensions (remove/ignore endings: .csv or .csv.bz2)
-    outfilename = os.path.basename(opath).split('.')[0]
-    if not outfilename: # empty filename
-        if ipath==None: # if stdin (pipe) input
-            sys.exit('Please specify output filename: -o Outputpath/sampleID')
-        else: # takesample ID from input-filename
-            outfilename = os.path.basename(ipath).split('.')[0]
-            
-    # add clade if not in filename
-    if not outfilename.endswith(clade):
-        outfilename = outfilename + '_' + clade
-    # add .csv
-    outfilename = outfilename + '.csv'
-
     # get output directory, including ending '/'
     outdir=os.path.join(os.path.dirname(opath), '') 
+    
+    # automatic correction of output ending
+    if not opath.endswith('_' + clade + '.csv'): # ending not OK
+        # get out-filename without extensions (remove/ignore endings: .csv or .csv.bz2)
+        outfilename = os.path.basename(opath).split('.')[0]
+        if not outfilename: # empty filename
+            if ipath==None: # if stdin (pipe) input
+                sys.exit('Please specify output filename: -o Outputpath/sampleID')
+            else: # takesample ID from input-filename
+                outfilename = os.path.basename(ipath).split('.')[0]
+            
+        # add clade if not in filename
+        if not outfilename.endswith(clade):
+            outfilename = outfilename + '_' + clade
+        # add .csv
+        outfilename = outfilename + '.csv'
+        # get full path
+        opath = outdir + outfilename
+        
+        if not orig_path==opath:
+            print('[I] Extend output filename "' + orig_path + '" to "' + opath + '"')
 
     # create output directory   
     if outdir: # no empty dir string
@@ -239,11 +247,6 @@ def correct_output_name(opath, ipath, panphlan_clade, VERBOSE):
             os.makedirs(outdir)
     else:
         if VERBOSE: print('[I] Mapping results are saves in working directory.')
-
-    opath = outdir + outfilename
-
-    if not orig_path==opath:
-        print('[I] Extend output filename "' + orig_path + '" to "' + opath + '"')
 
     return opath
 
