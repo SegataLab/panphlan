@@ -19,7 +19,7 @@ from __future__ import with_statement
 # ==============================================================================
 
 __author__  = 'Matthias Scholz, Thomas Tolio, Nicola Segata (panphlan-users@googlegroups.com)'
-__version__ = '1.2.0.1'
+__version__ = '1.2.0.2'
 __date__    = '4 April 2016'
 
 # Imports
@@ -377,16 +377,21 @@ def rna_seq(out_channel, sample2family2dnaidx, dna_sample2family2cov, dna_accept
     # Data from Step 1 are given in input (sample2family2dnaidx, dna_samples_covs_path)
     # Data from Step 2 are given in input (rna_samples_covs_path)    
 
+    # convert path to sample-key
+    dna_sample2family2cov = dict((get_sampleID_from_path(k, clade), v) for (k,v) in dna_sample2family2cov.items())
+
     sample2family2rna_div_dna = defaultdict(dict)
     rna_samples = []
     rna_ids = []
     dna_accepted_samples = sorted([s for s in dna_accepted_samples if dna_accepted_samples[s]])
     
     for dna_sample in dna_accepted_samples:
-        rna_sample = rna_id2file[dna2rna[dna_file2id[dna_sample]]]
+        # rna_sample = rna_id2file[dna2rna[dna_file2id[dna_sample]]]
+        rna_sample = rna_id2file[dna2rna[dna_sample]]
         if not rna_sample == NO_RNA_FILE_KEY:
             rna_samples.append(dna_sample)
-            rna_ids.append(dna_file2id[dna_sample])
+            # rna_ids.append(dna_file2id[dna_sample])
+            rna_ids.append(dna_sample)
             # For each family present in at least one sample, divide RNA coverage for the correlative DNA coverage
             for f in families:
                 dna_cov = dna_sample2family2cov[dna_sample][f]
@@ -599,8 +604,11 @@ def get_genefamily_presence_absence(accepted_samples, dna_files_list, dna_file2i
     '''
     sample2family2presence = defaultdict(dict)
     
-    dna_sample_ids = [dna_file2id[s] for s in dna_files_list if accepted_samples[s]]
-    dna_files_list = [s for s in dna_files_list if accepted_samples[s]]
+    # dna_sample_ids = [dna_file2id[s] for s in dna_files_list if accepted_samples[s]]
+    # dna_files_list = [s for s in dna_files_list if accepted_samples[s]]
+    samplelist = [get_sampleID_from_path(s, clade) for s in dna_files_list]
+    dna_sample_ids = [s for s in samplelist if accepted_samples[s]] # if value: True
+    dna_files_list = dna_sample_ids # only using IDs
 
     if not out_channel == '' and len(dna_files_list) > 0:
         csv = open(out_channel, mode='w')
@@ -611,7 +619,7 @@ def get_genefamily_presence_absence(accepted_samples, dna_files_list, dna_file2i
         #if sum(sample2family2presence[s][f] for s in sample2family2presence) > 0:
         line = f
         total_presence = False
-        for s in dna_files_list:
+        for s in dna_files_list: # now sample IDs
             presence = presence_of(sample2family2dnaidx[s][f])
             sample2family2presence[s][f] = presence
             total_presence = total_presence or presence
@@ -746,7 +754,10 @@ def strain_presence_plateau_filter(samples_coverages, num_ref_genomes, avg_genom
 
     threshold_min_coverage      = 2     (at position_median)
     threshold_plateau_left_max  = 1.18  (at position_plateau_left)
-    threshold_plateau_right_min = 0.82  (at position_plateau_right)    
+    threshold_plateau_right_min = 0.82  (at position_plateau_right)
+    
+    to do
+    - samples_coverages: path-key to sample-key when changed in previous versions 
     '''
     sample2accepted = {}
     sample2famcovlist = {} # { SAMPLE NAME : ( [ COVERAGE ], [ GENE FAMILY ] ) }
@@ -796,10 +807,10 @@ def strain_presence_plateau_filter(samples_coverages, num_ref_genomes, avg_genom
         del(d)
         # Compute the median
         median[sampleID] = numpy.median([p[1] for p in families_covs][:avg_genome_length])
-        sample2famcovlist[sample] = ([p[1] for p in families_covs], [p[0] for p in families_covs])
+        sample2famcovlist[sampleID] = ([p[1] for p in families_covs], [p[0] for p in families_covs])
         # Median-normalization
         # median_normalized_covs[sample] = [c / median[sample] for c in sample2famcovlist[sample][0]]
-        for cov in sample2famcovlist[sample][0]:
+        for cov in sample2famcovlist[sampleID][0]:
             normed_cov = 0.0
             if not median[sampleID] == 0:
                 normed_cov = cov / median[sampleID]
@@ -809,7 +820,7 @@ def strain_presence_plateau_filter(samples_coverages, num_ref_genomes, avg_genom
             normed_cov = 0.0
             if not median[sampleID] == 0:
                 normed_cov = samples_coverages[sample][f] / median[sampleID]
-            norm_samples_coverages[sample][f] = normed_cov
+            norm_samples_coverages[sampleID][f] = normed_cov
         # samples_coverages[sample] = {f : samples_coverages[sample][f] / median[sample] for f in samples_coverages[sample]}
 
         # min coverage & plateau filter
@@ -823,19 +834,19 @@ def strain_presence_plateau_filter(samples_coverages, num_ref_genomes, avg_genom
                   '; left-side cov: ' + str(round(leftcov,2)) +
                   '; right-side cov: ' + str(round(rightcov,2)) +
                   '; out-plateau cov: ' + str(round(zerocov,2)) )
-        sample2accepted[sample] = True if mediancov >= th_min_coverage else False # min coverage filter
-        if not sample2accepted[sample]:
+        sample2accepted[sampleID] = True if mediancov >= th_min_coverage else False # min coverage filter
+        if not sample2accepted[sampleID]:
             print('     ' + sample_id + ': no strain detected, sample below MIN COVERAGE threshold')    
-        if sample2accepted[sample]: # check left right plateau coverage
+        if sample2accepted[sampleID]: # check left right plateau coverage
             if leftcov > th_plateau_left_max:
-                sample2accepted[sample] = False
+                sample2accepted[sampleID] = False
                 if VERBOSE:
                     print('     ' + sample_id + ': no strain detected, sample does not pass LEFT-side coverage threshold.')
             elif rightcov < th_plateau_right_min:
-                sample2accepted[sample] = False
+                sample2accepted[sampleID] = False
                 if VERBOSE:
                     print('     ' + sample_id + ': no strain detected, sample does not pass RIGHT-side coverage threshold.')        
-        if sample2accepted[sample]:
+        if sample2accepted[sampleID]:
             sample_stats[sample_id].update({'strainIsPresent' : True})
             sample_stats[sample_id].update({'Multistrain' : zerocov > th_max_zero})
             if VERBOSE: print('     ' + sample_id + ' OK - strain detected')
@@ -1371,20 +1382,21 @@ def main():
     # Print coverages in file
     TIME = print_coverage_matrix(dna_files_list, args['i_dna'], dna_samples_covs_path, args['o_cov'], families, args['clade'], TIME, VERBOSE)
     
-
+    #---------------------------------------------------------------------------------------
     # Filter DNA samples according to their median coverage value and plot coverage plateau
-    if VERBOSE:
-        print('\nSTEP 4: Strain presence/absence filter based on coverage plateau curve...')
-    sample2accepted, accepted_samples, norm_dna_samples_covs_path, sample2famcovlist, sample2color, median_normalized_covs, sample2median, sample_stats = strain_presence_plateau_filter(dna_samples_covs_path, num_ref_genomes, avg_genome_length, args['min_coverage'], args['left_max'], args['right_min'], families, args['clade'], TIME, VERBOSE)
+    if VERBOSE: print('\nSTEP 4: Strain presence/absence filter based on coverage plateau curve...')
+    sample2accepted, accepted_samples, norm_dna_samples_covs_path, sample2famcovlist, sample2color, median_normalized_covs, sample2median, sample_stats = strain_presence_plateau_filter(
+        dna_samples_covs_path, num_ref_genomes, avg_genome_length, args['min_coverage'], args['left_max'], args['right_min'], families, args['clade'], TIME, VERBOSE)
     result = plot_dna_coverage(sample2accepted, norm_dna_samples_covs_path, sample2famcovlist, sample2color, median_normalized_covs, avg_genome_length, args['clade'], args['o_covplot'], args['o_covplot_normed'], INTERACTIVE, TIME, VERBOSE)
-
 
     # DNA indexing
     if VERBOSE: print('\nSTEP 5a: Define multicopy, strain-specific, and non-present gene-families (1,-1,-2,-3 matrix, option --o_idx)')
-    sample2family2dnaidx, TIME = get_idx123_plateau_definitions(accepted_samples, norm_dna_samples_covs_path, args['th_zero'], args['th_present'], args['th_multicopy'], args['o_idx'], families, args['clade'], TIME, VERBOSE)
+    sample2family2dnaidx, TIME = get_idx123_plateau_definitions(
+        accepted_samples, norm_dna_samples_covs_path, args['th_zero'], args['th_present'], args['th_multicopy'], args['o_idx'], families, args['clade'], TIME, VERBOSE)
     if VERBOSE: print('\nSTEP 5b: Get presence/absence of gene-families (1,-1 matrix, option --o_dna)')
-    dna_sample2family2presence, sample_stats, TIME = get_genefamily_presence_absence(sample2accepted, dna_files_list, args['i_dna'], sample2family2dnaidx, args['o_dna'], families, args['clade'], avg_genome_length, sample_stats, TIME, VERBOSE)
-
+    dna_sample2family2presence, sample_stats, TIME = get_genefamily_presence_absence(
+        sample2accepted, dna_files_list, args['i_dna'], sample2family2dnaidx, args['o_dna'], families, args['clade'], avg_genome_length, sample_stats, TIME, VERBOSE)
+    
     if ADD_STRAINS or args['strain_hit_genes_perc'] != '':
         if VERBOSE: print('\nSTEP 5c: Calculate percent of identical gene-families between sample-strains and reference-genomes... (option --strain_hit_genes_perc)')
         ss_presence, TIME = samples_strains_presences(dna_sample2family2presence, ref_genomes, strain2family2presence, avg_genome_length, args['strain_similarity_perc'], args['o_dna'], families, args['clade'], ADD_STRAINS, TIME, VERBOSE)
@@ -1392,7 +1404,6 @@ def main():
         if args['strain_hit_genes_perc'] != '':
             if VERBOSE: print('\nSTEP 5d: Get percent of sample-strain gene-families present in reference-genomes (option --strain_hit_genes_perc)')
             strain2sample2hit, TIME = strains_gene_hit_percentage(ss_presence, genome2families, sample2accepted, args['strain_hit_genes_perc'], args['clade'], TIME, VERBOSE)
-
 
     # RNA-seq: get RNA gene-family coverage
     rna_file_list = []
