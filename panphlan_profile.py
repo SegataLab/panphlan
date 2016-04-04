@@ -1061,7 +1061,6 @@ def read_gene_cov_file(input_file):
 def read_map_results(i_dna, i_rna, RNASEQ, VERBOSE):
     '''
     Read results from panphlan_map.py
-    dna_samples_covs, rna_samples_covs = read_map_results(args['i_dna'], args['i_rna'], VERBOSE)
     '''
     dna_samples_covs = {}
     rna_samples_covs = {}
@@ -1344,7 +1343,7 @@ def main():
 
     # read mapping result files
     if VERBOSE: print('\nSTEP 2. Read mapping results ...')
-    dna_samples_covs,dna_files_list,rna_samples_covs,rna_id_lists = read_map_results(args['i_dna'], args['i_rna'], RNASEQ, VERBOSE)
+    dna_samples_covs,dna_files_list,rna_samples_covs,rna_id_list = read_map_results(args['i_dna'], args['i_rna'], RNASEQ, VERBOSE)
 
     # Presence/absence matrix only of reference genomes, no samples
     if ADD_STRAINS or args['strain_hit_genes_perc'] != '':
