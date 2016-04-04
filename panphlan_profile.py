@@ -19,8 +19,8 @@ from __future__ import with_statement
 # ==============================================================================
 
 __author__  = 'Matthias Scholz, Thomas Tolio, Nicola Segata (panphlan-users@googlegroups.com)'
-__version__ = '1.2.0'
-__date__    = '4 February 2016'
+__version__ = '1.2.0.1'
+__date__    = '4 April 2016'
 
 # Imports
 from argparse import ArgumentParser
@@ -196,6 +196,7 @@ def check_output(opath, odefault, goal, VERBOSE):
 
 def get_sampleID_from_path(sample_path, clade):
     # example: "path/to/mapping/result/ERR54632_ecoli14.csv.bz2" -> "ERR54632"
+    # if no path, return same ID: "ERR54632" -> "ERR54632"
     filename = os.path.basename(sample_path)
     filename = filename.replace('.csv.bz2','')
     c=clade.replace('panphlan_','')
@@ -267,9 +268,10 @@ def build_strain2family2presence(ref_genomes, families, genome2families, TIME, V
         TIME = time_message(TIME, 'Gene families presence/absence in strain reference genomes computed.')
     return TIME, strain2family2presence
 # -----------------------------------------------------------------------------
-def strains_filtering(ref_genomes, strain2family2presence, similarity, samples_panfamilies, families, TIME, VERBOSE):
+def select_related_ref_genomes(ref_genomes, strain2family2presence, similarity, samples_panfamilies, families, TIME, VERBOSE):
     '''
-    Filter out unacceptable strains (reference genomes in the pangenome)
+    Select reference genomes similar to strains detected in samples
+    to add them in the gene-family presence/absence matrix.
     '''
     # Rejection 2 (vertical filtering)
     numof_strains = len(ref_genomes)
@@ -277,7 +279,7 @@ def strains_filtering(ref_genomes, strain2family2presence, similarity, samples_p
     i = 1
     for s in ref_genomes:
         if VERBOSE:
-            print('[I] [' + str(i) + '/' + str(numof_strains) + '] Analysing strain ' + s + '...')
+            print('[I] [' + str(i) + '/' + str(numof_strains) + '] Analysing ref. genome ' + s + '...')
             i += 1
         f2p = strain2family2presence[s]
         # Get number of present gene families in strain
@@ -536,7 +538,7 @@ def strains_gene_hit_percentage(ss_presence, genome2families, accepted_samples, 
 # ------------------------------------------------------------------------------
 def samples_strains_presences(sample2family2presence, ref_genomes, strain2family2presence, genome_length, similarity, out_channel, families, clade, TO_BE_PRINTED, TIME, VERBOSE):
     '''
-    Compute gene families presence/absence for strains' genomes and merge them with samples ones
+    Compute gene families presence/absence for reference genomes and merge them with detected sample strain profiles
 
     Combine sample presence/absence matrix with strain presence/absence matrix
         1. merge: first samples columns, then strains columns (still keep all gene-families present in any strain)
@@ -550,7 +552,7 @@ def samples_strains_presences(sample2family2presence, ref_genomes, strain2family
 
     # Get all present (in at least one sample) families
     TIME, samples_panfamilies = get_samples_panfamilies(families, sample2family2presence, TIME, VERBOSE)
-    TIME, selected_strains, never_present_families = strains_filtering(ref_genomes, strain2family2presence, similarity, samples_panfamilies, families, TIME, VERBOSE)
+    TIME, selected_strains, never_present_families = select_related_ref_genomes(ref_genomes, strain2family2presence, similarity, samples_panfamilies, families, TIME, VERBOSE)
 
     # Create sorted list of sample/strains names
     sample_and_strain_sorted_list = []
@@ -588,7 +590,7 @@ def presence_of(dna_index):
 def presence_to_str(presence):
     return '1' if presence else '0'
 
-def dna_presencing(accepted_samples, dna_files_list, dna_file2id, sample2family2dnaidx, out_channel, families, clade, avg_genome_length, sample_stats, TIME, VERBOSE):
+def get_genefamily_presence_absence(accepted_samples, dna_files_list, dna_file2id, sample2family2dnaidx, out_channel, families, clade, avg_genome_length, sample_stats, TIME, VERBOSE):
     '''
     Build the gene families presence/absence matrix.
         Take the DNA indexing matrix:
@@ -671,7 +673,7 @@ def index_of(min_thresh, med_thresh, max_thresh, normalized_coverage):
     else:
         return -1
 # -----------------------------------------------------------------------------
-def dna_indexing(accepted_samples, sample2family2normcov, min_thresh, med_thresh, max_thresh, index_file, families, clade, TIME, VERBOSE=False):
+def get_idx123_plateau_definitions(accepted_samples, sample2family2normcov, min_thresh, med_thresh, max_thresh, index_file, families, clade, TIME, VERBOSE=False):
     '''
     -o_idx HMP_saureus_DNAindex.csv
 
@@ -725,33 +727,26 @@ def dna_indexing(accepted_samples, sample2family2normcov, min_thresh, med_thresh
 
     return sample2family2dnaidx, TIME 
 # -----------------------------------------------------------------------------
-def dna_sample_filtering(samples_coverages, num_ref_genomes, avg_genome_length, th_min_coverage, th_plateau_left_max, th_plateau_right_min, families, clade, TIME, VERBOSE=False):
+def strain_presence_plateau_filter(samples_coverages, num_ref_genomes, avg_genome_length, th_min_coverage, th_plateau_left_max, th_plateau_right_min, families, clade, TIME, VERBOSE=False):
     '''
-    Plots the curves for genes coverages and normalized genes coverage of all samples
-
-    A) Plateau quality filter
+    Plateau quality filter based on genes coverage curves
 
     - take each sample individually
     - sort gene-families by abundance (coverage values)
-    - Filter 1) curve needs to have a median coverage higher than 5 ("min_coverage")
-    - Filter 2) left plateau side needs to be lower than threshold "left_max",  right plateau side needs to be higher than "right_min"
+    - Filter 1) curve needs to have a median coverage higher than 2X ("min_coverage")
+    - Filter 2) left plateau side needs to be lower than threshold "left_max",
+                right plateau side needs to be higher than "right_min"
     
     filter settings
     genome-length = 2300  (saureus)  (different for each species)
 
-    position_median = 0.5  ( x genome length) of sorted gene-family vector
-    position_plateau_left = 0.30 (  x genome length)
+    position_median        = 0.5  ( x genome length) of sorted gene-family vector
+    position_plateau_left  = 0.30 (  x genome length)
     position_plateau_right = 0.70 (  x genome length)
 
-    threshold_min_coverage = 5   (at position_median)
-    threshold_plateau_left_max = 1.18   (at position_plateau_left)
-    threshold_plateau_right_min = 0.82   (at position_plateau_right)
-
-    select "plateau" samples
-    Filter 1) sorted gene-family coverage at position_median > threshold_min_coverage ?
-    Filter 2) sorted and median normalized gene-family coverage at position_plateau_left < threshold_plateau_left_max?  
-    
-    Result: only 1 of the 3 HMP samples passed the filter criteria
+    threshold_min_coverage      = 2     (at position_median)
+    threshold_plateau_left_max  = 1.18  (at position_plateau_left)
+    threshold_plateau_right_min = 0.82  (at position_plateau_right)    
     '''
     sample2accepted = {}
     sample2famcovlist = {} # { SAMPLE NAME : ( [ COVERAGE ], [ GENE FAMILY ] ) }
@@ -1049,7 +1044,7 @@ def read_pangenome(panphlan_clade, VERBOSE):
         print('     Total number of pangenome gene-families '     + str(len(families)))
     return gene_lengths, gene2family, sorted(list(families)), num_ref_genomes, avg_genome_length, genome2families, ref_genomes
 # -----------------------------------------------------------------------------
-def dict_from_file(input_file):
+def read_gene_cov_file(input_file):
     '''
     Put the information contained in a file into a dictionary data structure
     '''
@@ -1062,6 +1057,27 @@ def dict_from_file(input_file):
         d[gene] = coverage
     f.close()
     return d
+# -----------------------------------------------------------------------------
+def read_map_results(i_dna, i_rna, RNASEQ, VERBOSE):
+    '''
+    Read results from panphlan_map.py
+    dna_samples_covs, rna_samples_covs = read_map_results(args['i_dna'], args['i_rna'], VERBOSE)
+    '''
+    dna_samples_covs = {}
+    rna_samples_covs = {}
+    dna_files_list = []
+    rna_id_list    = []
+    if not i_dna == None:
+        dna_files_list = sorted(i_dna.keys())
+        for dna_covs_file in dna_files_list:
+            dna_samples_covs[dna_covs_file] = read_gene_cov_file(dna_covs_file)
+        if RNASEQ:
+            rna_id_list = sorted(i_rna.keys())
+            for rna_covs_id in rna_id_list:
+                rna_covs_file = i_rna[rna_covs_id]
+                if not rna_covs_file == NO_RNA_FILE_KEY:
+                    rna_samples_covs[rna_covs_file] = read_gene_cov_file(rna_covs_file)
+    return dna_samples_covs, dna_files_list, rna_samples_covs, rna_id_list
 # -----------------------------------------------------------------------------
 def check_args():
     '''
@@ -1326,45 +1342,24 @@ def main():
     if VERBOSE: print('\nSTEP 1. Read pangenome data...')
     gene_lenghts, gene2family, families, num_ref_genomes, avg_genome_length, genome2families, ref_genomes = read_pangenome(args['clade'], VERBOSE)
 
-    
     # read mapping result files
-    if VERBOSE:
-        print('\nSTEP 2. Read and merge mapping results ...')
-    dna_samples_covs = {}
-    rna_samples_covs = {}
-    if not args['i_dna'] == None:
-        dna_files_list = sorted(args['i_dna'].keys())
-        for dna_covs_file in dna_files_list:
-            dna_samples_covs[dna_covs_file] = dict_from_file(dna_covs_file)
-        if RNASEQ:
-            rna_id_list = sorted(args['i_rna'].keys())
-            for rna_covs_id in rna_id_list:
-                rna_covs_file = args['i_rna'][rna_covs_id]
-                if not rna_covs_file == NO_RNA_FILE_KEY:
-                    rna_samples_covs[rna_covs_file] = dict_from_file(rna_covs_file)
-
-
+    if VERBOSE: print('\nSTEP 2. Read mapping results ...')
+    dna_samples_covs,dna_files_list,rna_samples_covs,rna_id_lists = read_map_results(args['i_dna'], args['i_rna'], RNASEQ, VERBOSE)
 
     # Presence/absence matrix only of reference genomes, no samples
     if ADD_STRAINS or args['strain_hit_genes_perc'] != '':
-        if VERBOSE:
-            print('\nSTEP 3a. Extracting reference genomes gene repertoire...')
+        if VERBOSE: print('\nSTEP 3a. Extracting reference genomes gene repertoire...')
         TIME, strain2family2presence = build_strain2family2presence(ref_genomes, families, genome2families, TIME, VERBOSE)
         if ADD_STRAINS and args['i_dna'] == None:
-            if VERBOSE:
-                print('\nSTEP 3b. Printing presence/absence binary matrix only for reference genomes...')
-            # TODO
+            if VERBOSE: print('\nSTEP 3b. Printing presence/absence binary matrix only for reference genomes...')
             TIME = print_presence_absence_profiles(ref_genomes, strain2family2presence, families, args['o_dna'], TIME, VERBOSE)
             end_program(time.time() - TOTAL_TIME)
             sys.exit(0) 
 
-
     # Merge gene/transcript abundance into family (normalized) coverage
-    if VERBOSE:
-        print('\nSTEP 3. Merge single gene abundances to gene family coverages')
+    if VERBOSE: print('\nSTEP 3. Merge single gene abundances to gene family coverages')
     for sample in dna_files_list:
-        if VERBOSE:
-            print(' [I] Normalization for DNA sample ' + get_sampleID_from_path(sample, args['clade']) + '...')
+        if VERBOSE: print(' [I] Normalization for DNA sample ' + get_sampleID_from_path(sample, args['clade']) + '...')
         dna_samples_covs[sample] = families_coverages(dna_samples_covs[sample], gene2family, gene_lenghts, VERBOSE)
     
     # Get samples list
@@ -1375,15 +1370,15 @@ def main():
     # Filter DNA samples according to their median coverage value and plot coverage plateau
     if VERBOSE:
         print('\nSTEP 4: Strain presence/absence filter based on coverage plateau curve...')
-    sample2accepted, accepted_samples, norm_dna_samples_covs, sample2famcovlist, sample2color, median_normalized_covs, sample2median, sample_stats = dna_sample_filtering(dna_samples_covs, num_ref_genomes, avg_genome_length, args['min_coverage'], args['left_max'], args['right_min'], families, args['clade'], TIME, VERBOSE)
+    sample2accepted, accepted_samples, norm_dna_samples_covs, sample2famcovlist, sample2color, median_normalized_covs, sample2median, sample_stats = strain_presence_plateau_filter(dna_samples_covs, num_ref_genomes, avg_genome_length, args['min_coverage'], args['left_max'], args['right_min'], families, args['clade'], TIME, VERBOSE)
     result = plot_dna_coverage(sample2accepted, norm_dna_samples_covs, sample2famcovlist, sample2color, median_normalized_covs, avg_genome_length, args['clade'], args['o_covplot'], args['o_covplot_normed'], INTERACTIVE, TIME, VERBOSE)
 
 
     # DNA indexing
     if VERBOSE: print('\nSTEP 5a: Define multicopy, strain-specific, and non-present gene-families (1,-1,-2,-3 matrix, option --o_idx)')
-    sample2family2dnaidx, TIME = dna_indexing(accepted_samples, norm_dna_samples_covs, args['th_zero'], args['th_present'], args['th_multicopy'], args['o_idx'], families, args['clade'], TIME, VERBOSE)
+    sample2family2dnaidx, TIME = get_idx123_plateau_definitions(accepted_samples, norm_dna_samples_covs, args['th_zero'], args['th_present'], args['th_multicopy'], args['o_idx'], families, args['clade'], TIME, VERBOSE)
     if VERBOSE: print('\nSTEP 5b: Get presence/absence of gene-families (1,-1 matrix, option --o_dna)')
-    dna_sample2family2presence, sample_stats, TIME = dna_presencing(sample2accepted, dna_files_list, args['i_dna'], sample2family2dnaidx, args['o_dna'], families, args['clade'], avg_genome_length, sample_stats, TIME, VERBOSE)
+    dna_sample2family2presence, sample_stats, TIME = get_genefamily_presence_absence(sample2accepted, dna_files_list, args['i_dna'], sample2family2dnaidx, args['o_dna'], families, args['clade'], avg_genome_length, sample_stats, TIME, VERBOSE)
 
     if ADD_STRAINS or args['strain_hit_genes_perc'] != '':
         if VERBOSE: print('\nSTEP 5c: Calculate percent of identical gene-families between sample-strains and reference-genomes... (option --strain_hit_genes_perc)')
