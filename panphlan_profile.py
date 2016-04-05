@@ -597,10 +597,11 @@ def presence_to_str(presence):
 
 def get_genefamily_presence_absence(accepted_samples, dna_files_list, dna_file2id, sample2family2dnaidx, out_channel, families, clade, avg_genome_length, sample_stats, TIME, VERBOSE):
     '''
-    Build the gene families presence/absence matrix.
-        Take the DNA indexing matrix:
-        gene family in sample has DNA index 1 or -1 ==> present (1)
-        gene family in sample has DNA index -2 or -3 ==> NOT present (0)
+    Get the gene-family presence/absence matrix.
+    
+    Convert the 1,2,3 index matrix:
+    gene family in sample has DNA index  1 or -1 ==> present (1)
+    gene family in sample has DNA index -2 or -3 ==> NOT present (0)
     '''
     sample2family2presence = defaultdict(dict)
     
@@ -681,7 +682,7 @@ def index_of(min_thresh, med_thresh, max_thresh, normalized_coverage):
     else:
         return -1
 # -----------------------------------------------------------------------------
-def get_idx123_plateau_definitions(accepted_samples, sample2family2normcov, min_thresh, med_thresh, max_thresh, index_file, families, clade, TIME, VERBOSE=False):
+def get_idx123_plateau_definitions(accepted_samples, sample2family2normcov, min_thresh, med_thresh, max_thresh, index_file, families, TIME, VERBOSE=False):
     '''
     -o_idx HMP_saureus_DNAindex.csv
 
@@ -707,13 +708,10 @@ def get_idx123_plateau_definitions(accepted_samples, sample2family2normcov, min_
     '''
     sample2family2dnaidx = defaultdict(dict)
 
-    accepted_ids = sorted([get_sampleID_from_path(s, clade) for s in accepted_samples])
-    id2sample = dict((get_sampleID_from_path(s, clade),s) for s in accepted_samples)
-
+    accepted_ids = sorted(accepted_samples)
+    
     for sample in accepted_samples:
-        if VERBOSE:
-            print(' [I] Get DNA -1,1,2,3 levels for sample ' + sample)
-        sample_id = get_sampleID_from_path(sample, clade)
+        if VERBOSE: print(' [I] Get DNA -1,1,2,3 levels for sample ' + sample)
         for family in families:
             sample2family2dnaidx[sample][family] = index_of(min_thresh, med_thresh, max_thresh, sample2family2normcov[sample][family])
 
@@ -722,13 +720,12 @@ def get_idx123_plateau_definitions(accepted_samples, sample2family2normcov, min_
             csv.write('\t' + '\t'.join(accepted_ids) + '\n')
             for family in families:
                 csv.write(family)
-                for sample_id in accepted_ids:
-                    sample = id2sample[sample_id]
+                for sample in accepted_ids:
                     csv.write('\t' + str(sample2family2dnaidx[sample][family]))
                 csv.write('\n')
 
     elif len(accepted_ids) == 0:
-        print('[W] No file has been written for DNA indexing because there is no accpeted samples.')
+        print('[W] No DNA 1,2,3 index file has been written because no strain was detected.')
 
     if VERBOSE:
         TIME = time_message(TIME, 'DNA indexing executed.')
@@ -853,10 +850,10 @@ def strain_presence_plateau_filter(samples_coverages, num_ref_genomes, avg_genom
             sample_stats[sample].update({'Multistrain' : False})
     accepted_samples_list = sorted([s for s in sample2accepted if sample2accepted[s]])
     return sample2accepted, accepted_samples_list, norm_samples_coverages, sample2famcovlist, sample2color, median_normalized_covs, median, sample_stats
-# ----------------------------------------------------------------------------------------------------
-def plot_dna_coverage(sample2accepted, samples_coverages, sample2famcovlist, sample2color, median_normalized_covs, genome_length, clade, plot1_name, plot2_name, INTERACTIVE, TIME, VERBOSE=False):
+# -----
+def plot_dna_coverage(sample2accepted, samples_coverages, sample2famcovlist, sample2color, median_normalized_covs, genome_length, plot1_name, plot2_name, INTERACTIVE, TIME, VERBOSE=False):
     '''
-    Plot gene-family coverage plots as pdf file.
+    Plot gene-family coverage plots.
     a) absolute coverage
     b) median normalized coverage
     Accepted samples are plotted in colors, rejected samples in gray.
@@ -893,7 +890,7 @@ def plot_dna_coverage(sample2accepted, samples_coverages, sample2famcovlist, sam
                     else:
                         used_colors.append(color)
 
-                # Absolute coverage plot
+                # Plot absolute coverages
                 fig1 = None
                 if not plot1_name == '':
                     plt.suptitle('Gene families coverages')
@@ -901,10 +898,9 @@ def plot_dna_coverage(sample2accepted, samples_coverages, sample2famcovlist, sam
                     plt.ylabel('Coverage')
     
                     for sample in sorted_samples:
-                        sample_id = get_sampleID_from_path(sample, clade)
                         covs = sample2famcovlist[sample][0]
                         if sample2accepted[sample]:
-                            plt.plot(range(1, len(covs) + 1), covs, sample2color[sample], label=sample_id)
+                            plt.plot(range(1, len(covs) + 1), covs, sample2color[sample], label=sample)
                         else:
                             plt.plot(range(1, len(covs) + 1), covs, COLOR_GREY)
                     plt.axis([0.0, genome_length * 1.5, 0.0, 1000.0])
@@ -917,17 +913,16 @@ def plot_dna_coverage(sample2accepted, samples_coverages, sample2famcovlist, sam
                         fig1 = plt.figure(0)
                     plt.close()
 
-                # Median-normalized coverage plot
+                # Plot median-normalized coverages
                 fig2 = None
                 if not plot2_name == '':
                     plt.suptitle('Gene families normalized coverages')
                     plt.xlabel('Gene families')
                     plt.ylabel('Normalized coverage')
                     for sample in sorted_samples:
-                        sample_id = get_sampleID_from_path(sample, clade)
-                        covs = median_normalized_covs[sample_id]
+                        covs = median_normalized_covs[sample]
                         if sample2accepted[sample]:
-                            plt.plot(range(1, len(covs) + 1), covs, sample2color[sample], label=sample_id)
+                            plt.plot(range(1, len(covs) + 1), covs, sample2color[sample], label=sample)
                         else:
                             plt.plot(range(1, len(covs) + 1), covs, COLOR_GREY)
                     plt.axis([0.0, genome_length * 1.5, 0.0, 9.0])
@@ -1054,27 +1049,30 @@ def read_pangenome(panphlan_clade, VERBOSE):
 def read_map_results(i_dna, i_rna, clade, RNASEQ, VERBOSE):
     '''
     Read results from panphlan_map.py
+    
+    to do:
+     i_dna and i_rna could keep only the path, not converted id's, convert only here.
     '''
-    dna_samples_covs = {}
+    dna_samples_covs = {} # new: sampleID as key
     dna_samples_covs_path = {} # old Thomas version, path as key
-    rna_samples_covs = {}
+    rna_samples_covs = {} # new: sampleID as key
     rna_samples_covs_path = {} # old Thomas version, path as key
     dna_files_list = []
     rna_id_list    = []
     if not i_dna == None:
         dna_files_list = sorted(i_dna.keys())
-        for dna_covs_file in dna_files_list:
+        for dna_covs_file in dna_files_list: # i_dna: path2id
             sample_id = get_sampleID_from_path(dna_covs_file, clade)
             dna_samples_covs[sample_id] = read_gene_cov_file(dna_covs_file) # new dict
             dna_samples_covs_path[dna_covs_file] = dna_samples_covs[sample_id] # old dict (path as key)
         if RNASEQ:
-            rna_id_list = sorted(i_rna.keys())
+            rna_id_list = sorted(i_rna.keys()) # i_rna: id2path (Thomas trick!?)
             for rna_covs_id in rna_id_list:
                 rna_covs_file = i_rna[rna_covs_id]
                 if not rna_covs_file == NO_RNA_FILE_KEY:
                     rna_samples_covs_path[rna_covs_file] = read_gene_cov_file(rna_covs_file)
     return dna_samples_covs, dna_samples_covs_path, dna_files_list, rna_samples_covs, rna_samples_covs_path, rna_id_list
-
+# -----
 def read_gene_cov_file(input_file):
     '''
     Put the information contained in a file into a dictionary data structure
@@ -1382,14 +1380,14 @@ def main():
     #---------------------------------------------------------------------------------------
     # Filter DNA samples according to their median coverage value and plot coverage plateau
     if VERBOSE: print('\nSTEP 4: Strain presence/absence filter based on coverage plateau curve...')
-    sample2accepted, accepted_samples, norm_dna_samples_covs_path, sample2famcovlist, sample2color, median_normalized_covs, sample2median, sample_stats = strain_presence_plateau_filter(
+    sample2accepted, accepted_samples, norm_dna_samples_covs, sample2famcovlist, sample2color, median_normalized_covs, sample2median, sample_stats = strain_presence_plateau_filter(
         dna_samples_covs, num_ref_genomes, avg_genome_length, args['min_coverage'], args['left_max'], args['right_min'], families, TIME, VERBOSE)
-    result = plot_dna_coverage(sample2accepted, norm_dna_samples_covs_path, sample2famcovlist, sample2color, median_normalized_covs, avg_genome_length, args['clade'], args['o_covplot'], args['o_covplot_normed'], INTERACTIVE, TIME, VERBOSE)
+    result = plot_dna_coverage(sample2accepted, norm_dna_samples_covs, sample2famcovlist, sample2color, median_normalized_covs, avg_genome_length, args['o_covplot'], args['o_covplot_normed'], INTERACTIVE, TIME, VERBOSE)
 
     # DNA indexing
     if VERBOSE: print('\nSTEP 5a: Define multicopy, strain-specific, and non-present gene-families (1,-1,-2,-3 matrix, option --o_idx)')
     sample2family2dnaidx, TIME = get_idx123_plateau_definitions(
-        accepted_samples, norm_dna_samples_covs_path, args['th_zero'], args['th_present'], args['th_multicopy'], args['o_idx'], families, args['clade'], TIME, VERBOSE)
+        accepted_samples, norm_dna_samples_covs, args['th_zero'], args['th_present'], args['th_multicopy'], args['o_idx'], families, TIME, VERBOSE)
     if VERBOSE: print('\nSTEP 5b: Get presence/absence of gene-families (1,-1 matrix, option --o_dna)')
     dna_sample2family2presence, sample_stats, TIME = get_genefamily_presence_absence(
         sample2accepted, dna_files_list, args['i_dna'], sample2family2dnaidx, args['o_dna'], families, args['clade'], avg_genome_length, sample_stats, TIME, VERBOSE)
