@@ -19,8 +19,8 @@ from __future__ import with_statement
 # ==============================================================================
 
 __author__  = 'Matthias Scholz, Thomas Tolio, Nicola Segata (panphlan-users@googlegroups.com)'
-__version__ = '1.2.0.2'
-__date__    = '4 April 2016'
+__version__ = '1.2.0.3'
+__date__    = '5 April 2016'
 
 # Imports
 from argparse import ArgumentParser
@@ -735,29 +735,28 @@ def get_idx123_plateau_definitions(accepted_samples, sample2family2normcov, min_
 
     return sample2family2dnaidx, TIME 
 # -----------------------------------------------------------------------------
-def strain_presence_plateau_filter(samples_coverages, num_ref_genomes, avg_genome_length, th_min_coverage, th_plateau_left_max, th_plateau_right_min, families, clade, TIME, VERBOSE=False):
+def strain_presence_plateau_filter(samples_coverages, num_ref_genomes, avg_genome_length, th_min_coverage, th_plateau_left_max, th_plateau_right_min, families, TIME, VERBOSE=False):
     '''
-    Plateau quality filter based on genes coverage curves
+    Check if a strain is present in a sample.
+    Plateau quality criteria based on genes coverage curve.
 
-    - take each sample individually
+    For each sample:
     - sort gene-families by abundance (coverage values)
-    - Filter 1) curve needs to have a median coverage higher than 2X ("min_coverage")
-    - Filter 2) left plateau side needs to be lower than threshold "left_max",
-                right plateau side needs to be higher than "right_min"
+    - threshold 1: curve needs to have a median coverage higher than 2X ("min_coverage")
+    - threshold 2: left  plateau side needs to be lower  than value "left_max",
+                   right plateau side needs to be higher than value "right_min"
     
     filter settings
-    genome-length = 2300  (saureus)  (different for each species)
-
+    avg_genome_length: number of gene-families (e.g., 2300 for S. aureus), different for each species
+    num_ref_genomes: reference genomes used for creating the pangenome database (important for num<3)
+    
     position_median        = 0.5  ( x genome length) of sorted gene-family vector
-    position_plateau_left  = 0.30 (  x genome length)
-    position_plateau_right = 0.70 (  x genome length)
+    position_plateau_left  = 0.30 ( x genome length)
+    position_plateau_right = 0.70 ( x genome length)
 
-    threshold_min_coverage      = 2     (at position_median)
+    threshold_min_coverage      = 2X    (at position_median)
     threshold_plateau_left_max  = 1.18  (at position_plateau_left)
     threshold_plateau_right_min = 0.82  (at position_plateau_right)
-    
-    to do
-    - samples_coverages: path-key to sample-key when changed in previous versions 
     '''
     sample2accepted = {}
     sample2famcovlist = {} # { SAMPLE NAME : ( [ COVERAGE ], [ GENE FAMILY ] ) }
@@ -794,68 +793,64 @@ def strain_presence_plateau_filter(samples_coverages, num_ref_genomes, avg_genom
         print(' [I] Right minimum plateau threshold: '                            + str(th_plateau_right_min))
         print(' [I] Maximum zero non-plateau threshold (multistrain detection): ' + str(th_max_zero))
         
-    # Take one sample a time
     for sample in sorted(samples_coverages.keys()):
-
-        sample_id = get_sampleID_from_path(sample, clade)
-        sampleID  = get_sampleID_from_path(sample, clade) # try to change keys
         d = samples_coverages[sample]
 
         # Take families coverage from sample and sort descendently by value (coverage)
         families_covs = sorted(d.items(), key=lambda x: x[1])
         families_covs = families_covs[::-1] # reverse
         del(d)
-        # Compute the median
-        median[sampleID] = numpy.median([p[1] for p in families_covs][:avg_genome_length])
-        sample2famcovlist[sampleID] = ([p[1] for p in families_covs], [p[0] for p in families_covs])
+        # get median coverage
+        median[sample] = numpy.median([p[1] for p in families_covs][:avg_genome_length])
+        sample2famcovlist[sample] = ([p[1] for p in families_covs], [p[0] for p in families_covs])
         # Median-normalization
         # median_normalized_covs[sample] = [c / median[sample] for c in sample2famcovlist[sample][0]]
-        for cov in sample2famcovlist[sampleID][0]:
+        for cov in sample2famcovlist[sample][0]:
             normed_cov = 0.0
-            if not median[sampleID] == 0:
-                normed_cov = cov / median[sampleID]
-            median_normalized_covs[sampleID].append(normed_cov)    
+            if not median[sample] == 0:
+                normed_cov = cov / median[sample]
+            median_normalized_covs[sample].append(normed_cov)    
         # 
-        for f in families:
+        for f in families: # all gene-families of the pangenome
             normed_cov = 0.0
-            if not median[sampleID] == 0:
-                normed_cov = samples_coverages[sample][f] / median[sampleID]
-            norm_samples_coverages[sampleID][f] = normed_cov
+            if not median[sample] == 0:
+                normed_cov = samples_coverages[sample][f] / median[sample]
+            norm_samples_coverages[sample][f] = normed_cov
         # samples_coverages[sample] = {f : samples_coverages[sample][f] / median[sample] for f in samples_coverages[sample]}
 
         # min coverage & plateau filter
-        mediancov = median[sampleID] # self-defined median func: median of avg_genome_length, see above
-        leftcov   = median_normalized_covs[sampleID][int(avg_genome_length * 0.3)]
-        rightcov  = median_normalized_covs[sampleID][int(avg_genome_length * 0.7)]
-        zerocov   = median_normalized_covs[sampleID][int(avg_genome_length * 1.25)]
-        sample_stats[sample_id] = {'strainCoverage' : mediancov}
+        mediancov = median[sample] # self-defined median func: median of avg_genome_length, see above
+        leftcov   = median_normalized_covs[sample][int(avg_genome_length * 0.3)]
+        rightcov  = median_normalized_covs[sample][int(avg_genome_length * 0.7)]
+        zerocov   = median_normalized_covs[sample][int(avg_genome_length * 1.25)]
+        sample_stats[sample] = {'strainCoverage' : mediancov}
         if VERBOSE:
-            print(' [I] ' + sample_id + ' median coverage: ' + str(round(mediancov,2)) +
+            print(' [I] ' + sample + ' median coverage: ' + str(round(mediancov,2)) +
                   '; left-side cov: ' + str(round(leftcov,2)) +
                   '; right-side cov: ' + str(round(rightcov,2)) +
                   '; out-plateau cov: ' + str(round(zerocov,2)) )
-        sample2accepted[sampleID] = True if mediancov >= th_min_coverage else False # min coverage filter
-        if not sample2accepted[sampleID]:
-            print('     ' + sample_id + ': no strain detected, sample below MIN COVERAGE threshold')    
-        if sample2accepted[sampleID]: # check left right plateau coverage
+        sample2accepted[sample] = True if mediancov >= th_min_coverage else False # min coverage filter
+        if not sample2accepted[sample]:
+            print('     ' + sample + ': no strain detected, sample below MIN COVERAGE threshold')    
+        if sample2accepted[sample]: # check left right plateau coverage
             if leftcov > th_plateau_left_max:
-                sample2accepted[sampleID] = False
+                sample2accepted[sample] = False
                 if VERBOSE:
-                    print('     ' + sample_id + ': no strain detected, sample does not pass LEFT-side coverage threshold.')
+                    print('     ' + sample + ': no strain detected, sample does not pass LEFT-side coverage threshold.')
             elif rightcov < th_plateau_right_min:
-                sample2accepted[sampleID] = False
+                sample2accepted[sample] = False
                 if VERBOSE:
-                    print('     ' + sample_id + ': no strain detected, sample does not pass RIGHT-side coverage threshold.')        
-        if sample2accepted[sampleID]:
-            sample_stats[sample_id].update({'strainIsPresent' : True})
-            sample_stats[sample_id].update({'Multistrain' : zerocov > th_max_zero})
-            if VERBOSE: print('     ' + sample_id + ' OK - strain detected')
+                    print('     ' + sample + ': no strain detected, sample does not pass RIGHT-side coverage threshold.')        
+        if sample2accepted[sample]:
+            sample_stats[sample].update({'strainIsPresent' : True})
+            sample_stats[sample].update({'Multistrain' : zerocov > th_max_zero})
+            if VERBOSE: print('     ' + sample + ' OK - strain detected')
             if zerocov > th_max_zero:
                 # to do: add to dict
-                if VERBOSE: print('     ' + sample_id + ' WARNING: sample may contain multiple strains')
+                if VERBOSE: print('     ' + sample + ' WARNING: sample may contain multiple strains')
         else:
-            sample_stats[sample_id].update({'strainIsPresent' : False})
-            sample_stats[sample_id].update({'Multistrain' : False})
+            sample_stats[sample].update({'strainIsPresent' : False})
+            sample_stats[sample].update({'Multistrain' : False})
     accepted_samples_list = sorted([s for s in sample2accepted if sample2accepted[s]])
     return sample2accepted, accepted_samples_list, norm_samples_coverages, sample2famcovlist, sample2color, median_normalized_covs, median, sample_stats
 # ----------------------------------------------------------------------------------------------------
@@ -1056,20 +1051,6 @@ def read_pangenome(panphlan_clade, VERBOSE):
         print('     Total number of pangenome gene-families '     + str(len(families)))
     return gene_lengths, gene2family, sorted(list(families)), num_ref_genomes, avg_genome_length, genome2families, ref_genomes
 # -----------------------------------------------------------------------------
-def read_gene_cov_file(input_file):
-    '''
-    Put the information contained in a file into a dictionary data structure
-    '''
-    import bz2
-    d = {}
-    f = bz2.BZ2File(input_file, mode='r')
-    for line in f:
-        words = line.decode('utf-8').strip().split('\t')
-        gene, coverage = words[0], int(words[1])
-        d[gene] = coverage
-    f.close()
-    return d
-# -----------------------------------------------------------------------------
 def read_map_results(i_dna, i_rna, clade, RNASEQ, VERBOSE):
     '''
     Read results from panphlan_map.py
@@ -1093,6 +1074,20 @@ def read_map_results(i_dna, i_rna, clade, RNASEQ, VERBOSE):
                 if not rna_covs_file == NO_RNA_FILE_KEY:
                     rna_samples_covs_path[rna_covs_file] = read_gene_cov_file(rna_covs_file)
     return dna_samples_covs, dna_samples_covs_path, dna_files_list, rna_samples_covs, rna_samples_covs_path, rna_id_list
+
+def read_gene_cov_file(input_file):
+    '''
+    Put the information contained in a file into a dictionary data structure
+    '''
+    import bz2
+    d = {}
+    f = bz2.BZ2File(input_file, mode='r')
+    for line in f:
+        words = line.decode('utf-8').strip().split('\t')
+        gene, coverage = words[0], int(words[1])
+        d[gene] = coverage
+    f.close()
+    return d
 # -----------------------------------------------------------------------------
 def check_args():
     '''
@@ -1377,6 +1372,8 @@ def main():
     for sample in dna_files_list:
         if VERBOSE: print(' [I] Normalization for DNA sample ' + get_sampleID_from_path(sample, args['clade']) + '...')
         dna_samples_covs_path[sample] = families_coverages(dna_samples_covs_path[sample], gene2family, gene_lenghts, VERBOSE)
+    # convert path-key to sampleID-key (to do: use in all followed function)
+    dna_samples_covs = dict((get_sampleID_from_path(k, args['clade']), v) for (k,v) in dna_samples_covs_path.items())
     
     # Get samples list
     # Print coverages in file
@@ -1386,7 +1383,7 @@ def main():
     # Filter DNA samples according to their median coverage value and plot coverage plateau
     if VERBOSE: print('\nSTEP 4: Strain presence/absence filter based on coverage plateau curve...')
     sample2accepted, accepted_samples, norm_dna_samples_covs_path, sample2famcovlist, sample2color, median_normalized_covs, sample2median, sample_stats = strain_presence_plateau_filter(
-        dna_samples_covs_path, num_ref_genomes, avg_genome_length, args['min_coverage'], args['left_max'], args['right_min'], families, args['clade'], TIME, VERBOSE)
+        dna_samples_covs, num_ref_genomes, avg_genome_length, args['min_coverage'], args['left_max'], args['right_min'], families, TIME, VERBOSE)
     result = plot_dna_coverage(sample2accepted, norm_dna_samples_covs_path, sample2famcovlist, sample2color, median_normalized_covs, avg_genome_length, args['clade'], args['o_covplot'], args['o_covplot_normed'], INTERACTIVE, TIME, VERBOSE)
 
     # DNA indexing
