@@ -607,20 +607,27 @@ def get_genefamily_presence_absence(accepted_samples, dna_files_list, dna_file2i
     
     # dna_sample_ids = [dna_file2id[s] for s in dna_files_list if accepted_samples[s]]
     # dna_files_list = [s for s in dna_files_list if accepted_samples[s]]
-    samplelist = [get_sampleID_from_path(s, clade) for s in dna_files_list]
-    dna_sample_ids = [s for s in samplelist if accepted_samples[s]] # if value: True
-    dna_files_list = dna_sample_ids # only using IDs
+    
+    # samplelist = [get_sampleID_from_path(s, clade) for s in dna_files_list]
+    # dna_sample_ids = [s for s in samplelist if accepted_samples[s]] # if value: True
+    # dna_files_list = dna_sample_ids # only using IDs
+    
+    # dna_samples = sorted([s for s, val in accepted_samples.items() if val]) # take only samples if accepted=True
+    dna_samples = sorted(sample2family2dnaidx.keys())
+    # print(accepted_samples)
+    # print(dna_files_list)
+    # print(dna_samples)
 
-    if not out_channel == '' and len(dna_files_list) > 0:
+    if not out_channel == '' and len(dna_samples) > 0:
         csv = open(out_channel, mode='w')
     
-    if not out_channel == '' and len(dna_sample_ids) > 0:
-        csv.write('\t' + '\t'.join([get_sampleID_from_path(s, clade) for s in dna_sample_ids]) + '\n')
+    if not out_channel == '' and len(dna_samples) > 0:
+        csv.write('\t' + '\t'.join([get_sampleID_from_path(s, clade) for s in dna_samples]) + '\n')
     for f in families:
         #if sum(sample2family2presence[s][f] for s in sample2family2presence) > 0:
         line = f
         total_presence = False
-        for s in dna_files_list: # now sample IDs
+        for s in dna_samples:
             presence = presence_of(sample2family2dnaidx[s][f])
             sample2family2presence[s][f] = presence
             total_presence = total_presence or presence
@@ -645,7 +652,7 @@ def get_genefamily_presence_absence(accepted_samples, dna_files_list, dna_file2i
                 print('      ' + sampleID + '\t' + str(sample_stats[sampleID]['numberGeneFamilies']))
         print('      Average number of gene-families in reference genomes: ' + str(avg_genome_length))        
         
-    if len(dna_files_list) > 0:
+    if len(dna_samples) > 0:
         if VERBOSE:
             print(' [I] Gene family presence/absence matrix is printed to ' + out_channel)
             TIME = time_message(TIME, 'Presence/absence matrix finished.')
