@@ -595,7 +595,7 @@ def presence_of(dna_index):
 def presence_to_str(presence):
     return '1' if presence else '0'
 
-def get_genefamily_presence_absence(accepted_samples, dna_files_list, dna_file2id, sample2family2dnaidx, out_channel, families, clade, avg_genome_length, sample_stats, TIME, VERBOSE):
+def get_genefamily_presence_absence(sample2family2dnaidx, out_channel, families, avg_genome_length, sample_stats, TIME, VERBOSE):
     '''
     Get the gene-family presence/absence matrix.
     
@@ -605,51 +605,37 @@ def get_genefamily_presence_absence(accepted_samples, dna_files_list, dna_file2i
     '''
     sample2family2presence = defaultdict(dict)
     
-    # dna_sample_ids = [dna_file2id[s] for s in dna_files_list if accepted_samples[s]]
-    # dna_files_list = [s for s in dna_files_list if accepted_samples[s]]
-    
-    # samplelist = [get_sampleID_from_path(s, clade) for s in dna_files_list]
-    # dna_sample_ids = [s for s in samplelist if accepted_samples[s]] # if value: True
-    # dna_files_list = dna_sample_ids # only using IDs
-    
-    # dna_samples = sorted([s for s, val in accepted_samples.items() if val]) # take only samples if accepted=True
     dna_samples = sorted(sample2family2dnaidx.keys())
-    # print(accepted_samples)
-    # print(dna_files_list)
-    # print(dna_samples)
 
     if not out_channel == '' and len(dna_samples) > 0:
-        csv = open(out_channel, mode='w')
-    
-    if not out_channel == '' and len(dna_samples) > 0:
-        csv.write('\t' + '\t'.join([get_sampleID_from_path(s, clade) for s in dna_samples]) + '\n')
+        csv = open(out_channel, mode='w')    
+        csv.write('\t' + '\t'.join(dna_samples) + '\n')
+
     for f in families:
         #if sum(sample2family2presence[s][f] for s in sample2family2presence) > 0:
         line = f
         total_presence = False
-        for s in dna_samples:
-            presence = presence_of(sample2family2dnaidx[s][f])
-            sample2family2presence[s][f] = presence
+        for sample in dna_samples:
+            presence = presence_of(sample2family2dnaidx[sample][f])
+            sample2family2presence[sample][f] = presence
             total_presence = total_presence or presence
-            if accepted_samples[s]:
-                if f in sample2family2dnaidx[s]:
-                    line = line + '\t' + presence_to_str(presence)
-                else:
-                    line = line + '\t0'
-        if not out_channel == '' and len(dna_files_list) > 0:
+            if f in sample2family2dnaidx[sample]:
+                line = line + '\t' + presence_to_str(presence)
+            else:
+                line = line + '\t0'
+        if not out_channel == '' and len(dna_samples) > 0:
             if total_presence:
                 csv.write(line + '\n')
 
     # get number of gene-families per sample (add to dict sample_stats)
-    for s in sample2family2presence.keys():
-        sampleID = get_sampleID_from_path(s, clade)
-        numGeneFamilies = sum( sample2family2presence[s][f] for f in sample2family2presence[s] )
-        sample_stats[sampleID].update({'numberGeneFamilies' : numGeneFamilies})
+    for sample in sample2family2presence.keys():
+        numGeneFamilies = sum( sample2family2presence[sample][f] for f in sample2family2presence[sample] )
+        sample_stats[sample].update({'numberGeneFamilies' : numGeneFamilies})
     if VERBOSE:
         print(' [I] Number of gene families per sample-specific strain:')
-        for sampleID in sorted(sample_stats.keys()):
-            if 'numberGeneFamilies' in sample_stats[sampleID]:  
-                print('      ' + sampleID + '\t' + str(sample_stats[sampleID]['numberGeneFamilies']))
+        for sample in sorted(sample_stats.keys()):
+            if 'numberGeneFamilies' in sample_stats[sample]:  
+                print('      ' + sample + '\t' + str(sample_stats[sample]['numberGeneFamilies']))
         print('      Average number of gene-families in reference genomes: ' + str(avg_genome_length))        
         
     if len(dna_samples) > 0:
@@ -1397,7 +1383,7 @@ def main():
         accepted_samples, norm_dna_samples_covs, args['th_zero'], args['th_present'], args['th_multicopy'], args['o_idx'], families, TIME, VERBOSE)
     if VERBOSE: print('\nSTEP 5b: Get presence/absence of gene-families (1,-1 matrix, option --o_dna)')
     dna_sample2family2presence, sample_stats, TIME = get_genefamily_presence_absence(
-        sample2accepted, dna_files_list, args['i_dna'], sample2family2dnaidx, args['o_dna'], families, args['clade'], avg_genome_length, sample_stats, TIME, VERBOSE)
+        sample2family2dnaidx, args['o_dna'], families, avg_genome_length, sample_stats, TIME, VERBOSE)
     
     if ADD_STRAINS or args['strain_hit_genes_perc'] != '':
         if VERBOSE: print('\nSTEP 5c: Calculate percent of identical gene-families between sample-strains and reference-genomes... (option --strain_hit_genes_perc)')
