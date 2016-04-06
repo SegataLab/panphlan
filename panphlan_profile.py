@@ -78,7 +78,7 @@ FILEFORMAT_ERROR_CODE   =  3 # file of DNA RNA sample pairs
 
 # Strings
 PANPHLAN        = 'panphlan_'
-NO_RNA_FILE_KEY = '# NA #'
+NO_RNA_FILE_KEY = '# NA #'   # (missing RNA coverage map file, used in 'dna2rna' dict)
 INTERRUPTION_MESSAGE    = '[E] Execution has been manually halted.\n'
 
 # Plot's colors
@@ -379,19 +379,21 @@ def rna_seq(out_channel, sample2family2dnaidx, dna_sample2family2cov, dna_accept
 
     # convert path to sample-key
     dna_sample2family2cov = dict((get_sampleID_from_path(k, clade), v) for (k,v) in dna_sample2family2cov.items())
+    rna_sample2family2cov = dict((get_sampleID_from_path(k, clade), v) for (k,v) in rna_sample2family2cov.items())
 
     sample2family2rna_div_dna = defaultdict(dict)
     rna_samples = []
-    rna_ids = []
+    # rna_ids = []
     dna_accepted_samples = sorted([s for s in dna_accepted_samples if dna_accepted_samples[s]])
     
     for dna_sample in dna_accepted_samples:
         # rna_sample = rna_id2file[dna2rna[dna_file2id[dna_sample]]]
-        rna_sample = rna_id2file[dna2rna[dna_sample]]
+        # rna_sample = rna_id2file[dna2rna[dna_sample]]
+        rna_sample = dna2rna[dna_sample] # <<<<
         if not rna_sample == NO_RNA_FILE_KEY:
-            rna_samples.append(dna_sample)
+            rna_samples.append(dna_sample)  
             # rna_ids.append(dna_file2id[dna_sample])
-            rna_ids.append(dna_sample)
+            # rna_ids.append(dna_sample)  
             # For each family present in at least one sample, divide RNA coverage for the correlative DNA coverage
             for f in families:
                 dna_cov = dna_sample2family2cov[dna_sample][f]
@@ -403,8 +405,8 @@ def rna_seq(out_channel, sample2family2dnaidx, dna_sample2family2cov, dna_accept
                     
     # Reverse dictionaries
     rna2dna = dict((v,k) for (k,v) in dna2rna.items())
-    rna_file2id = dict((v,k) for (k,v) in rna_id2file.items())
-    dna_id2file = dict((v,k) for (k,v) in dna_file2id.items())
+    # rna_file2id = dict((v,k) for (k,v) in rna_id2file.items())  # not used ? 
+    # dna_id2file = dict((v,k) for (k,v) in dna_file2id.items())  # not used ? 
 
     # Define
     sample2family2median_norm = defaultdict(dict)
@@ -595,7 +597,7 @@ def presence_of(dna_index):
 def presence_to_str(presence):
     return '1' if presence else '0'
 
-def get_genefamily_presence_absence(sample2family2dnaidx, out_channel, families, avg_genome_length, sample_stats, TIME, VERBOSE):
+def get_genefamily_presence_absence(sample2family2dnaidx, out_filename, families, avg_genome_length, sample_stats, TIME, VERBOSE):
     '''
     Get the gene-family presence/absence matrix.
     
@@ -607,8 +609,8 @@ def get_genefamily_presence_absence(sample2family2dnaidx, out_channel, families,
     
     dna_samples = sorted(sample2family2dnaidx.keys())
 
-    if not out_channel == '' and len(dna_samples) > 0:
-        csv = open(out_channel, mode='w')    
+    if not out_filename == '' and len(dna_samples) > 0:
+        csv = open(out_filename, mode='w')    
         csv.write('\t' + '\t'.join(dna_samples) + '\n')
 
     for f in families:
@@ -623,7 +625,7 @@ def get_genefamily_presence_absence(sample2family2dnaidx, out_channel, families,
                 line = line + '\t' + presence_to_str(presence)
             else:
                 line = line + '\t0'
-        if not out_channel == '' and len(dna_samples) > 0:
+        if not out_filename == '' and len(dna_samples) > 0:
             if total_presence:
                 csv.write(line + '\n')
 
@@ -640,7 +642,7 @@ def get_genefamily_presence_absence(sample2family2dnaidx, out_channel, families,
         
     if len(dna_samples) > 0:
         if VERBOSE:
-            print(' [I] Gene family presence/absence matrix is printed to ' + out_channel)
+            print(' [I] Gene family presence/absence matrix is printed to ' + out_filename)
             TIME = time_message(TIME, 'Presence/absence matrix finished.')
     else:
         print('[W] No file has been written for gene families presence/absence because there is no accpeted samples.')
@@ -1164,6 +1166,7 @@ def check_args():
                         if rna_path == []:
                             print('[W] RNA file corresponding to ID ' + dna2rna[d] + ' has not been found. Analysis for this RNA will be skipped.')
                             rna_id2file[dna2rna[d]] = NO_RNA_FILE_KEY
+                            dna2rna[d] = NO_RNA_FILE_KEY
                         else:
                             rna_id2file[dna2rna[d]] = rna_path[0]
                     args['sample_pairs'] = dna2rna
