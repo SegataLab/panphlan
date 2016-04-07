@@ -956,7 +956,8 @@ def print_coverage_matrix(dna_files_list, dna_file2id, dna_samples_covs, out_cha
     id2file = dict((v,k) for (k,v) in dna_file2id.items())
     if not out_channel == '':
         with open(out_channel, mode='w') as csv:
-            csv.write('\t' + '\t'.join([get_sampleID_from_path(s, clade) for s in dna_sample_ids]) + '\n')
+            # csv.write('\t' + '\t'.join([get_sampleID_from_path(s, clade) for s in dna_sample_ids]) + '\n')
+            csv.write('\t' + '\t'.join(dna_sample_ids) + '\n')
             for f in families:
                 if sum(dna_samples_covs[s][f] for s in dna_samples_covs) > 0.0:
                     csv.write(f)
@@ -1060,7 +1061,7 @@ def read_map_results(i_dna, i_rna, clade, RNASEQ, VERBOSE):
         for dna_covs_file in dna_files_list: # i_dna: path2id
             sample_id = get_sampleID_from_path(dna_covs_file, clade)
             dna_samples_covs[sample_id] = read_gene_cov_file(dna_covs_file) # new dict
-            dna_samples_covs_path[dna_covs_file] = dna_samples_covs[sample_id] # old dict (path as key)
+            # dna_samples_covs_path[dna_covs_file] = dna_samples_covs[sample_id] # old dict (path as key)
         if RNASEQ:
             rna_id_list = sorted(i_rna.keys()) # i_rna: id2path (Thomas trick!?)
             for rna_covs_id in rna_id_list:
@@ -1071,7 +1072,7 @@ def read_map_results(i_dna, i_rna, clade, RNASEQ, VERBOSE):
                     # print('++++' + rna_covs_id)
                     rna_samples_covs[rna_covs_id] = read_gene_cov_file(rna_covs_file) # new dict
                     # rna_samples_covs_path[rna_covs_file] = rna_samples_covs[rna_covs_id]  # old dict (path as key)
-    return dna_samples_covs, dna_samples_covs_path, dna_files_list, rna_samples_covs, rna_id_list
+    return dna_samples_covs, dna_files_list, rna_samples_covs, rna_id_list
 # -----
 def read_gene_cov_file(input_file):
     '''
@@ -1355,7 +1356,7 @@ def main():
 
     # read mapping result files
     if VERBOSE: print('\nSTEP 2. Read mapping results ...')
-    dna_samples_covs, dna_samples_covs_path, dna_files_list, rna_samples_covs, rna_id_list = read_map_results(
+    dna_samples_covs, dna_files_list, rna_samples_covs, rna_id_list = read_map_results(
         args['i_dna'], args['i_rna'], args['clade'], RNASEQ, VERBOSE)
 
     # Presence/absence matrix only of reference genomes, no samples
@@ -1372,11 +1373,11 @@ def main():
     if VERBOSE: print('\nSTEP 3. Merge single gene abundances to gene family coverages')
     # print(dna_files_list)
     # print(dna_samples_covs_path.keys())
-    for sample in dna_samples_covs_path.keys():
+    for sample in dna_samples_covs.keys():
         if VERBOSE: print(' [I] Normalization for DNA sample ' + get_sampleID_from_path(sample, args['clade']) + '...')
-        dna_samples_covs_path[sample] = families_coverages(dna_samples_covs_path[sample], gene2family, gene_lenghts, VERBOSE)
+        dna_samples_covs[sample] = families_coverages(dna_samples_covs[sample], gene2family, gene_lenghts, VERBOSE)
     # convert path-key to sampleID-key (to do: use in all followed function)
-    dna_samples_covs = dict((get_sampleID_from_path(k, args['clade']), v) for (k,v) in dna_samples_covs_path.items())
+    # dna_samples_covs = dict((get_sampleID_from_path(k, args['clade']), v) for (k,v) in dna_samples_covs_path.items())
     
     # Get samples list
     # Print coverages in file
@@ -1417,7 +1418,7 @@ def main():
     # DNA (and RNA) indexing
     if RNASEQ:
         if VERBOSE: print('\nSTEP 8. RNA-seq: Get strain-specific gene transcription profiles')
-        rna_seq(args['o_rna'], sample2family2dnaidx, dna_samples_covs_path, sample2accepted, rna_id_list, rna_samples_covs, args['rna_max_zeros'], args['sample_pairs'], args['i_dna'], args['i_rna'], families, args['np'], args['nan'], args['clade'], args['rna_norm_percentile'], TIME, VERBOSE)
+        rna_seq(args['o_rna'], sample2family2dnaidx, dna_samples_covs, sample2accepted, rna_id_list, rna_samples_covs, args['rna_max_zeros'], args['sample_pairs'], args['i_dna'], args['i_rna'], families, args['np'], args['nan'], args['clade'], args['rna_norm_percentile'], TIME, VERBOSE)
 
     end_program(time.time() - TOTAL_TIME) 
 
