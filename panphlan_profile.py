@@ -78,7 +78,7 @@ FILEFORMAT_ERROR_CODE   =  3 # file of DNA RNA sample pairs
 
 # Strings
 PANPHLAN        = 'panphlan_'
-NO_RNA_FILE_KEY = '# NA #'   # (missing RNA coverage map file, used in 'dna2rna' dict)
+NO_RNA_FILE_KEY = '# Missing RNA sample #'   # (missing RNA coverage map file, used in 'dna2rna' dict)
 INTERRUPTION_MESSAGE    = '[E] Execution has been manually halted.\n'
 
 # Plot's colors
@@ -1167,6 +1167,7 @@ def check_args():
                             print('[W] RNA file corresponding to ID ' + dna2rna[d] + ' has not been found. Analysis for this RNA will be skipped.')
                             rna_id2file[dna2rna[d]] = NO_RNA_FILE_KEY
                             dna2rna[d] = NO_RNA_FILE_KEY
+                            # del dna2rna[d] # remove incomplete dna-rna sample pair (does nor work because we map all dna samples)
                         else:
                             rna_id2file[dna2rna[d]] = rna_path[0]
                     args['sample_pairs'] = dna2rna
