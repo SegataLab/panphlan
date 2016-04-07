@@ -947,20 +947,22 @@ def plot_dna_coverage(sample2accepted, samples_coverages, sample2famcovlist, sam
         print(' [W] "matplotlib" module is not installed.')    
     return False
 # -----------------------------------------------------------------------------
-def print_coverage_matrix(dna_files_list, dna_file2id, dna_samples_covs_path, out_channel, families, clade, TIME, VERBOSE):
+def print_coverage_matrix(dna_files_list, dna_file2id, dna_samples_covs, out_channel, families, clade, TIME, VERBOSE):
     '''
-    TODO
+    Print merged table of gene-family coverage for all samples (option: --o_cov)
     '''
-    dna_sample_ids = sorted([dna_file2id[s] for s in dna_files_list])
+    # dna_sample_ids = sorted([dna_file2id[s] for s in dna_files_list])
+    dna_sample_ids = sorted(dna_samples_covs.keys())
     id2file = dict((v,k) for (k,v) in dna_file2id.items())
     if not out_channel == '':
         with open(out_channel, mode='w') as csv:
             csv.write('\t' + '\t'.join([get_sampleID_from_path(s, clade) for s in dna_sample_ids]) + '\n')
             for f in families:
-                if sum(dna_samples_covs_path[s][f] for s in dna_samples_covs_path) > 0.0:
+                if sum(dna_samples_covs[s][f] for s in dna_samples_covs) > 0.0:
                     csv.write(f)
                     for s in dna_sample_ids:
-                        csv.write('\t' + str(format(dna_samples_covs_path[id2file[s]][f], '.3f')))
+                        # csv.write('\t' + str(format(dna_samples_covs_path[id2file[s]][f], '.3f')))
+                        csv.write('\t' + str(format(dna_samples_covs[s][f], '.3f')))
                     csv.write('\n')
         if VERBOSE:
             TIME = time_message(TIME, 'Gene families coverage matrix has been printed in ' + out_channel + ' -')
@@ -1368,7 +1370,9 @@ def main():
 
     # Merge gene/transcript abundance into family (normalized) coverage
     if VERBOSE: print('\nSTEP 3. Merge single gene abundances to gene family coverages')
-    for sample in dna_files_list:
+    # print(dna_files_list)
+    # print(dna_samples_covs_path.keys())
+    for sample in dna_samples_covs_path.keys():
         if VERBOSE: print(' [I] Normalization for DNA sample ' + get_sampleID_from_path(sample, args['clade']) + '...')
         dna_samples_covs_path[sample] = families_coverages(dna_samples_covs_path[sample], gene2family, gene_lenghts, VERBOSE)
     # convert path-key to sampleID-key (to do: use in all followed function)
@@ -1376,7 +1380,7 @@ def main():
     
     # Get samples list
     # Print coverages in file
-    TIME = print_coverage_matrix(dna_files_list, args['i_dna'], dna_samples_covs_path, args['o_cov'], families, args['clade'], TIME, VERBOSE)
+    TIME = print_coverage_matrix(dna_files_list, args['i_dna'], dna_samples_covs, args['o_cov'], families, args['clade'], TIME, VERBOSE)
     
     #---------------------------------------------------------------------------------------
     # Filter DNA samples according to their median coverage value and plot coverage plateau
