@@ -19,8 +19,8 @@ from __future__ import with_statement
 # ==============================================================================
 
 __author__  = 'Matthias Scholz, Thomas Tolio, Nicola Segata (panphlan-users@googlegroups.com)'
-__version__ = '1.2.0.3'
-__date__    = '5 April 2016'
+__version__ = '1.2.0.4'
+__date__    = '7 April 2016'
 
 # Imports
 from argparse import ArgumentParser
@@ -383,17 +383,16 @@ def rna_seq(out_channel, sample2family2dnaidx, dna_sample2family2cov, dna_accept
 
     sample2family2rna_div_dna = defaultdict(dict)
     rna_samples = []
-    # rna_ids = []
-    dna_accepted_samples = sorted([s for s in dna_accepted_samples if dna_accepted_samples[s]])
+    # dna_sample_list = sorted([s for s in dna_accepted_samples if dna_accepted_samples[s]])
+    # Use only DNA samples that passed the strain detection criteria and to which a RNA sample pair is available 
+    dna_sample_list = sorted([s for s in dna_accepted_samples if dna_accepted_samples[s] and s in dna2rna.keys()])
     
-    for dna_sample in dna_accepted_samples:
+    for dna_sample in dna_sample_list:
         # rna_sample = rna_id2file[dna2rna[dna_file2id[dna_sample]]]
         # rna_sample = rna_id2file[dna2rna[dna_sample]]
-        rna_sample = dna2rna[dna_sample] # <<<<
-        if not rna_sample == NO_RNA_FILE_KEY:
-            rna_samples.append(dna_sample)  
-            # rna_ids.append(dna_file2id[dna_sample])
-            # rna_ids.append(dna_sample)  
+        rna_sample = dna2rna[dna_sample]
+        if not rna_sample == NO_RNA_FILE_KEY: # not needed anymore? (we removed incomplete pairs from dna2rna dict)
+            rna_samples.append(dna_sample) 
             # For each family present in at least one sample, divide RNA coverage for the correlative DNA coverage
             for f in families:
                 dna_cov = dna_sample2family2cov[dna_sample][f]
@@ -1064,9 +1063,13 @@ def read_map_results(i_dna, i_rna, clade, RNASEQ, VERBOSE):
             rna_id_list = sorted(i_rna.keys()) # i_rna: id2path (Thomas trick!?)
             for rna_covs_id in rna_id_list:
                 rna_covs_file = i_rna[rna_covs_id]
+                # print('++++' + rna_covs_id)
+                # print('++++' + rna_covs_file)
                 if not rna_covs_file == NO_RNA_FILE_KEY:
-                    rna_samples_covs_path[rna_covs_file] = read_gene_cov_file(rna_covs_file)
-    return dna_samples_covs, dna_samples_covs_path, dna_files_list, rna_samples_covs, rna_samples_covs_path, rna_id_list
+                    # print('++++' + rna_covs_id)
+                    rna_samples_covs[rna_covs_id] = read_gene_cov_file(rna_covs_file) # new dict
+                    # rna_samples_covs_path[rna_covs_file] = rna_samples_covs[rna_covs_id]  # old dict (path as key)
+    return dna_samples_covs, dna_samples_covs_path, dna_files_list, rna_samples_covs, rna_id_list
 # -----
 def read_gene_cov_file(input_file):
     '''
@@ -1165,9 +1168,10 @@ def check_args():
                         rna_path = find('*' + dna2rna[d] + '*.csv.bz2', irna)
                         if rna_path == []:
                             print('[W] RNA file corresponding to ID ' + dna2rna[d] + ' has not been found. Analysis for this RNA will be skipped.')
-                            rna_id2file[dna2rna[d]] = NO_RNA_FILE_KEY
-                            dna2rna[d] = NO_RNA_FILE_KEY
-                            # del dna2rna[d] # remove incomplete dna-rna sample pair (does nor work because we map all dna samples)
+                            # rna_id2file[dna2rna[d]] = NO_RNA_FILE_KEY # set filename to 'Misssing'
+                             # rna_id2file[NO_RNA_FILE_KEY] = NO_RNA_FILE_KEY # set filename to 'Misssing'
+                            # dna2rna[d] = NO_RNA_FILE_KEY # set dict to 'Missing'
+                            del dna2rna[d] # remove incomplete dna-rna sample pair (RNA missing)
                         else:
                             rna_id2file[dna2rna[d]] = rna_path[0]
                     args['sample_pairs'] = dna2rna
@@ -1349,7 +1353,7 @@ def main():
 
     # read mapping result files
     if VERBOSE: print('\nSTEP 2. Read mapping results ...')
-    dna_samples_covs, dna_samples_covs_path, dna_files_list, rna_samples_covs, rna_samples_covs_path, rna_id_list = read_map_results(
+    dna_samples_covs, dna_samples_covs_path, dna_files_list, rna_samples_covs, rna_id_list = read_map_results(
         args['i_dna'], args['i_rna'], args['clade'], RNASEQ, VERBOSE)
 
     # Presence/absence matrix only of reference genomes, no samples
@@ -1398,23 +1402,18 @@ def main():
             strain2sample2hit, TIME = strains_gene_hit_percentage(ss_presence, genome2families, sample2accepted, args['strain_hit_genes_perc'], args['clade'], TIME, VERBOSE)
 
     # RNA-seq: get RNA gene-family coverage
-    rna_file_list = []
     if RNASEQ:
-        if VERBOSE:
-            print('\nSTEP 6. RNA-seq: Merge single gene transcript abundances to gene-family transcript coverages')
-        for sample_id in rna_id_list:
-            sample = args['i_rna'][sample_id]
+        if VERBOSE: print('\nSTEP 6. RNA-seq: Merge single gene transcript abundances to gene-family transcript coverages')    
+        for sample in rna_id_list:
             if not sample == NO_RNA_FILE_KEY:
-                if VERBOSE:
-                    print('[I] Normalization for RNA sample ' + get_sampleID_from_path(sample, args['clade']) + '...')
-                rna_file_list.append(sample)
-                rna_samples_covs_path[sample] = families_coverages(rna_samples_covs_path[sample], gene2family, gene_lenghts, VERBOSE)
+                if VERBOSE: print('[I] Normalization for RNA sample ' + sample + '...')
+                rna_samples_covs[sample] = families_coverages(rna_samples_covs[sample], gene2family, gene_lenghts, VERBOSE)
 
 
     # DNA (and RNA) indexing
     if RNASEQ:
         if VERBOSE: print('\nSTEP 8. RNA-seq: Get strain-specific gene transcription profiles')
-        rna_seq(args['o_rna'], sample2family2dnaidx, dna_samples_covs_path, sample2accepted, rna_id_list, rna_samples_covs_path, args['rna_max_zeros'], args['sample_pairs'], args['i_dna'], args['i_rna'], families, args['np'], args['nan'], args['clade'], args['rna_norm_percentile'], TIME, VERBOSE)
+        rna_seq(args['o_rna'], sample2family2dnaidx, dna_samples_covs_path, sample2accepted, rna_id_list, rna_samples_covs, args['rna_max_zeros'], args['sample_pairs'], args['i_dna'], args['i_rna'], families, args['np'], args['nan'], args['clade'], args['rna_norm_percentile'], TIME, VERBOSE)
 
     end_program(time.time() - TOTAL_TIME) 
 
