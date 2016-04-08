@@ -350,7 +350,7 @@ def get_samples_panfamilies(families, sample2family2presence, TIME, VERBOSE):
         TIME = time_message(TIME, 'Extracted ' + str(len(panfamilies)) + ' gene families present in the samples.')
     return TIME, sorted(panfamilies)
 # -----------------------------------------------------------------------------
-def rna_seq(out_channel, sample2family2dnaidx, dna_sample2family2cov, dna_accepted_samples, rna_sample2family2cov, rna_max_zeroes, dna2rna, dna_file2id, rna_id2file, families, np_symbol, nan_symbol, clade, rna_norm_percentile, TIME, VERBOSE):
+def rna_seq(out_channel, sample2family2dnaidx, dna_sample2family2cov, dna_accepted_samples, rna_sample2family2cov, rna_max_zeroes, dna2rna, families, np_symbol, nan_symbol, rna_norm_percentile, TIME, VERBOSE):
     '''
     DESCRIPTION
         1.  convert DNA samples to get (1,-1,-2,-3) DNA index matrix and DNA coverage values
@@ -468,10 +468,9 @@ def rna_seq(out_channel, sample2family2dnaidx, dna_sample2family2cov, dna_accept
 
     # Print
     rnaseq_accepted_samples.sort()
-    rnaseq_accepted_ids = [get_sampleID_from_path(s, clade) for s in rnaseq_accepted_samples]
     if not out_channel == '':
         with open(out_channel, mode='w') as csv:
-            csv.write('\t' + '\t'.join(rnaseq_accepted_ids) + '\n')
+            csv.write('\t' + '\t'.join(rnaseq_accepted_samples) + '\n')
             for f in families:
                 # Skip the never present gene families
                 all_null = True
@@ -1050,34 +1049,38 @@ def read_map_results(i_dna, i_rna, clade, RNASEQ, VERBOSE):
     Read results from panphlan_map.py
     
     to do:
-     i_dna and i_rna could keep only the path, not converted id's, convert only here.
+     ['i_dna'] and ['i_rna'] could keep only the path, not extracted id's, if ['i_xna'] is used only here.
     '''
     dna_samples_covs = {} # new: sampleID as key
-    dna_samples_covs_path = {} # old Thomas version, path as key
+    # dna_samples_covs_path = {} # old Thomas version, path as key
     rna_samples_covs = {} # new: sampleID as key
-    rna_samples_covs_path = {} # old Thomas version, path as key
-    dna_files_list = []
-    rna_id_list    = []
+    # rna_samples_covs_path = {} # old Thomas version, path as key
+    # dna_files_list = []
+    # rna_id_list    = []
     if not i_dna == None:
         dna_files_list = sorted(i_dna.keys())
         for dna_covs_file in dna_files_list: # i_dna: path2id
-            sample_id = get_sampleID_from_path(dna_covs_file, clade)
-            dna_samples_covs[sample_id] = read_gene_cov_file(dna_covs_file) # new dict
+            dna_sample_id = get_sampleID_from_path(dna_covs_file, clade)
+            dna_samples_covs[dna_sample_id] = read_gene_cov_file(dna_covs_file) # new dict
             # dna_samples_covs_path[dna_covs_file] = dna_samples_covs[sample_id] # old dict (path as key)
         if RNASEQ:
-            rna_id_list = sorted(i_rna.keys()) # i_rna: id2path (Thomas trick!?)
-            for rna_covs_id in rna_id_list:
-                rna_covs_file = i_rna[rna_covs_id]
+            # rna_id_list = sorted(i_rna.keys()) # i_rna: id2path (Thomas trick!?)
+            rna_files_list = sorted([val for key, val in i_rna.items()]) # i_rna: id2path (Thomas trick!?)
+            # for rna_covs_id in rna_id_list:
+            for rna_covs_file in rna_files_list:
+                rna_sample_id = get_sampleID_from_path(rna_covs_file, clade)
+                # rna_covs_file = i_rna[rna_covs_id]
                 # print('++++' + rna_covs_id)
                 # print('++++' + rna_covs_file)
-                # if not rna_covs_file == NO_RNA_FILE_KEY:    
-                rna_samples_covs[rna_covs_id] = read_gene_cov_file(rna_covs_file) # new dict
+                # if not rna_covs_file == NO_RNA_FILE_KEY:
+                rna_samples_covs[rna_sample_id] = read_gene_cov_file(rna_covs_file) # new dict
+                # rna_samples_covs[rna_covs_id] = read_gene_cov_file(rna_covs_file) # new dict
                 # rna_samples_covs_path[rna_covs_file] = rna_samples_covs[rna_covs_id]  # old dict (path as key)
     return dna_samples_covs, rna_samples_covs
 # -----
 def read_gene_cov_file(input_file):
     '''
-    Put the information contained in a file into a dictionary data structure
+    Convert coverage mapping file into a dictionary data structure
     '''
     import bz2
     d = {}
@@ -1372,20 +1375,21 @@ def main():
     # Merge gene/transcript abundance into family (normalized) coverage
     if VERBOSE: print('\nSTEP 3. Merge single gene abundances to gene family coverages')
     for sample in sorted(dna_samples_covs.keys()):
-        if VERBOSE: print(' [I] Normalization for DNA sample ' + get_sampleID_from_path(sample, args['clade']) + '...')
+        if VERBOSE: print(' [I] Normalization for DNA sample ' + sample + '...')
         dna_samples_covs[sample] = get_genefamily_coverages(dna_samples_covs[sample], gene2family, gene_lenghts, VERBOSE)
     print_coverage_matrix(dna_samples_covs, args['o_cov'], families, TIME, VERBOSE)
     
     
     #---------------------------------------------------------------------------------------
-    # Filter DNA samples according to their median coverage value and plot coverage plateau
+    # DNA coverage plateau filter
     if VERBOSE: print('\nSTEP 4: Strain presence/absence filter based on coverage plateau curve...')
     sample2accepted, accepted_samples, norm_dna_samples_covs, sample2famcovlist, sample2color, median_normalized_covs, sample2median, sample_stats = strain_presence_plateau_filter(
         dna_samples_covs, num_ref_genomes, avg_genome_length, args['min_coverage'], args['left_max'], args['right_min'], families, TIME, VERBOSE)
     if args['o_covplot'] or args['o_covplot_normed']:
-        plot_dna_coverage(sample2accepted, norm_dna_samples_covs, sample2famcovlist, sample2color, median_normalized_covs, avg_genome_length, args['o_covplot'], args['o_covplot_normed'], INTERACTIVE, TIME, VERBOSE)
+        plot_dna_coverage(sample2accepted, norm_dna_samples_covs, sample2famcovlist, sample2color, median_normalized_covs,
+                          avg_genome_length, args['o_covplot'], args['o_covplot_normed'], INTERACTIVE, TIME, VERBOSE)
 
-    # DNA indexing
+    # DNA 1,-1,-2,-3 indexing
     if VERBOSE: print('\nSTEP 5a: Define strain-specific, multicopy and non-present gene-families (1,-1,-2,-3 matrix, option --o_idx)')
     sample2family2dnaidx, TIME = get_idx123_plateau_definitions(
         accepted_samples, norm_dna_samples_covs, args['th_zero'], args['th_present'], args['th_multicopy'], args['o_idx'], families, TIME, VERBOSE)
@@ -1411,8 +1415,8 @@ def main():
         # DNA (and RNA) indexing
         if VERBOSE: print('\nSTEP 7. RNA-seq: Get strain-specific gene transcription profiles')
         rna_seq(args['o_rna'], sample2family2dnaidx, dna_samples_covs, sample2accepted, rna_samples_covs,
-                args['rna_max_zeros'], args['sample_pairs'], args['i_dna'], args['i_rna'], families,
-                args['np'], args['nan'], args['clade'], args['rna_norm_percentile'], TIME, VERBOSE)
+                args['rna_max_zeros'], args['sample_pairs'], families, args['np'], args['nan'],
+                args['rna_norm_percentile'], TIME, VERBOSE)
 
 
     end_program(time.time() - TOTAL_TIME) 
