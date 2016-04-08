@@ -78,7 +78,7 @@ FILEFORMAT_ERROR_CODE   =  3 # file of DNA RNA sample pairs
 
 # Strings
 PANPHLAN        = 'panphlan_'
-NO_RNA_FILE_KEY = '# Missing RNA sample #'   # (missing RNA coverage map file, used in 'dna2rna' dict)
+# NO_RNA_FILE_KEY = '# Missing RNA sample #'   # (missing RNA coverage map file, used in 'dna2rna' dict)
 INTERRUPTION_MESSAGE    = '[E] Execution has been manually halted.\n'
 
 # Plot's colors
@@ -94,6 +94,8 @@ PLOT_COLORS = [
         '#20b2aa', '#4682b4', '#4169e1', '#ffdead', '#f4a460',
         '#d2691e', '#a52a2a', '#a0522d', '#b8860b', '#000000']
 COLOR_GREY  = '#c0c0c0'
+
+TIME = 0 # define TIME globally
 
 # ------------------------------------------------------------------------------
 # INTERNAL CLASSES
@@ -348,7 +350,7 @@ def get_samples_panfamilies(families, sample2family2presence, TIME, VERBOSE):
         TIME = time_message(TIME, 'Extracted ' + str(len(panfamilies)) + ' gene families present in the samples.')
     return TIME, sorted(panfamilies)
 # -----------------------------------------------------------------------------
-def rna_seq(out_channel, sample2family2dnaidx, dna_sample2family2cov, dna_accepted_samples, rna_samples_list, rna_sample2family2cov, rna_max_zeroes, dna2rna, dna_file2id, rna_id2file, families, np_symbol, nan_symbol, clade, rna_norm_percentile, TIME, VERBOSE):
+def rna_seq(out_channel, sample2family2dnaidx, dna_sample2family2cov, dna_accepted_samples, rna_sample2family2cov, rna_max_zeroes, dna2rna, dna_file2id, rna_id2file, families, np_symbol, nan_symbol, clade, rna_norm_percentile, TIME, VERBOSE):
     '''
     DESCRIPTION
         1.  convert DNA samples to get (1,-1,-2,-3) DNA index matrix and DNA coverage values
@@ -378,32 +380,31 @@ def rna_seq(out_channel, sample2family2dnaidx, dna_sample2family2cov, dna_accept
     # Data from Step 2 are given in input (rna_samples_covs_path)    
 
     # convert path to sample-key
-    dna_sample2family2cov = dict((get_sampleID_from_path(k, clade), v) for (k,v) in dna_sample2family2cov.items())
-    rna_sample2family2cov = dict((get_sampleID_from_path(k, clade), v) for (k,v) in rna_sample2family2cov.items())
+    # dna_sample2family2cov = dict((get_sampleID_from_path(k, clade), v) for (k,v) in dna_sample2family2cov.items())
+    # rna_sample2family2cov = dict((get_sampleID_from_path(k, clade), v) for (k,v) in rna_sample2family2cov.items())
 
     sample2family2rna_div_dna = defaultdict(dict)
     rna_samples = []
-    # dna_sample_list = sorted([s for s in dna_accepted_samples if dna_accepted_samples[s]])
+    # old: dna_sample_list = sorted([s for s in dna_accepted_samples if dna_accepted_samples[s]])
     # Use only DNA samples that passed the strain detection criteria and to which a RNA sample pair is available 
     dna_sample_list = sorted([s for s in dna_accepted_samples if dna_accepted_samples[s] and s in dna2rna.keys()])
     
     for dna_sample in dna_sample_list:
         # rna_sample = rna_id2file[dna2rna[dna_file2id[dna_sample]]]
-        # rna_sample = rna_id2file[dna2rna[dna_sample]]
         rna_sample = dna2rna[dna_sample]
-        if not rna_sample == NO_RNA_FILE_KEY: # not needed anymore? (we removed incomplete pairs from dna2rna dict)
-            rna_samples.append(dna_sample) 
-            # For each family present in at least one sample, divide RNA coverage for the correlative DNA coverage
-            for f in families:
-                dna_cov = dna_sample2family2cov[dna_sample][f]
-                if dna_cov == 0.0: # We avoid a division by zero :)
-                    sample2family2rna_div_dna[dna_sample][f] = 0.0
-                else:
-                    rna_cov = rna_sample2family2cov[rna_sample][f]
-                    sample2family2rna_div_dna[dna_sample][f] = rna_cov / dna_cov
+        # if not rna_sample == NO_RNA_FILE_KEY: # not needed anymore? (we removed incomplete pairs from dna2rna dict)
+        rna_samples.append(dna_sample) 
+        # For each family present in at least one sample, divide RNA coverage for the correlative DNA coverage
+        for f in families:
+            dna_cov = dna_sample2family2cov[dna_sample][f]
+            if dna_cov == 0.0: # We avoid a division by zero :)
+                sample2family2rna_div_dna[dna_sample][f] = 0.0
+            else:
+                rna_cov = rna_sample2family2cov[rna_sample][f]
+                sample2family2rna_div_dna[dna_sample][f] = rna_cov / dna_cov
                     
     # Reverse dictionaries
-    rna2dna = dict((v,k) for (k,v) in dna2rna.items())
+    # rna2dna = dict((v,k) for (k,v) in dna2rna.items())
     # rna_file2id = dict((v,k) for (k,v) in rna_id2file.items())  # not used ? 
     # dna_id2file = dict((v,k) for (k,v) in dna_file2id.items())  # not used ? 
 
@@ -424,7 +425,7 @@ def rna_seq(out_channel, sample2family2dnaidx, dna_sample2family2cov, dna_accept
         median[dna_sample] = numpy.percentile(plateau_rna_div_dna, rna_norm_percentile) # default: 50
 
         if VERBOSE:
-            print('[I] Median of plateau gene families RNA/DNA values: ' + str(median[dna_sample]))
+            print(' [I] Median of plateau gene families RNA/DNA values: ' + str(median[dna_sample]))
         
         for f in families:
             # If the family is in the plateau, calculate median normalized RNA/DNA value
@@ -448,12 +449,12 @@ def rna_seq(out_channel, sample2family2dnaidx, dna_sample2family2cov, dna_accept
     for s in sample2zeroes:
         perc = sample2zeroes[s] * 100.0
         if VERBOSE:
-            print('[I] Percentage of zero values for sample ' + s + ': ' + str(perc) + '%')
+            print(' [I] Percentage of zero values for sample ' + s + ': ' + str(perc) + '%')
         if perc <= rna_max_zeroes:
             rnaseq_accepted_samples.append(s)
-            print('    Sample is accepted.')
+            print('     Sample is accepted.')
         else:
-            print('    Sample is rejected.')
+            print('     Sample is rejected.')
 
     # Log nomalization
     sample2family2log_norm = defaultdict(dict)
@@ -705,7 +706,7 @@ def get_idx123_plateau_definitions(accepted_samples, sample2family2normcov, min_
     accepted_ids = sorted(accepted_samples)
     
     for sample in accepted_samples:
-        if VERBOSE: print(' [I] Get DNA -1,1,2,3 levels for sample ' + sample)
+        if VERBOSE: print(' [I] Get DNA 1,-1,-2,-3 levels for sample ' + sample)
         for family in families:
             sample2family2dnaidx[sample][family] = index_of(min_thresh, med_thresh, max_thresh, sample2family2normcov[sample][family])
 
@@ -947,14 +948,15 @@ def plot_dna_coverage(sample2accepted, samples_coverages, sample2famcovlist, sam
         print(' [W] "matplotlib" module is not installed.')    
     return False
 # -----------------------------------------------------------------------------
-def print_coverage_matrix(dna_files_list, dna_file2id, dna_samples_covs, out_channel, families, clade, TIME, VERBOSE):
+def print_coverage_matrix(dna_samples_covs, out_channel, families, TIME, VERBOSE):
     '''
     Print merged table of gene-family coverage for all samples (option: --o_cov)
     '''
     # dna_sample_ids = sorted([dna_file2id[s] for s in dna_files_list])
     dna_sample_ids = sorted(dna_samples_covs.keys())
-    id2file = dict((v,k) for (k,v) in dna_file2id.items())
+    # id2file = dict((v,k) for (k,v) in dna_file2id.items())
     if not out_channel == '':
+        if VERBOSE: print(' [I] Print coverage matrix (option: --o_cov)')
         with open(out_channel, mode='w') as csv:
             # csv.write('\t' + '\t'.join([get_sampleID_from_path(s, clade) for s in dna_sample_ids]) + '\n')
             csv.write('\t' + '\t'.join(dna_sample_ids) + '\n')
@@ -969,11 +971,11 @@ def print_coverage_matrix(dna_files_list, dna_file2id, dna_samples_covs, out_cha
             TIME = time_message(TIME, 'Gene families coverage matrix has been printed in ' + out_channel + ' -')
     return TIME
 # -----------------------------------------------------------------------------
-def families_coverages(gene2cov, gene2family, lengths, VERBOSE):
+def get_genefamily_coverages(gene2cov, gene2family, lengths, VERBOSE):
     '''
-    Compute the gene families coverages clustering the genes coverages
+    Sum single gene coverage to gene-families coverages based on pangenome clustering
     '''
-    # fami_covs = { GENE FAMILY : ( SUM OF FAMILY'S GENE UNNORMALIZED COVERAGES , [ GENE'S LENGTH ] ) }
+    # family2cov = { GENE FAMILY : ( SUM OF FAMILY'S GENE UNNORMALIZED COVERAGES , [ GENE'S LENGTH ] ) }
     family2cov = defaultdict(list)
 
     for g in gene2family:
@@ -1068,11 +1070,10 @@ def read_map_results(i_dna, i_rna, clade, RNASEQ, VERBOSE):
                 rna_covs_file = i_rna[rna_covs_id]
                 # print('++++' + rna_covs_id)
                 # print('++++' + rna_covs_file)
-                if not rna_covs_file == NO_RNA_FILE_KEY:
-                    # print('++++' + rna_covs_id)
-                    rna_samples_covs[rna_covs_id] = read_gene_cov_file(rna_covs_file) # new dict
-                    # rna_samples_covs_path[rna_covs_file] = rna_samples_covs[rna_covs_id]  # old dict (path as key)
-    return dna_samples_covs, dna_files_list, rna_samples_covs, rna_id_list
+                # if not rna_covs_file == NO_RNA_FILE_KEY:    
+                rna_samples_covs[rna_covs_id] = read_gene_cov_file(rna_covs_file) # new dict
+                # rna_samples_covs_path[rna_covs_file] = rna_samples_covs[rna_covs_id]  # old dict (path as key)
+    return dna_samples_covs, rna_samples_covs
 # -----
 def read_gene_cov_file(input_file):
     '''
@@ -1356,42 +1357,36 @@ def main():
 
     # read mapping result files
     if VERBOSE: print('\nSTEP 2. Read mapping results ...')
-    dna_samples_covs, dna_files_list, rna_samples_covs, rna_id_list = read_map_results(
-        args['i_dna'], args['i_rna'], args['clade'], RNASEQ, VERBOSE)
+    dna_samples_covs, rna_samples_covs = read_map_results(args['i_dna'], args['i_rna'], args['clade'], RNASEQ, VERBOSE)
 
-    # Presence/absence matrix only of reference genomes, no samples
+    # Presence/absence matrix of reference genomes without samples
     if ADD_STRAINS or args['strain_hit_genes_perc'] != '':
-        if VERBOSE: print('\nSTEP 3a. Extracting reference genomes gene repertoire...')
+        if VERBOSE: print('\nSTEP 3a. Get genes present in reference genomes...')
         TIME, strain2family2presence = build_strain2family2presence(ref_genomes, families, genome2families, TIME, VERBOSE)
         if ADD_STRAINS and args['i_dna'] == None:
-            if VERBOSE: print('\nSTEP 3b. Printing presence/absence binary matrix only for reference genomes...')
+            if VERBOSE: print('\nSTEP 3b. Print presence/absence binary matrix only for reference genomes...')
             TIME = print_presence_absence_profiles(ref_genomes, strain2family2presence, families, args['o_dna'], TIME, VERBOSE)
             end_program(time.time() - TOTAL_TIME)
             sys.exit(0) 
 
     # Merge gene/transcript abundance into family (normalized) coverage
     if VERBOSE: print('\nSTEP 3. Merge single gene abundances to gene family coverages')
-    # print(dna_files_list)
-    # print(dna_samples_covs_path.keys())
-    for sample in dna_samples_covs.keys():
+    for sample in sorted(dna_samples_covs.keys()):
         if VERBOSE: print(' [I] Normalization for DNA sample ' + get_sampleID_from_path(sample, args['clade']) + '...')
-        dna_samples_covs[sample] = families_coverages(dna_samples_covs[sample], gene2family, gene_lenghts, VERBOSE)
-    # convert path-key to sampleID-key (to do: use in all followed function)
-    # dna_samples_covs = dict((get_sampleID_from_path(k, args['clade']), v) for (k,v) in dna_samples_covs_path.items())
+        dna_samples_covs[sample] = get_genefamily_coverages(dna_samples_covs[sample], gene2family, gene_lenghts, VERBOSE)
+    print_coverage_matrix(dna_samples_covs, args['o_cov'], families, TIME, VERBOSE)
     
-    # Get samples list
-    # Print coverages in file
-    TIME = print_coverage_matrix(dna_files_list, args['i_dna'], dna_samples_covs, args['o_cov'], families, args['clade'], TIME, VERBOSE)
     
     #---------------------------------------------------------------------------------------
     # Filter DNA samples according to their median coverage value and plot coverage plateau
     if VERBOSE: print('\nSTEP 4: Strain presence/absence filter based on coverage plateau curve...')
     sample2accepted, accepted_samples, norm_dna_samples_covs, sample2famcovlist, sample2color, median_normalized_covs, sample2median, sample_stats = strain_presence_plateau_filter(
         dna_samples_covs, num_ref_genomes, avg_genome_length, args['min_coverage'], args['left_max'], args['right_min'], families, TIME, VERBOSE)
-    result = plot_dna_coverage(sample2accepted, norm_dna_samples_covs, sample2famcovlist, sample2color, median_normalized_covs, avg_genome_length, args['o_covplot'], args['o_covplot_normed'], INTERACTIVE, TIME, VERBOSE)
+    if args['o_covplot'] or args['o_covplot_normed']:
+        plot_dna_coverage(sample2accepted, norm_dna_samples_covs, sample2famcovlist, sample2color, median_normalized_covs, avg_genome_length, args['o_covplot'], args['o_covplot_normed'], INTERACTIVE, TIME, VERBOSE)
 
     # DNA indexing
-    if VERBOSE: print('\nSTEP 5a: Define multicopy, strain-specific, and non-present gene-families (1,-1,-2,-3 matrix, option --o_idx)')
+    if VERBOSE: print('\nSTEP 5a: Define strain-specific, multicopy and non-present gene-families (1,-1,-2,-3 matrix, option --o_idx)')
     sample2family2dnaidx, TIME = get_idx123_plateau_definitions(
         accepted_samples, norm_dna_samples_covs, args['th_zero'], args['th_present'], args['th_multicopy'], args['o_idx'], families, TIME, VERBOSE)
     if VERBOSE: print('\nSTEP 5b: Get presence/absence of gene-families (1,-1 matrix, option --o_dna)')
@@ -1406,19 +1401,19 @@ def main():
             if VERBOSE: print('\nSTEP 5d: Get percent of sample-strain gene-families present in reference-genomes (option --strain_hit_genes_perc)')
             strain2sample2hit, TIME = strains_gene_hit_percentage(ss_presence, genome2families, sample2accepted, args['strain_hit_genes_perc'], args['clade'], TIME, VERBOSE)
 
-    # RNA-seq: get RNA gene-family coverage
     if RNASEQ:
         if VERBOSE: print('\nSTEP 6. RNA-seq: Merge single gene transcript abundances to gene-family transcript coverages')    
-        for sample in rna_id_list:
-            if not sample == NO_RNA_FILE_KEY:
-                if VERBOSE: print('[I] Normalization for RNA sample ' + sample + '...')
-                rna_samples_covs[sample] = families_coverages(rna_samples_covs[sample], gene2family, gene_lenghts, VERBOSE)
+        # for sample in rna_id_list:
+        for sample in sorted(rna_samples_covs.keys()):    
+            # if not sample == NO_RNA_FILE_KEY:
+            if VERBOSE: print(' [I] Normalization for RNA sample ' + sample + '...')
+            rna_samples_covs[sample] = get_genefamily_coverages(rna_samples_covs[sample], gene2family, gene_lenghts, VERBOSE)
+        # DNA (and RNA) indexing
+        if VERBOSE: print('\nSTEP 7. RNA-seq: Get strain-specific gene transcription profiles')
+        rna_seq(args['o_rna'], sample2family2dnaidx, dna_samples_covs, sample2accepted, rna_samples_covs,
+                args['rna_max_zeros'], args['sample_pairs'], args['i_dna'], args['i_rna'], families,
+                args['np'], args['nan'], args['clade'], args['rna_norm_percentile'], TIME, VERBOSE)
 
-
-    # DNA (and RNA) indexing
-    if RNASEQ:
-        if VERBOSE: print('\nSTEP 8. RNA-seq: Get strain-specific gene transcription profiles')
-        rna_seq(args['o_rna'], sample2family2dnaidx, dna_samples_covs, sample2accepted, rna_id_list, rna_samples_covs, args['rna_max_zeros'], args['sample_pairs'], args['i_dna'], args['i_rna'], families, args['np'], args['nan'], args['clade'], args['rna_norm_percentile'], TIME, VERBOSE)
 
     end_program(time.time() - TOTAL_TIME) 
 
