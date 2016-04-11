@@ -1,7 +1,5 @@
 #!/usr/bin/env python
-
-from __future__ import with_statement 
-
+#
 # ==============================================================================
 # PanPhlAn v1.2: PANgenome-based PHyLogenomic ANalysis
 #                for detecting and characterizing strains in metagenomic samples
@@ -18,16 +16,13 @@ from __future__ import with_statement
 # https://bitbucket.org/CibioCM/panphlan
 # ==============================================================================
 
-__author__  = 'Matthias Scholz, Thomas Tolio, Nicola Segata (panphlan-users@googlegroups.com)'
-__version__ = '1.2.0.4'
-__date__    = '7 April 2016'
-
-# Imports
+from __future__ import with_statement 
 from argparse import ArgumentParser
 from collections import defaultdict
 from random import randint
 # from math import round 
 import fnmatch, operator, os, subprocess, sys, time
+import bz2
 
 try:
     import numpy
@@ -36,6 +31,9 @@ except ImportError as err:
     print('\n[E] Please install the numpy module of Python\n')
     sys.exit(2)
 
+__author__  = 'Matthias Scholz, Thomas Tolio, Nicola Segata (panphlan-users@googlegroups.com)'
+__version__ = '1.2.0.5'
+__date__    = '11 April 2016'
 
 # Pangenome CSV file constants
 FAMILY_INDEX    = 0
@@ -129,6 +127,7 @@ class PanPhlAnJoinParser(ArgumentParser):
         self.add_argument('--o_idx',                    metavar='DNA_INDEX_FILE',               type=str,                                   help='Write gene-family plateau definitions (1, -1, -2, -3)')
         self.add_argument('--o_rna',                    metavar='RNA_EXPRS_FILE',               type=str,                                   help='Write normalized gene-family transcription values (RNA-seq).')
         self.add_argument('--strain_hit_genes_perc',    metavar='GENEHIT_PERC_PER_STRAIN',      type=str,                                   help='Write overlap of gene-families between samples-strains and reference genomes.')
+        self.add_argument('--i_cov',                    metavar='INPUT_COV_MATRIX',             type=str,   default='',                     help='Read coverage matrix (option --o_cov) for re-analysis using other thresholds')
         self.add_argument('--add_strains',              action='store_true',                                                                help='Add reference genomes to gene-family presence/absence matrix.')
         self.add_argument('--interactive',              action='store_true',                                                                help='Plot coverage curves to screen, and not to a file.')
         self.add_argument('--verbose',                  action='store_true',                                                                help='Display progress information.')
@@ -1082,7 +1081,6 @@ def read_gene_cov_file(input_file):
     '''
     Convert coverage mapping file into a dictionary data structure
     '''
-    import bz2
     d = {}
     f = bz2.BZ2File(input_file, mode='r')
     for line in f:
@@ -1091,6 +1089,34 @@ def read_gene_cov_file(input_file):
         d[gene] = coverage
     f.close()
     return d
+# -----------------------------------------------------------------------------
+def read_coverage_matrix(cov_matrix_file):
+    '''
+    Read coverage matrix (option --o_cov) for re-analysis using other thresholds 
+    '''
+    sample2family2cov = defaultdict(dict)
+    familyset = set()
+
+    if not os.path.exists(cov_matrix_file):
+        sys.exit('\nERROR: Could not find --i_cov input file: ' + cov_matrix_file)
+
+    with open(cov_matrix_file, mode='r') as cov_file:
+        samplelist=cov_file.readline().strip().split('\t') # get headerline
+        for i,line in enumerate(cov_file):
+            cols = line.strip().split('\t')
+            genefamilyID=cols[0]
+            familyset.add(genefamilyID)
+            coverage_values=cols[1:]
+            if not len(samplelist)==len(coverage_values):
+                print('[E] ERROR while reading --i_cov: coverage lines does not fit number of sampleIDs in headerline')
+            for sample,covstr in zip(samplelist,coverage_values):
+                try:
+                    cov=float(covstr)
+                except ValueError:
+                    print('[E] ERROR while reading --i_cov: Could not convert coverage value "'+ covstr +'" to number, line:' + str(i))
+                sample2family2cov[sample][genefamilyID]=cov
+        familylist=sorted(list(familyset))
+    return sample2family2cov, familylist   
 # -----------------------------------------------------------------------------
 def check_args():
     '''
@@ -1356,10 +1382,12 @@ def main():
 
     # Create pangenome dicts: gene->family, genome->families, gene->length
     if VERBOSE: print('\nSTEP 1. Read pangenome data...')
+    # if not num_genomes and not avg_genome_length
     gene_lenghts, gene2family, families, num_ref_genomes, avg_genome_length, genome2families, ref_genomes = read_pangenome(args['clade'], VERBOSE)
 
     # read mapping result files
     if VERBOSE: print('\nSTEP 2. Read mapping results ...')
+    # if not --i_cov
     dna_samples_covs, rna_samples_covs = read_map_results(args['i_dna'], args['i_rna'], args['clade'], RNASEQ, VERBOSE)
 
     # Presence/absence matrix of reference genomes without samples
@@ -1379,7 +1407,10 @@ def main():
         dna_samples_covs[sample] = get_genefamily_coverages(dna_samples_covs[sample], gene2family, gene_lenghts, VERBOSE)
     print_coverage_matrix(dna_samples_covs, args['o_cov'], families, TIME, VERBOSE)
     
-    
+    if args['i_cov'] != '':
+        if VERBOSE: print('\nSTEP 2 and 3. Read coverage matrix instead of single coverage files')
+        dna_samples_covs, families = read_coverage_matrix(args['i_cov'])
+        
     #---------------------------------------------------------------------------------------
     # DNA coverage plateau filter
     if VERBOSE: print('\nSTEP 4: Strain presence/absence filter based on coverage plateau curve...')
