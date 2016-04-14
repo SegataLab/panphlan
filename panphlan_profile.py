@@ -32,8 +32,8 @@ except ImportError as err:
     sys.exit(2)
 
 __author__  = 'Matthias Scholz, Thomas Tolio, Nicola Segata (panphlan-users@googlegroups.com)'
-__version__ = '1.2.0.5'
-__date__    = '11 April 2016'
+__version__ = '1.2.0.6'
+__date__    = '14 April 2016'
 
 # Pangenome CSV file constants
 FAMILY_INDEX    = 0
@@ -127,7 +127,9 @@ class PanPhlAnJoinParser(ArgumentParser):
         self.add_argument('--o_idx',                    metavar='DNA_INDEX_FILE',               type=str,                                   help='Write gene-family plateau definitions (1, -1, -2, -3)')
         self.add_argument('--o_rna',                    metavar='RNA_EXPRS_FILE',               type=str,                                   help='Write normalized gene-family transcription values (RNA-seq).')
         self.add_argument('--strain_hit_genes_perc',    metavar='GENEHIT_PERC_PER_STRAIN',      type=str,                                   help='Write overlap of gene-families between samples-strains and reference genomes.')
-        self.add_argument('--i_cov',                    metavar='INPUT_COV_MATRIX',             type=str,   default='',                     help='Read coverage matrix (option --o_cov) for re-analysis using other thresholds')
+        self.add_argument('--i_cov',                    metavar='INPUT_COV_MATRIX',             type=str,   default=None,                     help='Read coverage matrix (option --o_cov) for re-analysis using other thresholds')
+        self.add_argument('--num_genomes',            metavar='INPUT_COV_GENOMES',            type=str,   default=None,                     help='In addition to option --o_cov: number of reference genomes')
+        self.add_argument('--genome_avg_length',      metavar='INPUT_COV_LENGTH',             type=str,   default=None,                     help='In addition to option --o_cov: average number of gene-families')
         self.add_argument('--add_strains',              action='store_true',                                                                help='Add reference genomes to gene-family presence/absence matrix.')
         self.add_argument('--interactive',              action='store_true',                                                                help='Plot coverage curves to screen, and not to a file.')
         self.add_argument('--verbose',                  action='store_true',                                                                help='Display progress information.')
@@ -494,10 +496,8 @@ def rna_seq(out_channel, sample2family2dnaidx, dna_sample2family2cov, dna_accept
 # ------------------------------------------------------------------------------
 def strains_gene_hit_percentage(ss_presence, genome2families, accepted_samples, out_channel, clade, TIME, VERBOSE):
     '''
-    TODO
+    Get overlap (in percent) of gene-families between samples-strains and reference genomes
     '''
-    # NB. File's lines must match this pattern: STRAIN z list_of(x's)
-    #     where x = percentage, z = total number of gene families in the strain
     # ss_presence = { STRAIN or SAMPLE : { GENE FAMILY : PRESENCE } }
     strain2sample2hit = {}
     ref_genomes = sorted(genome2families.keys())
@@ -1090,7 +1090,7 @@ def read_gene_cov_file(input_file):
     f.close()
     return d
 # -----------------------------------------------------------------------------
-def read_coverage_matrix(cov_matrix_file):
+def read_coverage_matrix(cov_matrix_file, num_ref_genomes, avg_genome_length):
     '''
     Read coverage matrix (option --o_cov) for re-analysis using other thresholds 
     '''
@@ -1116,7 +1116,9 @@ def read_coverage_matrix(cov_matrix_file):
                     print('[E] ERROR while reading --i_cov: Could not convert coverage value "'+ covstr +'" to number, line:' + str(i))
                 sample2family2cov[sample][genefamilyID]=cov
         familylist=sorted(list(familyset))
-    return sample2family2cov, familylist   
+    # to do: check: num_ref_genomes, avg_genome_length
+    # if not args['num_genomes'] and not args['genome_avg_length']:
+    return sample2family2cov, familylist, num_ref_genomes, avg_genome_length  
 # -----------------------------------------------------------------------------
 def check_args():
     '''
@@ -1381,17 +1383,20 @@ def main():
     RNASEQ      = True if args['sample_pairs'] else False
 
     # Create pangenome dicts: gene->family, genome->families, gene->length
-    if VERBOSE: print('\nSTEP 1. Read pangenome data...')
-    # if not num_genomes and not avg_genome_length
-    gene_lenghts, gene2family, families, num_ref_genomes, avg_genome_length, genome2families, ref_genomes = read_pangenome(args['clade'], VERBOSE)
+    if args['clade']:
+        if VERBOSE: print('\nSTEP 1. Read pangenome data...')
+        gene_lenghts, gene2family, families, num_ref_genomes, avg_genome_length, genome2families, ref_genomes = read_pangenome(args['clade'], VERBOSE)
+    else:
+        num_ref_genomes  =args['num_genomes']
+        avg_genome_length=args['genome_avg_length']
 
     # read mapping result files
-    if VERBOSE: print('\nSTEP 2. Read mapping results ...')
-    # if not --i_cov
-    dna_samples_covs, rna_samples_covs = read_map_results(args['i_dna'], args['i_rna'], args['clade'], RNASEQ, VERBOSE)
+    if not args['i_cov']:
+        if VERBOSE: print('\nSTEP 2. Read mapping results ...')
+        dna_samples_covs, rna_samples_covs = read_map_results(args['i_dna'], args['i_rna'], args['clade'], RNASEQ, VERBOSE)
 
     # Presence/absence matrix of reference genomes without samples
-    if ADD_STRAINS or args['strain_hit_genes_perc'] != '':
+    if (ADD_STRAINS or args['strain_hit_genes_perc'] != '') and args['clade']: # not clade means --i_cov HUMAnN2
         if VERBOSE: print('\nSTEP 3a. Get genes present in reference genomes...')
         TIME, strain2family2presence = build_strain2family2presence(ref_genomes, families, genome2families, TIME, VERBOSE)
         if ADD_STRAINS and args['i_dna'] == None:
@@ -1401,15 +1406,16 @@ def main():
             sys.exit(0) 
 
     # Merge gene/transcript abundance into family (normalized) coverage
-    if VERBOSE: print('\nSTEP 3. Merge single gene abundances to gene family coverages')
-    for sample in sorted(dna_samples_covs.keys()):
-        if VERBOSE: print(' [I] Normalization for DNA sample ' + sample + '...')
-        dna_samples_covs[sample] = get_genefamily_coverages(dna_samples_covs[sample], gene2family, gene_lenghts, VERBOSE)
-    print_coverage_matrix(dna_samples_covs, args['o_cov'], families, TIME, VERBOSE)
+    if not args['i_cov']:
+        if VERBOSE: print('\nSTEP 3. Merge single gene abundances to gene family coverages')
+        for sample in sorted(dna_samples_covs.keys()):
+            if VERBOSE: print(' [I] Normalization for DNA sample ' + sample + '...')
+            dna_samples_covs[sample] = get_genefamily_coverages(dna_samples_covs[sample], gene2family, gene_lenghts, VERBOSE)
+        print_coverage_matrix(dna_samples_covs, args['o_cov'], families, TIME, VERBOSE)
     
-    if args['i_cov'] != '':
+    if args['i_cov']:
         if VERBOSE: print('\nSTEP 2 and 3. Read coverage matrix instead of single coverage files')
-        dna_samples_covs, families = read_coverage_matrix(args['i_cov'])
+        dna_samples_covs, families, num_ref_genomes, avg_genome_length = read_coverage_matrix(args['i_cov'], num_ref_genomes, avg_genome_length)
         
     #---------------------------------------------------------------------------------------
     # DNA coverage plateau filter
