@@ -105,8 +105,8 @@ class PanPhlAnJoinParser(ArgumentParser):
     '''
     def __init__(self):
         ArgumentParser.__init__(self)
-        self.add_argument('-i','--i_dna',               metavar='INPUT_DNA_FOLDER',             type=str,   default='',                     help='Input directory of panphlan_map.py results, containing SAMPLE.csv.bz2 files')
-        self.add_argument('-c','--clade',               metavar='CLADE_NAME',                   type=str,   required=True,                  help='Panphlan species/clade database (e.g.: ecoli16)')
+        self.add_argument('-i','--i_dna',               metavar='INPUT_DNA_FOLDER',             type=str,   default=None,                     help='Input directory of panphlan_map.py results, containing SAMPLE.csv.bz2 files')
+        self.add_argument('-c','--clade',               metavar='CLADE_NAME',                   type=str,   default=None,                   help='Panphlan species/clade database (e.g.: ecoli16)')
         self.add_argument('-o','--o_dna',               metavar='OUTPUT_FILE',                  type=str,                                   help='Write gene family presence/absence matrix: gene_presence_absence.csv')
         self.add_argument('--i_rna',                    metavar='INPUT_RNA_FOLDER',             type=str,                                   help='RNA-seq: input directory of RNA mapping results SAMPLE_RNA.csv.bz2')
         self.add_argument('--sample_pairs',             metavar='DNA_RNA_MAPPING',              type=str,                                   help='RNA-seq: list of DNA-RNA sequencing pairs from the same biological sample.')
@@ -791,6 +791,7 @@ def strain_presence_plateau_filter(samples_coverages, num_ref_genomes, avg_genom
         families_covs = families_covs[::-1] # reverse
         del(d)
         # get median coverage
+        # print(len(d))
         median[sample] = numpy.median([p[1] for p in families_covs][:avg_genome_length])
         sample2famcovlist[sample] = ([p[1] for p in families_covs], [p[0] for p in families_covs])
         # Median-normalization
@@ -1139,12 +1140,29 @@ def check_args():
         print('Python version: ' + sys.version.split()[0])
         print('System: ' + sys.platform)
 
-    # Check CLADE
-    clade = args['clade']
-    if not clade.startswith(PANPHLAN):
-        args['clade'] = PANPHLAN + clade
-    if VERBOSE:
-        print('[I] Clade: ' + args['clade'])
+    # Check species/clade option -c
+    if not args['clade'] and not args['i_cov']: # input --i_cov HUMAnN2 without using -c <clade>
+        sys.exit('ERROR: Please provide your species database: option -c is missing')
+        
+    # read HUMAnN2 pangenome coverage values    
+    if args['i_cov'] and not args['clade']: # need additional pangenome info
+        if args['num_genomes'] and args['genome_avg_length']:  
+            args['num_genomes']       = int(args['num_genomes'])
+            args['genome_avg_length'] = int(args['genome_avg_length'])
+        else: 
+            sys.exit('\nERROR missing pangenome info: Please provide\n  number of reference genomes "--num_genomes" and\n  expected number of gene-families "--genome_avg_length"\n')
+    
+    # re-read PanPhlAn pangenome coverage values, using info from species database     
+    if args['i_cov'] and args['clade']:
+        if args['num_genomes'] or args['genome_avg_length']:
+            sys.exit('\nERROR too much options: "--num_genomes" and "--genome_avg_length" already extracted from "-c" species database\n')
+        
+    if args['clade']:
+        clade = args['clade']
+        if not clade.startswith(PANPHLAN):
+            args['clade'] = PANPHLAN + clade
+        if VERBOSE:
+            print('[I] Clade: ' + args['clade'])
 
     # Check DNA_RNA_MAPPING
     pairs_path = args['sample_pairs']
@@ -1153,11 +1171,10 @@ def check_args():
     # dna2rna := { DNA_ID : RNA_ID }
     dna2rna = {}
 
-    if idna == '': # if no samples, print presence/absence of reference genomes
-        args['i_dna'] = None
-        args['add_strains'] = True
-    else:
-        # Normal pipeline
+    if not idna and not args['add_strains'] and not args['i_cov']: # if no samples, print presence/absence of reference genomes
+        sys.exit('\nERROR: input option -i missing \n  please add option "-i map_results/" or \n  "--add_strains" for getting genome profiles or \n  "--i_cov data_cov.csv" for re-analyzing coverage values')
+    
+    if idna: # Standard pipeline
         if not pairs_path == None:
             # --sample_pairs is defined: check if the file exists or not
             if not os.path.exists(pairs_path):
@@ -1416,7 +1433,9 @@ def main():
     if args['i_cov']:
         if VERBOSE: print('\nSTEP 2 and 3. Read coverage matrix instead of single coverage files')
         dna_samples_covs, families, num_ref_genomes, avg_genome_length = read_coverage_matrix(args['i_cov'], num_ref_genomes, avg_genome_length)
-        
+        # print('++++' + avg_genome_length)
+        # print(num_ref_genomes)
+
     #---------------------------------------------------------------------------------------
     # DNA coverage plateau filter
     if VERBOSE: print('\nSTEP 4: Strain presence/absence filter based on coverage plateau curve...')
