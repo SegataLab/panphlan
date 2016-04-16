@@ -286,7 +286,8 @@ def get_contigs(pathgenomefiles):
     genome2contigs = defaultdict(set)
     print('[I] Get genome-contigset list (dict)')
     for f in pathgenomefiles:
-        genome = os.path.basename(f).split('.')[0] # get genome filename without extension
+        # genome = os.path.basename(f).split('.')[0] # get genome filename without extension
+        genome = os.path.splitext(os.path.basename(f))[0] # get genome filename without extension (allow dots in genome-name)
         print('    Genome: ' + genome)
         for r in SeqIO.parse(open(f, mode='r'), 'fasta'):
             genome2contigs[genome].add(r.id)
@@ -303,7 +304,8 @@ def gene2genome_mapping(pathgenefiles, VERBOSE):
     gene2genome = {}
     print('[I] Get gene-genome list (dict)')
     for f in pathgenefiles:
-        genome = os.path.basename(f).split('.')[0] # get genome filename without extension
+        # genome = os.path.basename(f).split('.')[0] # get genome filename without extension
+        genome = os.path.splitext(os.path.basename(f))[0] # get genome filename without extension (allow dots in genome-name)
         print('    Genome: ' + genome)
         for seq_record in SeqIO.parse(open(f, mode='r'), 'fasta'):
             # if not in dict, else error
