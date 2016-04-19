@@ -166,20 +166,12 @@ def create_bt2_indexes(pathgenomefiles, clade, output_path, tmp_path, TIME, VERB
 # ------------------------------------------------------------------------------
 def write_pangenome(gene2loc, gene2family, gene2genome, output_path, clade, TIME, VERBOSE):
     '''
-    Create the pangenome combining all the information from gene mappings (location (contig, from, to), family and genome)
-
-        (1) Include gene families
-            currently using grep to find geneID in gene-cluster file (line-number becomes genefamilyID)
-            grep -nw geneID family-cluster-file.txt | 'awk -F ":" ''{print $1}'
-            but very slow, needs optimization!!
-
-        (2) Include genome names
-            using contig-info from previous step (get_contigs.py to get contig names for each genome)
+    Create the pangenome database file combining all the information from
+    gene mappings (location (contig, from, to), family and genome)
         
-    Result: final pangenome file (tab-separated), with this format:
+    Result: pangenome file (tab-separated):
         geneFamily | geneID | genomeName(filename) | contigID | start | stop
     '''
-    # line := FAMILy GENE GENOME CONTIG FROM TO
     pangenome_csv = output_path + 'panphlan_' + clade + '_pangenome.csv'
     with open(pangenome_csv, mode='w') as ocsv:
         genes_list = sorted(gene2loc.keys())
@@ -278,7 +270,10 @@ def get_gene_locations(pathgenomefiles, pathgenefiles, VERBOSE):
 def get_contigs(pathgenomefiles):
     '''
     Map each genome (filename) to its contig-set
-    Function not used?? Maybe because contig-name is already included in gene-location (contig,start,stop)
+    
+    Function is not used!!
+        Contig-name is already included in gene2loc (contig,start,stop)
+        Genome-name (filename) is included in gene2genome
     
     requires Biopython (Bio module)
     '''
@@ -329,7 +324,7 @@ def pangenome_generation(pathgenomefiles, pathgenefiles, gene2family, clade, out
     '''
     if VERBOSE: print('[I] Get gene locations and contigs for each gene.')
     gene2loc       = get_gene_locations(pathgenomefiles, pathgenefiles, VERBOSE)
-    genome2contigs = get_contigs(pathgenomefiles)
+    # genome2contigs = get_contigs(pathgenomefiles) # not used
     
     # Write the pangenome database file: panphlan_clade_pangenome.csv
     write_pangenome(gene2loc, gene2family, gene2genome, output_path, clade, TIME, VERBOSE)
