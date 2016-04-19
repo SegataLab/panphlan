@@ -24,8 +24,8 @@ from fnmatch import fnmatch
 import re # for gene genome mapping
 
 __author__  = 'Matthias Scholz, Thomas Tolio, Nicola Segata (panphlan-users@googlegroups.com)'
-__version__ = '1.2.0'
-__date__    = '4 February 2016'
+__version__ = '1.2.0.1'
+__date__    = '19 April 2016'
 
 try:
     from Bio import SeqIO
@@ -295,8 +295,8 @@ def gene2genome_mapping(pathgenefiles, VERBOSE):
     
     requires Biopython (Bio module)
     '''
-    # {geneID : genomefilename}
-    gene2genome = {}
+    gene2genome     = {} # {geneID : genomefilename}
+    gene2description = {} # {geneID : description}
     print('[I] Get gene-genome list (dict)')
     for f in pathgenefiles:
         # genome = os.path.basename(f).split('.')[0] # get genome filename without extension
@@ -305,13 +305,16 @@ def gene2genome_mapping(pathgenefiles, VERBOSE):
         for seq_record in SeqIO.parse(open(f, mode='r'), 'fasta'):
             # if not in dict, else error
             if seq_record.id not in gene2genome:    # add only if not in dictionary already
-                gene2genome[seq_record.id] = genome
+                gene2genome[seq_record.id]     = genome
+                description = ' '.join(seq_record.description.split()[1:]) # remove .id from .description
+                # print(description)
+                gene2description[seq_record.id] = description
             else:
                 print('\n[E] Error: non-unique gene identifier.')
                 print('    following gene-ID appears multiple times in the genome set')
                 print('    ' + seq_record.id + '\n')
                 sys.exit(NONUNIQUEGENE_ERROR_CODE)
-    return gene2genome
+    return gene2genome, gene2description
 
 # ------------------------------------------------------------------------------
 def pangenome_generation(pathgenomefiles, pathgenefiles, gene2family, clade, output_path, gene2genome, TIME, VERBOSE):
@@ -790,8 +793,8 @@ def main():
     
     # check input genome and gene files
     pathgenomefiles, pathgenefiles = check_genomes(args['i_ffn'], args['i_fna'], VERBOSE)
-    pathgenefiles  = add_filename_to_geneIDs(pathgenefiles, args['tmp'], VERBOSE)
-    gene2genome    = gene2genome_mapping(pathgenefiles, VERBOSE)
+    pathgenefiles = add_filename_to_geneIDs(pathgenefiles, args['tmp'], VERBOSE)
+    gene2genome, gene2description = gene2genome_mapping(pathgenefiles, VERBOSE)
 
     # Get gene families cluster (usearch7)
     if VERBOSE: print('\nSTEP 2. Generating gene families cluster (usearch7) ...')
