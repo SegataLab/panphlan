@@ -11,7 +11,7 @@
 # PanPhlAn is a project of the Computational Metagenomics Lab at CIBIO,
 # University of Trento, Italy
 #
-# For help type "./panphlan_map.py -h"
+# For help type: ./panphlan_map.py -h
 #
 # https://bitbucket.org/CibioCM/panphlan
 # ==============================================================================
@@ -40,7 +40,6 @@ except ImportError as err:
 # Operating systems
 LINUX                   = 'lin'
 WINDOWS                 = 'win'
-# @TODO macintosh?
 
 # File extensions
 FFN                     = 'ffn'
@@ -396,7 +395,7 @@ def convert_usearch_result(merged_uc, merged_txt, TIME, VERBOSE):
         TIME = time_message(TIME, 'UC --> TXT conversion has been done.')
     return TIME
 # ------------------------------------------------------------------------------
-def usearch_centroids_add_geneID_prefix(clade, gene2family, output_path):
+def usearch_centroids_add_geneID_prefix(clade, gene2family, output_path, gene2description):
     '''
     Add prefix 'clade:genefamID:' to geneIDs in centroid.ffn sequence file
     1) copy usearch7 result: panphlan_species_centroids.ffn as .._centroids_orig.ffn
@@ -414,10 +413,11 @@ def usearch_centroids_add_geneID_prefix(clade, gene2family, output_path):
         centroid_sequences = SeqIO.parse(open(centroids_orig_ffn),'fasta')
         with open(centroids_ffn, 'w') as f:
             for seq in centroid_sequences:
+                seq.description=''
+                # seq.description=gene2description[seq.id]
                 genefamID=gene2family[seq.id] # 'g12345'
                 seq.id = clade + ':' + genefamID + ':' + seq.id
                 seq.name=''
-                seq.description=''
                 r = SeqIO.write(seq, f, 'fasta')
                 if r!=1:
                     sys.exit('[E] Error while writing centroid sequence:  ' + seq.id)
@@ -522,7 +522,7 @@ def usearch_sortbylength(pathgenefiles, tmp_path, TIME, VERBOSE):
     # Get in output the temporary merged and sorted .ffn file
     return TIME, tmp_sorted_ffn
 # ------------------------------------------------------------------------------
-def usearch_clustering(pathgenefiles, identity_threshold_perc, clade, output_path, tmp_path, KEEP_UC, TIME, VERBOSE):
+def usearch_clustering(pathgenefiles, identity_threshold_perc, clade, output_path, tmp_path, KEEP_UC, gene2description, TIME, VERBOSE):
     '''
     Note: If KEEP_UC, then <clusters>.uc is a file written in the output directory.
     Otherwise, <clusters>.uc is a temp file (in /tmp), deleted at the end of the computation
@@ -538,7 +538,7 @@ def usearch_clustering(pathgenefiles, identity_threshold_perc, clade, output_pat
     gene2family = usearch_get_gene2family_dict(merged_txt, VERBOSE)
     # Add prefix clade:genefamID: to geneIDs in centroid.ffn sequence file
     #  to do: add also function (gene description)
-    usearch_centroids_add_geneID_prefix(clade, gene2family, output_path) 
+    usearch_centroids_add_geneID_prefix(clade, gene2family, output_path, gene2description) 
     # clean up tmp files
     if not KEEP_UC:
         os.unlink(tmp_uc.name)
@@ -799,7 +799,7 @@ def main():
     # Get gene families cluster (usearch7)
     if VERBOSE: print('\nSTEP 2. Generating gene families cluster (usearch7) ...')
     gene2family, TIME = usearch_clustering(pathgenefiles,args['th'],args['clade'],
-                                           args['output'],args['tmp'],KEEP_UC,TIME,VERBOSE)
+                                           args['output'],args['tmp'],KEEP_UC,gene2description,TIME,VERBOSE)
 
     # Get pangenome and bowtie2 index file
     if VERBOSE: print('\nSTEP 3. Getting pangenome file...')
