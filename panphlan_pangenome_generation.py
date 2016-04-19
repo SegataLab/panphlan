@@ -413,8 +413,8 @@ def usearch_centroids_add_geneID_prefix(clade, gene2family, output_path, gene2de
         centroid_sequences = SeqIO.parse(open(centroids_orig_ffn),'fasta')
         with open(centroids_ffn, 'w') as f:
             for seq in centroid_sequences:
-                seq.description=''
-                # seq.description=gene2description[seq.id]
+                # seq.description=''
+                seq.description=gene2description[seq.id] # add description (gene annotation)
                 genefamID=gene2family[seq.id] # 'g12345'
                 seq.id = clade + ':' + genefamID + ':' + seq.id
                 seq.name=''
