@@ -21,9 +21,10 @@ from argparse import ArgumentParser
 from collections import defaultdict
 from shutil import copyfileobj
 import bz2, fnmatch, multiprocessing, operator, os, subprocess, sys, tempfile, time
+from distutils.version import LooseVersion
 
 __author__  = 'Matthias Scholz, Thomas Tolio, Nicola Segata (panphlan-users@googlegroups.com)'
-__version__ = '1.2.1.2'
+__version__ = '1.2.1.3'
 __date__    = '7 March 2016'
 
 # Parameter constants
@@ -546,7 +547,7 @@ def samtools_sam2bam(in_sam, out_bam, memory, tmp_path, TIME, VERBOSE):
     try:
         # get samtools version
         cmd_out = subprocess.Popen(['samtools', '--version'], stdout=subprocess.PIPE).communicate()[0]
-        samtools_version = float(cmd_out.decode().split('\n')[0].split()[1])
+        samtools_version = cmd_out.decode().split(os.linesep)[0].split()[1]
         # 1st command: samtools view -bS <INPUT SAM FILE>
         view_cmd = ['samtools', 'view', '-bS', in_sam.name]
         if VERBOSE:
@@ -568,7 +569,7 @@ def samtools_sam2bam(in_sam, out_bam, memory, tmp_path, TIME, VERBOSE):
                     tmp_bam = tempfile.NamedTemporaryFile(delete=False, prefix='panphlan_', suffix='.bam', dir=tmp_path)
                 
                 with tmp_bam:
-                    if samtools_version >= 1.3:
+                    if LooseVersion(samtools_version) >= LooseVersion('1.3'): # works also with two dots 1.3.1
                         sort_cmd += ['-', '-o', tmp_bam.name]
                     else: # older samtools versions: only prefix, without .bam
                         sort_cmd += ['-', tmp_bam.name[:-4]] 
@@ -770,7 +771,7 @@ def check_samtools(VERBOSE = False, PLATFORM = 'lin'):
         else: # Linux, Mac, ...    
             samtools = subprocess.Popen(['which', 'samtools'], stdout=subprocess.PIPE).communicate()[0]
         samtools_version = subprocess.Popen(['samtools', '--version'], stdout=subprocess.PIPE).communicate()[0]
-        samtools_version = samtools_version.decode().split('\n')[0].split()[1]
+        samtools_version = samtools_version.decode().split(os.linesep)[0].split()[1]
         if VERBOSE:
             print('[I] Samtools version ' + str(samtools_version) + ';  path: ' + str(samtools.strip()) )
     except Exception as err:
