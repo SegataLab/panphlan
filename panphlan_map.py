@@ -117,6 +117,7 @@ class PanPhlAnParser(ArgumentParser):
         ArgumentParser.__init__(self)
         self.add_argument('-i','--input',           metavar='INPUT_FILE',                   type=str,                                                   help='File(s) containing the unpaired reads to be aligned using Bowtie2. If not specified, Bowtie2 gets the read from the stdin filehandle.')
         # self.add_argument('-f', '--input_format',   metavar='INPUT_FORMAT',                 type=str,                                                   help='Old option, will be removed in future version')
+        self.add_argument('--i_bowtie2_indexes',    metavar='INPUT_BOWTIE2_INDEXES',        type=str,   default=None,                                   help='Input directory of bowtie2 indexes and pangenome') 
         self.add_argument('--fastx',                metavar='FASTX_FORMAT',                 type=str,   default='fastq',choices=['fastq','fasta','bam'],help='Read input format (fasta or fastq), default: fastq, if not fasta recognized by file ending.')
         self.add_argument('-c','--clade',           metavar='CLADE_NAME',                   type=str,                                   required=True,  help='Name of the specie to consider, i.e. the basename of the index for the reference genome used by Bowtie2 to align reads.')
         self.add_argument('-o','--output',          metavar='OUTPUT_FILE',                  type=str,   default='map_results/',                         help='Mapping result output-file: path/sampleID_clade.csv')
@@ -783,7 +784,7 @@ def check_samtools(VERBOSE = False, PLATFORM = 'lin'):
 
 # -----------------------------------------------------------------------------
 
-def check_bowtie2(clade, VERBOSE=False, PLATFORM='lin'):
+def check_bowtie2(clade, bowtie2_indexes, VERBOSE=False, PLATFORM='lin'):
     '''
     Check if Bowtie2 is alread installed
     '''
@@ -807,10 +808,14 @@ def check_bowtie2(clade, VERBOSE=False, PLATFORM='lin'):
     
     bt2_indexes = []
     if bowtie2: # check for bowtie2 index directory BOWTIE2_INDEXES
-        try: 
-            bowtie2_indexes_dir = '.'
-            bt2_indexes = find(clade + '.[1-4].bt2', '.')
-            bt2_indexes.extend( find(clade + '.rev.[1-2].bt2', '.') )
+        try:
+            # use the bowtie2_indexes option value, if set
+            if bowtie2_indexes:
+                bowtie2_indexes_dir = os.path.abspath(bowtie2_indexes)
+            else:
+                bowtie2_indexes_dir = '.'
+            bt2_indexes = find(clade + '.[1-4].bt2', bowtie2_indexes_dir)
+            bt2_indexes.extend( find(clade + '.rev.[1-2].bt2', bowtie2_indexes_dir) )
             if not len(bt2_indexes) == 6:
                 # $BOWTIE2_INDEXES not defined in os.environment or indexes files (.bt2) for clade are not found
                 bowtie2_indexes_dir = os.environ['BOWTIE2_INDEXES']
@@ -819,10 +824,10 @@ def check_bowtie2(clade, VERBOSE=False, PLATFORM='lin'):
                 if not len(bt2_indexes) == 6:
                     raise IOError
         except KeyError:
-            print('[E] Environment variable BOWTIE2_INDEXES is not defined! Indexes and pangenome not foundable.')
+            print('[E] Unable to find the bowtie2 indexes and pangenome! Use the option --i_bowtie2_indexes or set the environment variable BOWTIE2_INDEXES!')
             sys.exit(INDEXES_NOT_FOUND_ERROR)
         except IOError:
-            print('[E] Bowtie2 index files (*.bt2) are not found!')
+            print('[E] Bowtie2 index files (*.bt2) are not found! Use the option --i_bowtie2_indexes to set the location!')
             sys.exit(INDEXES_NOT_FOUND_ERROR)
         
         bowtie2_indexes_dir = os.path.join(os.path.dirname(bt2_indexes[0]),'') # '' to get ending '/'
@@ -835,11 +840,11 @@ def check_bowtie2(clade, VERBOSE=False, PLATFORM='lin'):
 
 # -----------------------------------------------------------------------------
 
-def check_installed_tools(clade, VERBOSE = False, PLATFORM = 'lin'):
+def check_installed_tools(clade, bowtie2_indexes, VERBOSE = False, PLATFORM = 'lin'):
     '''
     Check if Bowtie2 and Samtools are installed
     '''
-    return check_bowtie2(clade, VERBOSE, PLATFORM), check_samtools(VERBOSE, PLATFORM)
+    return check_bowtie2(clade, bowtie2_indexes, VERBOSE, PLATFORM), check_samtools(VERBOSE, PLATFORM)
 
 # ------------------------------------------------------------------------------
 
@@ -994,7 +999,7 @@ def main():
     PLATFORM = sys.platform.lower()[0:3]
 
     print('\nSTEP 1. Checking software...')
-    bowtie2, samtools = check_installed_tools(args['clade'], VERBOSE, PLATFORM)
+    bowtie2, samtools = check_installed_tools(args['clade'], args['i_bowtie2_indexes'], VERBOSE, PLATFORM)
     indexes_folder = bowtie2[1]
     pangenome_file = get_pangenome_file(indexes_folder, args['clade'], VERBOSE)
     if FILE_EXTENSION == SRA:
