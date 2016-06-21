@@ -106,6 +106,7 @@ class PanPhlAnJoinParser(ArgumentParser):
     def __init__(self):
         ArgumentParser.__init__(self)
         self.add_argument('-i','--i_dna',               metavar='INPUT_DNA_FOLDER',             type=str,   default=None,                     help='Input directory of panphlan_map.py results, containing SAMPLE.csv.bz2 files')
+        self.add_argument('--i_bowtie2_indexes',        metavar='INPUT_BOWTIE2_INDEXES',        type=str,   default=None,                     help='Input directory of bowtie2 indexes') 
         self.add_argument('-c','--clade',               metavar='CLADE_NAME',                   type=str,   default=None,                   help='Panphlan species/clade database (e.g.: ecoli16)')
         self.add_argument('-o','--o_dna',               metavar='OUTPUT_FILE',                  type=str,                                   help='Write gene family presence/absence matrix: gene_presence_absence.csv')
         self.add_argument('--i_rna',                    metavar='INPUT_RNA_FOLDER',             type=str,                                   help='RNA-seq: input directory of RNA mapping results SAMPLE_RNA.csv.bz2')
@@ -992,7 +993,7 @@ def get_genefamily_coverages(gene2cov, gene2family, lengths, VERBOSE):
 
     return family2cov
 # -----------------------------------------------------------------------------
-def read_pangenome(panphlan_clade, VERBOSE):
+def read_pangenome(panphlan_clade, bowtie2_indexes_dir, VERBOSE):
     '''
     1) Search pangenome file, exit if not present
     2) Build the following data structures:
@@ -1007,18 +1008,24 @@ def read_pangenome(panphlan_clade, VERBOSE):
     genome_lengths = defaultdict(int)
     genome2families = defaultdict(set)
     
-    # search pangenome file: first in local pwd; second in $BOWTIE2_INDEXES
+    # search pangenome file: first in argument option; second in local pwd; third in $BOWTIE2_INDEXES
     clade=panphlan_clade.replace('panphlan_','')
     filename = 'panphlan_' + clade + '_pangenome.csv'
     path_local  = os.path.join(os.getcwd(),filename)
+    # if BOWTIE2_INDEXES environment variable is set, then check this for the file
     try:
         path_bowtie = os.path.join(os.environ['BOWTIE2_INDEXES'],filename)
     except KeyError:
-        path_bowtie = ""
-    if os.path.exists(path_local):
+        path_bowtie = None
+        
+    if bowtie2_indexes_dir and os.path.exists(os.path.join(bowtie2_indexes_dir, filename)):
+        # if set, use the directory provided for the bowtie2 indexes
+        pangenome_file=os.path.join(bowtie2_indexes_dir, filename)
+        if VERBOSE: print(' [I] Pangenome file: ' + pangenome_file)
+    elif os.path.exists(path_local):
         pangenome_file=path_local
         if VERBOSE: print(' [I] Pangenome file: ./' + filename)
-    elif os.path.exists(path_bowtie):
+    elif path_bowtie and os.path.exists(path_bowtie):
         pangenome_file = path_bowtie
         if VERBOSE: print(' [I] Pangenome file: ' + pangenome_file)
     else:
@@ -1405,7 +1412,7 @@ def main():
     # Create pangenome dicts: gene->family, genome->families, gene->length
     if args['clade']:
         if VERBOSE: print('\nSTEP 1. Read pangenome data...')
-        gene_lenghts, gene2family, families, num_ref_genomes, avg_genome_length, genome2families, ref_genomes = read_pangenome(args['clade'], VERBOSE)
+        gene_lenghts, gene2family, families, num_ref_genomes, avg_genome_length, genome2families, ref_genomes = read_pangenome(args['clade'], args['i_bowtie2_indexes'],VERBOSE)
     else:
         num_ref_genomes  =args['num_genomes']
         avg_genome_length=args['genome_avg_length']
