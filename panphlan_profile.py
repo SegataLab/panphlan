@@ -1011,7 +1011,10 @@ def read_pangenome(panphlan_clade, VERBOSE):
     clade=panphlan_clade.replace('panphlan_','')
     filename = 'panphlan_' + clade + '_pangenome.csv'
     path_local  = os.path.join(os.getcwd(),filename)
-    path_bowtie = os.path.join(os.environ['BOWTIE2_INDEXES'],filename)
+    try:
+        path_bowtie = os.path.join(os.environ['BOWTIE2_INDEXES'],filename)
+    except KeyError:
+        path_bowtie = ""
     if os.path.exists(path_local):
         pangenome_file=path_local
         if VERBOSE: print(' [I] Pangenome file: ./' + filename)
