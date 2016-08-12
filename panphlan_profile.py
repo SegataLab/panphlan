@@ -814,7 +814,9 @@ def strain_presence_plateau_filter(samples_coverages, num_ref_genomes, avg_genom
         mediancov = median[sample] # self-defined median func: median of avg_genome_length, see above
         leftcov   = median_normalized_covs[sample][int(avg_genome_length * 0.3)]
         rightcov  = median_normalized_covs[sample][int(avg_genome_length * 0.7)]
-        zerocov   = median_normalized_covs[sample][int(avg_genome_length * 1.25)]
+        loc=int(avg_genome_length * 1.25) # sample may have less gene-families than N*1.25
+        zerocov   = median_normalized_covs[sample][loc] if len(median_normalized_covs[sample])>loc else 0
+        # zerocov   = median_normalized_covs[sample][int(avg_genome_length * 1.25)]
         sample_stats[sample] = {'strainCoverage' : mediancov}
         if VERBOSE:
             print(' [I] ' + sample + ' median coverage: ' + str(round(mediancov,2)) +
