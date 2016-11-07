@@ -560,8 +560,7 @@ def samtools_sam2bam(in_sam, out_bam, memory, tmp_path, TIME, VERBOSE):
         try:
             tmp_bam = None
             # 2nd command: samtools sort -m <AMOUNT OF MEMORY> - <OUTPUT BAM FILE>
-            sort_cmd = ['samtools', 'sort',
-                        ] + ([] if memory <= 0.5 else ['-m', str(int(memory * 1024*1024*1024))])
+            sort_cmd = ['samtools', 'sort', '-m', str(int(memory * 1024*1024*1024))]
             
             if out_bam == None: # .bam file is not saved, only temporary bam file
                 if tmp_path == None:
@@ -956,7 +955,7 @@ def check_args():
             print('[I] Number of processors: ' + str(args_set['nproc']))
     
     # Check: MEMORY_GIGABTES_FOR_SAMTOOLS -------------------------------------
-    if args_set['mGB'] == None or args_set['mGB'] < 0.5:
+    if args_set['mGB'] == None:
         args_set['mGB'] = 0.5
     if VERBOSE:
         print('[I] GigaBytes for Samtools memory: ' + str(args_set['mGB']))
