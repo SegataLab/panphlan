@@ -24,8 +24,8 @@ import bz2, fnmatch, multiprocessing, operator, os, subprocess, sys, tempfile, t
 from distutils.version import LooseVersion
 
 __author__  = 'Matthias Scholz, Thomas Tolio, Nicola Segata (panphlan-users@googlegroups.com)'
-__version__ = '1.2.1.3'
-__date__    = '7 March 2016'
+__version__ = '1.2.2'
+__date__    = '30 January 2017'
 
 # Parameter constants
 # MAX_NUMOF_PROCESSORS    = 12
@@ -392,7 +392,7 @@ def get_pangenome_file(bowtie2_indexes_dir, clade, VERBOSE):
         message += 'Choose file "' + pangenome[0] + '". If not good, please resolve manually the problem.'
         print(message) 
     elif len(pangenome) < 1:
-        sys.stderr.write('[E] Cannot find the pangenome file for ' + clade + ' in directory ' + bowtie2_indexes_dir)
+        sys.stderr.write('[E] Cannot find the pangenome file for ' + clade + ' in directory ' + bowtie2_indexes_dir + '\n')
         sys.exit(PANGENOME_ERROR_CODE)
     else:
         print('[I] Pangenome file: ' + pangenome[0])

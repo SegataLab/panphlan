@@ -24,8 +24,8 @@ from fnmatch import fnmatch
 import re # for gene genome mapping
 
 __author__  = 'Matthias Scholz, Thomas Tolio, Nicola Segata (panphlan-users@googlegroups.com)'
-__version__ = '1.2.0.1'
-__date__    = '19 April 2016'
+__version__ = '1.2.2'
+__date__    = '30 January 2017'
 
 try:
     from Bio import SeqIO

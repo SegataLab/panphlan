@@ -32,8 +32,8 @@ except ImportError as err:
     sys.exit(2)
 
 __author__  = 'Matthias Scholz, Thomas Tolio, Nicola Segata (panphlan-users@googlegroups.com)'
-__version__ = '1.2.0.6'
-__date__    = '14 April 2016'
+__version__ = '1.2.2'
+__date__    = '30 January 2017'
 
 # Pangenome CSV file constants
 FAMILY_INDEX    = 0
