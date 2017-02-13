@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 # ==============================================================================
-# PanPhlAn v1.2: PANgenome-based PHyLogenomic ANalysis
+# PanPhlAn v1.2.2: PANgenome-based PHyLogenomic ANalysis
 #                for detecting and characterizing strains in metagenomic samples
 #
 # Authors:  Matthias Scholz, algorithm design
