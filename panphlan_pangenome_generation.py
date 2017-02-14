@@ -2,14 +2,12 @@
 
 # ==============================================================================
 # PanPhlAn v1.2.2: PANgenome-based PHyLogenomic ANalysis
-#                for detecting and characterizing strains in metagenomic samples
+# Detecting and characterizing strains in metagenomic samples
 #
-# Authors:  Matthias Scholz, algorithm design
-#           Thomas Tolio, programmer
-#           Nicola Segata, principal investigator
-#
-# PanPhlAn is a project of the Computational Metagenomics Lab at CIBIO,
-# University of Trento, Italy
+# Matthias Scholz, Doyle V. Ward, Edoardo Pasolli, Thomas Tolio, Moreno Zolfo,
+# Francesco Asnicar, Duy Tin Truong, Adrian Tett, Ardythe L. Morrow, and Nicola Segata.
+# Strain-level microbial epidemiology and population genomics from shotgun metagenomics.
+# Nature Methods, 13, 435-438, 2016.
 #
 # For help type: ./panphlan_map.py -h
 #
