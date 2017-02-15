@@ -58,6 +58,7 @@ DEFAULT_NP          = '-'
 UNACCEPTABLE_NP     = ['NA', 'NaN', '1']
 DEFAULT_NAN         = 'NA'
 UNACCEPTABLE_NAN    = ['-', '1']
+REF_PREFIX          = 'REF_' # reference genome prefix to recognise them in result matrices
 
 # File extensions
 CSV     = 'csv'
@@ -1040,6 +1041,8 @@ def read_pangenome(panphlan_clade, bowtie2_indexes_dir, VERBOSE):
             gene_lengths[gene] = abs(to - fr) + 1
             gene2family[gene] = fml
             families.add(fml)
+            if not genome.startswith(REF_PREFIX):
+                genome = REF_PREFIX + genome
             genome2families[genome].add(fml)
     
     # Get expected median genome length (number of gene families)
