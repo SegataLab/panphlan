@@ -765,9 +765,9 @@ def check_samtools(VERBOSE = False, PLATFORM = 'lin'):
     try:
         samtools = ''
         if PLATFORM == WINDOWS:
-            samtools = subprocess.Popen(['where', 'samtools'], stdout=subprocess.PIPE).communicate()[0]
+            samtools = subprocess.Popen(['where', 'samtools'], stdout=subprocess.PIPE).communicate()[0].decode()
         else: # Linux, Mac, ...    
-            samtools = subprocess.Popen(['which', 'samtools'], stdout=subprocess.PIPE).communicate()[0]
+            samtools = subprocess.Popen(['which', 'samtools'], stdout=subprocess.PIPE).communicate()[0].decode()
         # samtools_version = subprocess.Popen(['samtools', '--version'], stdout=subprocess.PIPE).communicate()[0]
         # samtools_version = samtools_version.decode().split(os.linesep)[0].split()[1]
         ### update: check also for older 0.1.19 version
@@ -797,20 +797,16 @@ def check_bowtie2(clade, bowtie2_indexes, VERBOSE=False, PLATFORM='lin'):
     '''
     try: # bowtie2 installed?
         if PLATFORM == WINDOWS:
-            bowtie2 = subprocess.Popen(['where', 'bowtie2'], stdout=subprocess.PIPE).communicate()[0]
+            bowtie2 = subprocess.Popen(['where', 'bowtie2'], stdout=subprocess.PIPE).communicate()[0].decode()
         else: # Linux, Mac, ...
-            bowtie2 = subprocess.Popen(['which', 'bowtie2'], stdout=subprocess.PIPE).communicate()[0]
+            bowtie2 = subprocess.Popen(['which', 'bowtie2'], stdout=subprocess.PIPE).communicate()[0].decode()
         bowtie2_version = subprocess.Popen(['bowtie2', '--version'], stdout=subprocess.PIPE).communicate()[0]
-        bowtie2_version = bowtie2_version.split()[2]
+        bowtie2_version = bowtie2_version.decode().split()[2]
         if VERBOSE:
             print('[I] Bowtie2 version ' + str(bowtie2_version) + ';  path: ' + str(bowtie2).strip())
     except Exception as err:
         show_error_message(err)
         print('\n[E] Please install Bowtie2.\n')
-        if VERBOSE:
-            print('    Bowtie2 is necessary to generate the specie indexes to use in further PanPhlAn')
-            print('    computation. Moreover, after having generated the six index files, Bowtie2 checks')
-            print('    them extracting information to show.')
         sys.exit(UNINSTALLED_ERROR_CODE)
     
     bt2_indexes = []
