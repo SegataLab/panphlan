@@ -22,8 +22,8 @@ import bz2, fnmatch, multiprocessing, operator, os, subprocess, sys, tempfile, t
 from distutils.version import LooseVersion
 
 __author__  = 'Matthias Scholz, Thomas Tolio, Nicola Segata (panphlan-users@googlegroups.com)'
-__version__ = '1.2.2'
-__date__    = '30 January 2017'
+__version__ = '1.2.2.1'
+__date__    = '16 February 2017'
 
 # Parameter constants
 # MAX_NUMOF_PROCESSORS    = 12
@@ -768,8 +768,18 @@ def check_samtools(VERBOSE = False, PLATFORM = 'lin'):
             samtools = subprocess.Popen(['where', 'samtools'], stdout=subprocess.PIPE).communicate()[0]
         else: # Linux, Mac, ...    
             samtools = subprocess.Popen(['which', 'samtools'], stdout=subprocess.PIPE).communicate()[0]
-        samtools_version = subprocess.Popen(['samtools', '--version'], stdout=subprocess.PIPE).communicate()[0]
-        samtools_version = samtools_version.decode().split(os.linesep)[0].split()[1]
+        # samtools_version = subprocess.Popen(['samtools', '--version'], stdout=subprocess.PIPE).communicate()[0]
+        # samtools_version = samtools_version.decode().split(os.linesep)[0].split()[1]
+        ### update: check also for older 0.1.19 version
+        ### ('samtools --version' does not exist in 0.1.19, alternatively screen stderr of only 'samtools')
+        # Version: 0.1.19-44428cd
+        # Version: 1.1 (using htslib 1.1)
+        # Version: 1.2 (using htslib 1.2.1)
+        # Version: 1.3.1 (using htslib 1.3.1)
+        samtools_stdout,samtools_stderr = subprocess.Popen(['samtools'], stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()
+        samtool_lines = samtools_stderr.decode().split(os.linesep)
+        samtools_version_line = [s for s in samtool_lines if 'Version' in s]
+        samtools_version = samtools_version_line[0].split()[1].split('-')[0]
         if VERBOSE:
             print('[I] Samtools version ' + str(samtools_version) + ';  path: ' + str(samtools.strip()) )
     except Exception as err:
