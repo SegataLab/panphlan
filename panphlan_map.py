@@ -545,8 +545,7 @@ def samtools_sam2bam(in_sam, out_bam, memory, tmp_path, TIME, VERBOSE):
     outcome = (None, None)
     try:
         # get samtools version
-        cmd_out = subprocess.Popen(['samtools', '--version'], stdout=subprocess.PIPE).communicate()[0]
-        samtools_version = cmd_out.decode().split(os.linesep)[0].split()[1]
+        samtools, samtools_version = check_samtools()
         # 1st command: samtools view -bS <INPUT SAM FILE>
         view_cmd = ['samtools', 'view', '-bS', in_sam.name]
         if VERBOSE:
@@ -786,7 +785,7 @@ def check_samtools(VERBOSE = False, PLATFORM = 'lin'):
         # show_error_message(err)
         print('\n[E] Error: Cannot find Samtools, please install from http://www.htslib.org/ \n')
         sys.exit(UNINSTALLED_ERROR_CODE)
-    return samtools
+    return samtools, samtools_version
 
 
 # -----------------------------------------------------------------------------
@@ -839,15 +838,6 @@ def check_bowtie2(clade, bowtie2_indexes, VERBOSE=False, PLATFORM='lin'):
             print('[I] BOWTIE2_INDEXES in ' + str(bowtie2_indexes_dir))
 
     return bowtie2, bowtie2_indexes_dir
-
-
-# -----------------------------------------------------------------------------
-
-def check_installed_tools(clade, bowtie2_indexes, VERBOSE = False, PLATFORM = 'lin'):
-    '''
-    Check if Bowtie2 and Samtools are installed
-    '''
-    return check_bowtie2(clade, bowtie2_indexes, VERBOSE, PLATFORM), check_samtools(VERBOSE, PLATFORM)
 
 # ------------------------------------------------------------------------------
 
@@ -1002,9 +992,9 @@ def main():
     PLATFORM = sys.platform.lower()[0:3]
 
     print('\nSTEP 1. Checking software...')
-    bowtie2, samtools = check_installed_tools(args['clade'], args['i_bowtie2_indexes'], VERBOSE, PLATFORM)
-    indexes_folder = bowtie2[1]
-    pangenome_file = get_pangenome_file(indexes_folder, args['clade'], VERBOSE)
+    bowtie2, bowtie2_indexes   = check_bowtie2(args['clade'], args['i_bowtie2_indexes'], VERBOSE, PLATFORM)
+    samtools, samtools_version = check_samtools(VERBOSE, PLATFORM)
+    pangenome_file = get_pangenome_file(bowtie2_indexes, args['clade'], VERBOSE)
     if FILE_EXTENSION == SRA:
         check_fastqdump(VERBOSE, PLATFORM)
 
@@ -1021,7 +1011,6 @@ def main():
             mapping_outcome, TIME = remapping(args['input'], args['out_bam'], args['th_mismatches'], args['mGB'], args['tmp'], TIME, PLATFORM, VERBOSE)
             isTemp = True if mapping_outcome[0] == TEMPORARY_FILE else False
             sorted_bam_file = mapping_outcome[1]
-
         else:
             if VERBOSE:
                 print('[I] BAM file as input argument. Bowtie2 and Samtools will NOT be run to produce BAM file.')
@@ -1033,7 +1022,7 @@ def main():
         # if -f FASTQ_TAR_BZ2 or -f FASTQ_TAR_GZ or -f FASTQ_SRA, then the input file is an archive
         MULTI = args['input'][1] in ARCHIVE_FORMATS
         # Call mapping
-        mapping_outcome, TIME = mapping(args['input'],args['fastx'], MULTI, indexes_folder + args['clade'], args['out_bam'], args['readLength'], args['th_mismatches'], args['mGB'], args['nproc'], args['tmp'], TIME, PLATFORM, VERBOSE)
+        mapping_outcome, TIME = mapping(args['input'],args['fastx'], MULTI, bowtie2_indexes + args['clade'], args['out_bam'], args['readLength'], args['th_mismatches'], args['mGB'], args['nproc'], args['tmp'], TIME, PLATFORM, VERBOSE)
         sorted_bam_file = mapping_outcome[1]
         isTemp = True if mapping_outcome[0] == TEMPORARY_FILE else False
 
