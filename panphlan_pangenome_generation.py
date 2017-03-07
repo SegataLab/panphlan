@@ -22,8 +22,8 @@ from fnmatch import fnmatch
 import re # for gene genome mapping
 
 __author__  = 'Matthias Scholz, Thomas Tolio, Nicola Segata (panphlan-users@googlegroups.com)'
-__version__ = '1.2.2'
-__date__    = '30 January 2017'
+__version__ = '1.2.2.1'
+__date__    = '7 March 2017'
 
 try:
     from Bio import SeqIO
@@ -735,6 +735,7 @@ def check_args():
 
     # Check: CLADE -------------------------------------------------------------
     if VERBOSE:
+        args['clade']=args['clade'].replace('panphlan_','') # remove panphlan_ prefix (added later only for bowtie2)
         print('[I] Clade or species name: ' + args['clade'])
 
     # Check: IDENTITY_PERCENATGE -----------------------------------------------

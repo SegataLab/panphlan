@@ -30,8 +30,8 @@ except ImportError as err:
     sys.exit(2)
 
 __author__  = 'Matthias Scholz, Thomas Tolio, Nicola Segata (panphlan-users@googlegroups.com)'
-__version__ = '1.2.2'
-__date__    = '30 January 2017'
+__version__ = '1.2.2.1'
+__date__    = '7 March 2017'
 
 # Pangenome CSV file constants
 FAMILY_INDEX    = 0
@@ -1173,9 +1173,9 @@ def check_args():
     if args['clade']:
         clade = args['clade']
         if not clade.startswith(PANPHLAN):
-            args['clade'] = PANPHLAN + clade
+            args['clade'] = PANPHLAN + clade # to do: all functions use clade without panphlan_ prefix
         if VERBOSE:
-            print('[I] Clade: ' + args['clade'])
+            print('[I] Clade: ' + args['clade'].replace('panphlan_',''))
 
     # Check DNA_RNA_MAPPING
     pairs_path = args['sample_pairs']
