@@ -22,8 +22,8 @@ import bz2, fnmatch, multiprocessing, operator, os, subprocess, sys, tempfile, t
 from distutils.version import LooseVersion
 
 __author__  = 'Matthias Scholz, Thomas Tolio, Nicola Segata (panphlan-users@googlegroups.com)'
-__version__ = '1.2.2.1'
-__date__    = '16 February 2017'
+__version__ = '1.2.2.2'
+__date__    = '24 March 2017'
 
 # Parameter constants
 # MAX_NUMOF_PROCESSORS    = 12
@@ -566,12 +566,12 @@ def samtools_sam2bam(in_sam, out_bam, memory, tmp_path, TIME, VERBOSE):
                     tmp_bam = tempfile.NamedTemporaryFile(delete=False, prefix='panphlan_', suffix='.bam', dir=tmp_path)
                 
                 with tmp_bam:
-                    if LooseVersion(samtools_version) >= LooseVersion('1.3'): # works also with two dots 1.3.1
+                    if LooseVersion(samtools_version) >= LooseVersion('1.3'): # works also with two dots 1.3.1 (1 of 2 if's)
                         sort_cmd += ['-', '-o', tmp_bam.name]
                     else: # older samtools versions: only prefix, without .bam
                         sort_cmd += ['-', tmp_bam.name[:-4]] 
                     if VERBOSE:
-                        print('[I] cmd: ' + ' '.join(sort_cmd))
+                        print('[I] cmd (v'  + samtools_version + '): ' + ' '.join(sort_cmd))
                     p3 = subprocess.Popen(sort_cmd, stdin=p2.stdout, stdout=tmp_bam)
                     p3.wait() # Wait until previous process has finished its computation (otherwise there will be error raised by Samtools)
                     if VERBOSE:
@@ -579,12 +579,12 @@ def samtools_sam2bam(in_sam, out_bam, memory, tmp_path, TIME, VERBOSE):
                 outcome = (TEMPORARY_FILE, tmp_bam.name)
             
             else: # .bam file is saved (option -b Bam/sample.bam)
-                if samtools_version >= 1.3:
+                if LooseVersion(samtools_version) >= LooseVersion('1.3'): # works also with two dots 1.3.1 (2 of 2 if's)
                     sort_cmd += ['-', '-o', out_bam]
                 else: # older samtools versions: only prefix, without .bam
                     sort_cmd += ['-', out_bam[:-4]]
                 if VERBOSE:
-                    print('[I] cmd: ' + ' '.join(sort_cmd))
+                    print('[I] cmd (v'  + samtools_version + '): ' + ' '.join(sort_cmd))
                 with open(out_bam, mode='w') as obam:
                     p3 = subprocess.Popen(sort_cmd, stdin=p2.stdout, stdout=obam)
                     p3.wait() # Wait until previous process has finished its computation (otherwise there will be error raised by Samtools)
