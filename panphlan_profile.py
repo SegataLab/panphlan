@@ -14,6 +14,7 @@
 # https://bitbucket.org/CibioCM/panphlan
 # ==============================================================================
 
+from __future__ import print_function # to give equal outputs in python2 and python3
 from __future__ import with_statement 
 from argparse import ArgumentParser
 from collections import defaultdict
@@ -30,8 +31,8 @@ except ImportError as err:
     sys.exit(2)
 
 __author__  = 'Matthias Scholz, Thomas Tolio, Nicola Segata (panphlan-users@googlegroups.com)'
-__version__ = '1.2.2.1'
-__date__    = '7 March 2017'
+__version__ = '1.2.2.2'
+__date__    = '17 August 2017'
 
 # Pangenome CSV file constants
 FAMILY_INDEX    = 0
@@ -1152,6 +1153,7 @@ def check_args():
         print('\nPanPhlAn profile version '+__version__)
         print('Python version: ' + sys.version.split()[0])
         print('System: ' + sys.platform)
+        print(' '.join(sys.argv))
 
     # Check species/clade option -c
     if not args['clade'] and not args['i_cov']: # input --i_cov HUMAnN2 without using -c <clade>

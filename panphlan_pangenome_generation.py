@@ -14,6 +14,7 @@
 # https://bitbucket.org/CibioCM/panphlan
 # ==============================================================================
 
+from __future__ import print_function # to give equal outputs in python2 and python3
 from __future__ import with_statement 
 from argparse import ArgumentParser
 from collections import defaultdict
@@ -22,8 +23,8 @@ from fnmatch import fnmatch
 import re # for gene genome mapping
 
 __author__  = 'Matthias Scholz, Thomas Tolio, Nicola Segata (panphlan-users@googlegroups.com)'
-__version__ = '1.2.2.1'
-__date__    = '7 March 2017'
+__version__ = '1.2.2.2'
+__date__    = '17 August 2017'
 
 try:
     from Bio import SeqIO
@@ -543,8 +544,7 @@ def usearch_clustering(pathgenefiles, identity_threshold_perc, clade, output_pat
     if VERBOSE: print('[I] Remove usearch7 tmp results')
     os.remove(merged_txt)
         
-    return gene2family, TIME
-    
+    return gene2family, TIME 
 # ------------------------------------------------------------------------------
 def check_usearch7(VERBOSE, PLATFORM='lin'):
     '''
@@ -566,7 +566,6 @@ def check_usearch7(VERBOSE, PLATFORM='lin'):
 
     if VERBOSE:
         print('[I] Usearch v.7 is installed, version: ' + str(usearch7_version) + ', path: ' + str(usearch7_path).strip())
-
 # ------------------------------------------------------------------------------
 def check_bowtie2(VERBOSE, PLATFORM='lin'):
     '''
@@ -587,7 +586,6 @@ def check_bowtie2(VERBOSE, PLATFORM='lin'):
         if VERBOSE:
             print('    Bowtie2 is used to generate the .bt2 index files required in panphlan_map.py\n')
         sys.exit(UNINSTALLED_ERROR_CODE)        
-
 # ------------------------------------------------------------------------------
 def add_filename_to_geneIDs(pathgenefiles, tmp_path, VERBOSE):
     '''
@@ -621,7 +619,6 @@ def add_filename_to_geneIDs(pathgenefiles, tmp_path, VERBOSE):
                     sys.exit('[E] Error while writing sequence to ffn-file:\n    ' + ffn_out)    
 
     return new_pathgenefiles
-
 # ------------------------------------------------------------------------------
 def check_genomes(ffn_folder, fna_folder, VERBOSE):
     '''
@@ -672,7 +669,6 @@ def check_genomes(ffn_folder, fna_folder, VERBOSE):
         print('Use option --verbose to display progress information.\n')
 
     return pathgenomefiles, pathgenefiles
-
 # ------------------------------------------------------------------------------
 def clean_up(pathgenefiles, tmp_path, VERBOSE):
     '''
@@ -690,7 +686,6 @@ def clean_up(pathgenefiles, tmp_path, VERBOSE):
         print('[I] Remove TMP/ directory')
     os.rmdir(os.path.join(tmp_path,'ffn_uniqueGeneIDs'))
     os.rmdir(tmp_path)
-
 # ------------------------------------------------------------------------------
 def check_args():
     '''
@@ -704,6 +699,7 @@ def check_args():
         print('\nPanPhlAn pangenome generation version '+__version__)
         print('Python version: ' + sys.version.split()[0])
         print('System: ' + sys.platform)
+        print(' '.join(sys.argv))
 
     # Check: FFN_FOLDER --------------------------------------------------------
     ipath = args['i_ffn']

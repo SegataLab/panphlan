@@ -248,11 +248,9 @@ def correct_output_name(opath, ipath, panphlan_clade, VERBOSE):
         if VERBOSE: print('[I] Mapping results are saves in working directory.')
 
     return opath
-
 # -----------------------------------------------------------------------------
 # MAJOR FUNCTIONS
 # -----------------------------------------------------------------------------
-
 def genes_abundances(reads_file, contig2gene, gene_covs_outchannel, TIME, VERBOSE):
     '''
     Compute the abundance for each gene
@@ -342,10 +340,7 @@ def genes_abundances(reads_file, contig2gene, gene_covs_outchannel, TIME, VERBOS
     if VERBOSE:
         TIME = time_message(TIME, 'Gene abundances computing has just been completed.')
     return genes_abundances
-
-
 # -----------------------------------------------------------------------------
-
 def build_pangenome_dicts(pangenome_file, TIME, VERBOSE):
     '''
     Build the dictionary for contig -> included gene -> location of the gene in the DNA
@@ -371,10 +366,7 @@ def build_pangenome_dicts(pangenome_file, TIME, VERBOSE):
         TIME = time_message(TIME, 'Dictionary for {contig:{gene:(from,to)}} has been created.') 
 
     return contig2gene, TIME
-
-
 # -----------------------------------------------------------------------------
-
 def get_pangenome_file(bowtie2_indexes_dir, clade, VERBOSE):
     '''
     Get the pangenome file for the considered specie
@@ -393,11 +385,8 @@ def get_pangenome_file(bowtie2_indexes_dir, clade, VERBOSE):
         sys.exit(PANGENOME_ERROR_CODE)
     else:
         if VERBOSE: print('[I] Pangenome file: ' + pangenome[0])
-    return pangenome[0]
-
-            
+    return pangenome[0]    
 # -----------------------------------------------------------------------------
-
 def piling_up(bam_file, isTemp, csv_file, TIME, VERBOSE):
     '''
     Create the indexes and then call the Samtool's mpileup command
@@ -473,10 +462,7 @@ def piling_up(bam_file, isTemp, csv_file, TIME, VERBOSE):
             os.unlink(bam_file)
         show_interruption_message()
         sys.exit(INTERRUPTION_ERROR_CODE)
-
-
 # -----------------------------------------------------------------------------
-
 def remapping(input_pair, out_bam, max_numof_mismatches, memory, tmp_path, TIME, PLATFORM, VERBOSE):
     '''
     Convert a BAM file back to a SAM file, then re-filter it, then re-bam it
@@ -526,10 +512,7 @@ def remapping(input_pair, out_bam, max_numof_mismatches, memory, tmp_path, TIME,
     p1.stdout.close()
 
     return outcome, TIME
-    
-
 # -----------------------------------------------------------------------------
-
 def samtools_sam2bam(in_sam, out_bam, memory, tmp_path, TIME, VERBOSE):
     '''
     Covert a SAM file into BAM file, then sort the BAM
@@ -608,9 +591,7 @@ def samtools_sam2bam(in_sam, out_bam, memory, tmp_path, TIME, VERBOSE):
         os.unlink(in_sam.name)
 
     return outcome, TIME
-
 # -----------------------------------------------------------------------------
-
 def mapping(input_set, fastx, is_multi_file, clade, out_bam, min_length, max_numof_mismatches, bt2_options, memory, numof_proc, tmp_path, TIME, PLATFORM, VERBOSE):
     '''
     Maps the input sample file (.fastq) into a .bam file (passing through a .sam file) using BowTie2 and Samtools commands
@@ -730,10 +711,7 @@ def mapping(input_set, fastx, is_multi_file, clade, out_bam, min_length, max_num
         sys.exit(INTERRUPTION_ERROR_CODE)
     
     return outcome, TIME
-
-
 # -----------------------------------------------------------------------------
-
 def check_fastqdump(VERBOSE, PLATFORM):
     '''
     If input is a SRA file: check if SRA-toolkit (fastq-dump tool) is installed 
@@ -750,9 +728,7 @@ def check_fastqdump(VERBOSE, PLATFORM):
         show_error_message(err)
         print('[W] SRA-toolkit is not installed. SRA sample files cannot be processed.')
         sys.exit(UNINSTALLED_ERROR_CODE) 
-
 # -----------------------------------------------------------------------------
-
 def check_samtools(VERBOSE = False, PLATFORM = 'lin'):
     '''
     Check if Samtools is installed
@@ -782,10 +758,7 @@ def check_samtools(VERBOSE = False, PLATFORM = 'lin'):
         print('\n[E] Error: Cannot find Samtools, please install from http://www.htslib.org/ \n')
         sys.exit(UNINSTALLED_ERROR_CODE)
     return samtools, samtools_version
-
-
 # -----------------------------------------------------------------------------
-
 def check_bowtie2(clade, bowtie2_indexes, VERBOSE=False, PLATFORM='lin'):
     '''
     Check if Bowtie2 is alread installed
@@ -834,9 +807,7 @@ def check_bowtie2(clade, bowtie2_indexes, VERBOSE=False, PLATFORM='lin'):
             print('[I] BOWTIE2_INDEXES in ' + str(bowtie2_indexes_dir))
 
     return bowtie2, bowtie2_indexes_dir
-
 # ------------------------------------------------------------------------------
-
 def check_args():
     '''
     Check if the input arguments respect the rules of usage
@@ -863,6 +834,7 @@ def check_args():
         print('\nPanPhlAn map version '+__version__)
         print('Python version: ' + sys.version.split()[0])
         print('System: ' + sys.platform)
+        print(' '.join(sys.argv))
 
     # Check: INPUT_FILE -------------------------------------------------------
     is_compressed = False
@@ -964,9 +936,7 @@ def check_args():
     # TMP folder is not removed after finishing, since it might be used by a parallel _map run.
 
     return args_set
-
 # -----------------------------------------------------------------------------
-
 def main():
     # Check Python version
     if sys.hexversion < 0x02060000:
