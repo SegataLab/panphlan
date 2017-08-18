@@ -160,9 +160,8 @@ def create_bt2_indexes(pathgenomefiles, clade, output_path, tmp_path, TIME, VERB
         os.unlink(tmp_fna.name)
         show_interruption_message()
         sys.exit(INTERRUPTION_ERROR_CODE)
-
 # ------------------------------------------------------------------------------
-def write_pangenome(gene2loc, gene2family, gene2genome, output_path, clade, TIME, VERBOSE):
+def write_pangenome_file(gene2loc, gene2family, gene2genome, output_path, clade, VERBOSE):
     '''
     Create the pangenome database file combining all the information from
     gene mappings (location (contig, from, to), family and genome)
@@ -179,11 +178,13 @@ def write_pangenome(gene2loc, gene2family, gene2genome, output_path, clade, TIME
             else:
                 print('[W] Could not find gene in usearch7 cluster result (dict gene2family): '   + gene)
                 print('    Check presence of gene in file: usearch7_species_cluster.uc, option --uc')
-    return TIME
-    
+    if VERBOSE:
+        print('[I] Pangenome file has been generated:\n    ' + pangenome_csv)            
 # ------------------------------------------------------------------------------
 def get_gene_locations(pathgenomefiles, pathgenefiles, VERBOSE):
     '''
+    Extract gene locations from gene-identifier or blast-like search.
+    
     Get gene locations: Read all .ffn files to extract start and stop location from gene-name,
     If location cannot be extracted from gene-name, use a blast-like mapping of genes against their genomes. 
     
@@ -191,6 +192,7 @@ def get_gene_locations(pathgenomefiles, pathgenefiles, VERBOSE):
     
     Requires: Biopython module
     '''
+    if VERBOSE: print('[I] Get gene locations and contigs for each gene.')
     gene2loc = defaultdict(tuple)
     for (genomefile, genefile) in zip(pathgenomefiles,pathgenefiles):
         if VERBOSE:
@@ -263,10 +265,11 @@ def get_gene_locations(pathgenomefiles, pathgenefiles, VERBOSE):
                 for g,c in zip(sorted(geneIDset),sorted(locSet)): # sorted: to get indentical results in python 2 and 3   
                     gene2loc[g]=c
     return gene2loc
-
 # ------------------------------------------------------------------------------
 def get_contigs(pathgenomefiles):
     '''
+    genome2contigs = get_contigs(pathgenomefiles) # not used
+    
     Map each genome (filename) to its contig-set
     
     Function is not used!!
@@ -285,7 +288,6 @@ def get_contigs(pathgenomefiles):
         for r in SeqIO.parse(open(f, mode='r'), 'fasta'):
             genome2contigs[genome].add(r.id)
     return genome2contigs
-
 # ------------------------------------------------------------------------------
 def gene2genome_mapping(pathgenefiles, VERBOSE):
     '''
@@ -313,29 +315,6 @@ def gene2genome_mapping(pathgenefiles, VERBOSE):
                 print('    ' + seq_record.id + '\n')
                 sys.exit(NONUNIQUEGENE_ERROR_CODE)
     return gene2genome, gene2description
-
-# ------------------------------------------------------------------------------
-def pangenome_generation(pathgenomefiles, pathgenefiles, gene2family, clade, output_path, gene2genome, TIME, VERBOSE):
-    '''
-    (1) Extract gene locations from gene-identifier or blast-like search
-    (2) Get contig names for each genome-name (filename)
-        We need this to know which contigs belong to which filename (genome-name)
-    Result: basic part of the final pangenome-file (tab-separated):
-        geneID | start | stop
-    '''
-    if VERBOSE: print('[I] Get gene locations and contigs for each gene.')
-    gene2loc       = get_gene_locations(pathgenomefiles, pathgenefiles, VERBOSE)
-    # genome2contigs = get_contigs(pathgenomefiles) # not used
-    
-    # Write the pangenome database file: panphlan_clade_pangenome.csv
-    write_pangenome(gene2loc, gene2family, gene2genome, output_path, clade, TIME, VERBOSE)
-
-    if VERBOSE:
-        TIME = time_message(TIME, 'Pangenome has been generated.')
-
-    return TIME
-
-# ------------------------------------------------------------------------------
 # --- usearch7 -----------------------------------------------------------------
 def family_of(index):
     return 'g' + str(format(index, '06d'))
@@ -786,22 +765,27 @@ def main():
     bowtie2   = check_bowtie2(VERBOSE, PLATFORM)  # for generating .bt2 index files
     usearch7  = check_usearch7(VERBOSE, PLATFORM) # for getting gene-family cluster
     
-    # check input genome and gene files
+    # gff input
+    # gene2loc, gene2genome, gene2description, path_fna_file, path_ffn_files = read_gff_files(path_gff_files)
+    #
+    # check input genome and gene files (fna & ffn input)
     pathgenomefiles, pathgenefiles = check_genomes(args['i_ffn'], args['i_fna'], VERBOSE)
     pathgenefiles = add_filename_to_geneIDs(pathgenefiles, args['tmp'], VERBOSE)
     gene2genome, gene2description = gene2genome_mapping(pathgenefiles, VERBOSE)
+    gene2loc = get_gene_locations(pathgenomefiles, pathgenefiles, VERBOSE)
 
+    
     # Get gene families cluster (usearch7)
     if VERBOSE: print('\nSTEP 2. Generating gene families cluster (usearch7) ...')
     gene2family, TIME = usearch_clustering(pathgenefiles,args['th'],args['clade'],
                                            args['output'],args['tmp'],KEEP_UC,gene2description,TIME,VERBOSE)
 
-    # Get pangenome and bowtie2 index file
+    # Write the pangenome database file: panphlan_clade_pangenome.csv
     if VERBOSE: print('\nSTEP 3. Getting pangenome file...')
-    TIME = pangenome_generation(pathgenomefiles, pathgenefiles, gene2family,
-                                args['clade'], args['output'], gene2genome, TIME, VERBOSE)
-    TIME = create_bt2_indexes(pathgenomefiles, args['clade'], args['output'],
-                              args['tmp'], TIME, VERBOSE)
+    write_pangenome_file(gene2loc, gene2family, gene2genome, args['output'], args['clade'], VERBOSE)
+    
+    # Get bowtie2 index files
+    TIME = create_bt2_indexes(pathgenomefiles, args['clade'], args['output'], args['tmp'], TIME, VERBOSE)
     
     clean_up(pathgenefiles, args['tmp'], VERBOSE)
     end_program(time.time() - TOTAL_TIME)
