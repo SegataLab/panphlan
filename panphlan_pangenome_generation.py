@@ -570,7 +570,7 @@ def add_filename_to_geneIDs(pathgenefiles, tmp_path, VERBOSE):
     '''
     To get unique geneIDs across all genomes:
     1) Copy gene ffn files to TMP
-    2) add filename as prefix to geneIDs "Filename:originalGenID"
+    2) add filename as prefix to geneIDs "Filename:originalGenID" (if not already done)
 
     requires Biopython (Bio module)
     '''
@@ -592,7 +592,8 @@ def add_filename_to_geneIDs(pathgenefiles, tmp_path, VERBOSE):
                     seq.name=''
                 if seq.id == seq.description.split()[0]:    
                     seq.description=' '.join(seq.description.split()[1:])
-                seq.id = filename + ':' + seq.id    
+                if not seq.id.startswith(filename):
+                    seq.id = filename + ':' + seq.id    
                 r = SeqIO.write(seq, f_out, 'fasta')
                 if r!=1:
                     sys.exit('[E] Error while writing sequence to ffn-file:\n    ' + ffn_out)    
