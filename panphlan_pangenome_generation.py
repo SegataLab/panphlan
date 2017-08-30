@@ -212,9 +212,11 @@ def get_gene_locations(path_genome_fna_files, path_gene_ffn_files, VERBOSE):
                 #   [0] = filename
                 #   [1] = contig
                 #   [2] = location
-                pos1 = int(r.id.split(':')[-1].split('-')[0].replace('c','')) 
-                pos2 = int(r.id.split(':')[-1].split('-')[-1].replace('c',''))
-                contig = r.id.split(':')[-2]
+                locinfo=r.id.split(':')[-1] # try to get location info from after last ':' 
+                pos1 = int(locinfo.split('-')[0].replace('c','')) 
+                pos2 = int(locinfo.split('-')[-1].replace('c',''))
+                # contig = r.id.split(':')[-2]
+                contig = ':'.join(r.id.split(':')[:-1]) # take all before last ':' as contigID
                 start, stop = min(pos1, pos2), max(pos1, pos2) # to always have start < stop
                 gene2loc[r.id] = (str(contig), start, stop)
         except (IndexError, ValueError) as err: # alternatively, run BLAST-like python gene-genome mapping to get locations
@@ -281,7 +283,7 @@ def get_contigs(path_genome_fna_files, VERBOSE):
     for f in path_genome_fna_files:
         # genome = os.path.basename(f).split('.')[0] # get genome filename without extension
         genome = os.path.splitext(os.path.basename(f))[0] # get genome filename without extension (allow dots in genome-name)
-        if VERBOSE: print('    Genome: ' + genome)
+        # if VERBOSE: print('    Genome: ' + genome)
         for r in SeqIO.parse(open(f, mode='r'), 'fasta'):
             contigID=r.id
             if contigID not in contig2genome:
@@ -583,28 +585,29 @@ def check_bowtie2(VERBOSE, PLATFORM='lin'):
             print('    Bowtie2 is used to generate the .bt2 index files required in panphlan_map.py\n')
         sys.exit(UNINSTALLED_ERROR_CODE)        
 # ------------------------------------------------------------------------------
-def add_filename_to_geneIDs(path_gene_ffn_files, tmp_path, VERBOSE):
+def add_filename_to_seqIDs(path_gene_fxx_files, tmp_path, Fxx, VERBOSE):
     '''
-    To get unique geneIDs across all genomes:
-    1) Copy gene ffn files to TMP
-    2) add filename as prefix to geneIDs "Filename:originalGenID" (if not already done)
+    To get unique geneIDs (or contigIDs) across all genomes:
+    1) Copy gene ffn (or genome fna) files to TMP
+    2) add filename as prefix to geneIDs "Filename:originalGeneID", or to contigIDs "Filename:originalContigID"
+       add prefix only if not exist already (prefix does not need to follow by ':', "Filename_contig01" counts also as prefix exist)
 
     requires Biopython (Bio module)
     '''
-    if VERBOSE:
-        print('[I] To get unique geneIDs across genomes: add filename as prefix to geneIDs')
-
-    # create new folder 'ffn_uniqueGeneIDs' in TMP
-    new_ffn_folder = os.path.join(tmp_path,'ffn_uniqueGeneIDs','') # '' to get ending '/'
-    os.makedirs(new_ffn_folder)
     
-    # create new list of ffn files: new_path_gene_ffn_files
-    new_path_gene_ffn_files = [os.path.join(new_ffn_folder,os.path.basename(f)) for f in path_gene_ffn_files]
+    if VERBOSE and Fxx=='ffn': print('[I] To get unique geneIDs   across genomes: add filename as prefix to geneIDs')
+    if VERBOSE and Fxx=='ffn': print('[I] To get unique contigIDs across genomes: add filename as prefix to contigIDs')
+    # create new folder 'fxx_uniqueGeneIDs' in TMP
+    new_fxx_folder = os.path.join(tmp_path, Fxx+'_uniqueSeqIDs','') # '' to get ending '/'
+    os.makedirs(new_fxx_folder)
+    
+    # create new list of fxx files: new_path_gene_fxx_files
+    new_path_gene_fxx_files = [os.path.join(new_fxx_folder,os.path.basename(f)) for f in path_gene_fxx_files]
 
-    for (ffn_in,ffn_out) in zip(path_gene_ffn_files,new_path_gene_ffn_files):
-        filename = os.path.splitext(os.path.basename(ffn_in))[0]
-        with open(ffn_out, 'w') as f_out:
-            for seq in SeqIO.parse(open(ffn_in), 'fasta'):
+    for (fxx_in,fxx_out) in zip(path_gene_fxx_files,new_path_gene_fxx_files):
+        filename = os.path.splitext(os.path.basename(fxx_in))[0]
+        with open(fxx_out, 'w') as f_out:
+            for seq in SeqIO.parse(open(fxx_in), 'fasta'):
                 if seq.id == seq.name:
                     seq.name=''
                 if seq.id == seq.description.split()[0]:    
@@ -613,9 +616,9 @@ def add_filename_to_geneIDs(path_gene_ffn_files, tmp_path, VERBOSE):
                     seq.id = filename + ':' + seq.id    
                 r = SeqIO.write(seq, f_out, 'fasta')
                 if r!=1:
-                    sys.exit('[E] Error while writing sequence to ffn-file:\n    ' + ffn_out)    
+                    sys.exit('[E] Error while writing sequence to '+Fxx+'-file:\n    ' + fxx_out)    
 
-    return new_path_gene_ffn_files
+    return new_path_gene_fxx_files
 # ------------------------------------------------------------------------------
 def check_genomes(ffn_folder, fna_folder, VERBOSE):
     '''
@@ -670,19 +673,23 @@ def check_genomes(ffn_folder, fna_folder, VERBOSE):
 def clean_up(path_gene_ffn_files, tmp_path, VERBOSE):
     '''
     Remove files not needed anymore
-    1) copy of gene-sequence ffn files having prefix to geneIDs "Filename:originalGenID"
+    1) copy of sequence ffn and fna files having prefix to geneIDs "Filename:originalSeqID"
     2) TMP folder
     '''
-    if VERBOSE:
-        print('[I] Remove copies of gene-sequence ffn files from TMP/')
+    if VERBOSE: print('[I] Remove copies of sequence files (ffn or fna) from TMP/')
     for f in path_gene_ffn_files:
         if tmp_path in f: # make sure we deleting in the TMP directory
             os.remove(f)
-    
-    if VERBOSE:
-        print('[I] Remove TMP/ directory')
-    os.rmdir(os.path.join(tmp_path,'ffn_uniqueGeneIDs'))
-    os.rmdir(tmp_path)
+
+    # remove empty tmp directories, if exist
+    for rmdir in [os.path.join(tmp_path,'ffn_uniqueSeqIDs'), os.path.join(tmp_path,'fna_uniqueSeqIDs'), tmp_path]:
+        if os.path.isdir(rmdir) and os.listdir(rmdir) == []:
+            if rmdir == tmp_path:
+                if VERBOSE: print('[I] Remove TMP/ directory')
+            os.rmdir(rmdir)
+    # os.rmdir(os.path.join(tmp_path,'ffn_uniqueGeneIDs'))
+    # os.rmdir(tmp_path)
+    return True
 # ------------------------------------------------------------------------------
 def check_args():
     '''
@@ -783,12 +790,13 @@ def main():
     bowtie2   = check_bowtie2(VERBOSE, PLATFORM)  # for generating .bt2 index files
     usearch7  = check_usearch7(VERBOSE, PLATFORM) # for getting gene-family cluster
     
-    # gff input
+    # if gff: gff input
     # gene2loc, gene2genome, gene2description, path_fna_file, path_ffn_files = read_gff_files(path_gff_files)
     #
-    # check input genome and gene files (fna & ffn input)
+    # if not --gff # classic input: fna & ffn files
     path_genome_fna_files, path_gene_ffn_files = check_genomes(args['i_ffn'], args['i_fna'], VERBOSE)
-    path_gene_ffn_files = add_filename_to_geneIDs(path_gene_ffn_files, args['tmp'], VERBOSE)
+    path_gene_ffn_files   = add_filename_to_seqIDs(path_gene_ffn_files,   args['tmp'], 'ffn', VERBOSE)
+    path_genome_fna_files = add_filename_to_seqIDs(path_genome_fna_files, args['tmp'], 'fna', VERBOSE)
     gene2genome, gene2description = gene2genome_mapping(path_gene_ffn_files, VERBOSE)
     gene2loc = get_gene_locations(path_genome_fna_files, path_gene_ffn_files, VERBOSE)
 
@@ -796,7 +804,7 @@ def main():
     # check if contigIDs from geneIDs are present in contigs from fna
     contig2genome = get_contigs(path_genome_fna_files, VERBOSE)
     check_for_valid_contigIDs(gene2loc,contig2genome)
-    # sys.exit(2) 
+    # sys.exit(2) # for testing 
     
     # Get gene families cluster (usearch7)
     if VERBOSE: print('\nSTEP 2. Generating gene families cluster (usearch7) ...')
@@ -810,7 +818,8 @@ def main():
     # Get bowtie2 index files
     TIME = create_bt2_indexes(path_genome_fna_files, args['clade'], args['output'], args['tmp'], TIME, VERBOSE)
     
-    clean_up(path_gene_ffn_files, args['tmp'], VERBOSE)
+    clean_up(path_genome_fna_files, args['tmp'], VERBOSE)
+    clean_up(path_gene_ffn_files,   args['tmp'], VERBOSE)
     end_program(time.time() - TOTAL_TIME)
 
 # ------------------------------------------------------------------------------
