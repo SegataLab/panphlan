@@ -102,7 +102,7 @@ def time_message(start_time, message):
 # ------------------------------------------------------------------------------
 # MAJOR FUNCTIONS
 # ------------------------------------------------------------------------------
-def create_bt2_indexes(pathgenomefiles, clade, output_path, tmp_path, TIME, VERBOSE):
+def create_bt2_indexes(path_genome_fna_files, clade, output_path, tmp_path, TIME, VERBOSE):
     '''
     Call the build function of Bowtie2 to create the indexes for a given species
     
@@ -115,7 +115,7 @@ def create_bt2_indexes(pathgenomefiles, clade, output_path, tmp_path, TIME, VERB
         tmp_fna = tempfile.NamedTemporaryFile(delete=False, prefix='panphlan_', suffix='.fna', dir=tmp_path)
 
         cat_cmd = ['cat']
-        for f in pathgenomefiles:
+        for f in path_genome_fna_files:
             cat_cmd.append(f)
         if VERBOSE:
             print('[C] ' + ' '.join(cat_cmd) + ' > ' + tmp_fna.name)
@@ -181,7 +181,7 @@ def write_pangenome_file(gene2loc, gene2family, gene2genome, output_path, clade,
     if VERBOSE:
         print('[I] Pangenome file has been generated:\n    ' + pangenome_csv)            
 # ------------------------------------------------------------------------------
-def get_gene_locations(pathgenomefiles, pathgenefiles, VERBOSE):
+def get_gene_locations(path_genome_fna_files, path_gene_ffn_files, VERBOSE):
     '''
     Extract gene locations from gene-identifier or blast-like search.
     
@@ -194,7 +194,7 @@ def get_gene_locations(pathgenomefiles, pathgenefiles, VERBOSE):
     '''
     if VERBOSE: print('[I] Get gene locations and contigs for each gene.')
     gene2loc = defaultdict(tuple)
-    for (genomefile, genefile) in zip(pathgenomefiles,pathgenefiles):
+    for (genomefile, genefile) in zip(path_genome_fna_files,path_gene_ffn_files):
         if VERBOSE:
             print('[I] genomefile: ' + genomefile)
             print('    genefile: '   + genefile)
@@ -266,30 +266,47 @@ def get_gene_locations(pathgenomefiles, pathgenefiles, VERBOSE):
                     gene2loc[g]=c
     return gene2loc
 # ------------------------------------------------------------------------------
-def get_contigs(pathgenomefiles):
+def get_contigs(path_genome_fna_files, VERBOSE):
     '''
-    genome2contigs = get_contigs(pathgenomefiles) # not used
-    
-    Map each genome (filename) to its contig-set
-    
-    Function is not used!!
-        Contig-name is already included in gene2loc (contig,start,stop)
-        Genome-name (filename) is included in gene2genome
-    
+    contig2genome = get_contigs(path_genome_fna_files)
+    Map each contig to its genome (filename)
+    Used to
+     - check if contig-name from gene2loc (contig,start,stop) is valid
+     - check for duplicated contig-names across all genoems
     requires Biopython (Bio module)
     '''
-    # { genome : contig-set }
-    genome2contigs = defaultdict(set)
-    print('[I] Get genome-contigset list (dict)')
-    for f in pathgenomefiles:
+    # genome2contigs = defaultdict(set) # { genome : contig-set }
+    contig2genome  = {} # {contig : genomefilename}
+    if VERBOSE: print('[I] Get contig-IDs from all genome fna files')
+    for f in path_genome_fna_files:
         # genome = os.path.basename(f).split('.')[0] # get genome filename without extension
         genome = os.path.splitext(os.path.basename(f))[0] # get genome filename without extension (allow dots in genome-name)
-        print('    Genome: ' + genome)
+        if VERBOSE: print('    Genome: ' + genome)
         for r in SeqIO.parse(open(f, mode='r'), 'fasta'):
-            genome2contigs[genome].add(r.id)
-    return genome2contigs
+            contigID=r.id
+            if contigID not in contig2genome:
+                contig2genome[contigID] = genome   
+                # genome2contigs[genome].add(contigID)
+            else:
+                print('\n\n[I] Duplicated contig-ID: \n      ' + contigID + '\n    found in genome files: \n      ' + contig2genome[contigID] + '\n      ' + genome)
+                print('\n    ERROR: Duplicated contig-IDs\n\n')
+                sys.exit(2)
+    return contig2genome
+#-------------------------------------------------------------------------------
+def check_for_valid_contigIDs(gene2loc,contig2genome):
+    '''
+    Check if contigID from gene2loc (contig,start,stop) is valid
+    '''
+    for gene in gene2loc:
+        gene_contigID=gene2loc[gene][0]
+        if gene_contigID not in contig2genome:
+            print('\n\n[I] Gene-ID:   ' + gene)
+            print('    Contig-ID: '     + gene_contigID)
+            print('\n    ERROR: Contig-ID extracted from geneID is not valid (not present in any genome fna file)\n')
+            sys.exit(2)
+    return True
 # ------------------------------------------------------------------------------
-def gene2genome_mapping(pathgenefiles, VERBOSE):
+def gene2genome_mapping(path_gene_ffn_files, VERBOSE):
     '''
     Map each gene to its genome (genome-filename)
     
@@ -297,11 +314,11 @@ def gene2genome_mapping(pathgenefiles, VERBOSE):
     '''
     gene2genome     = {} # {geneID : genomefilename}
     gene2description = {} # {geneID : description}
-    print('[I] Get gene-genome list (dict)')
-    for f in pathgenefiles:
+    if VERBOSE: print('[I] Get gene-genome list')
+    for f in path_gene_ffn_files:
         # genome = os.path.basename(f).split('.')[0] # get genome filename without extension
         genome = os.path.splitext(os.path.basename(f))[0] # get genome filename without extension (allow dots in genome-name)
-        print('    Genome: ' + genome)
+        if VERBOSE: print('    Genome: ' + genome)
         for seq_record in SeqIO.parse(open(f, mode='r'), 'fasta'):
             # if not in dict, else error
             if seq_record.id not in gene2genome:    # add only if not in dictionary already
@@ -448,7 +465,7 @@ def run_usearch(sorted_merged_ffn, identity, clade, output_path, tmp_path, KEEP_
         TIME = time_message(TIME, 'Clustering with Usearch has been done.')
     return merged_uc, TIME
 # ------------------------------------------------------------------------------
-def usearch_sortbylength(pathgenefiles, tmp_path, TIME, VERBOSE):
+def usearch_sortbylength(path_gene_ffn_files, tmp_path, TIME, VERBOSE):
     '''
     Merge all the gene-sequence FFN files into a unique one, then sort by length
     '''
@@ -460,7 +477,7 @@ def usearch_sortbylength(pathgenefiles, tmp_path, TIME, VERBOSE):
         with tmp_ffn:
             # cat genefiles.ffn > merged_file.ffn
             cat_cmd = ['cat'] # same as for bowtie2, but based on gene.ffn files 
-            for f in pathgenefiles:
+            for f in path_gene_ffn_files:
                 cat_cmd.append(f)
             if VERBOSE:
                 print('[C] ' + ' '.join(cat_cmd) + ' > ' + tmp_ffn.name)
@@ -500,13 +517,13 @@ def usearch_sortbylength(pathgenefiles, tmp_path, TIME, VERBOSE):
     # Get in output the temporary merged and sorted .ffn file
     return TIME, tmp_sorted_ffn
 # ------------------------------------------------------------------------------
-def usearch_clustering(pathgenefiles, identity_threshold_perc, clade, output_path, tmp_path, KEEP_UC, gene2description, TIME, VERBOSE):
+def usearch_clustering(path_gene_ffn_files, identity_threshold_perc, clade, output_path, tmp_path, KEEP_UC, gene2description, TIME, VERBOSE):
     '''
     Note: If KEEP_UC, then <clusters>.uc is a file written in the output directory.
     Otherwise, <clusters>.uc is a temp file (in /tmp), deleted at the end of the computation
     '''
     # Merge and sort genes by length
-    TIME, tmp_sorted_ffn = usearch_sortbylength(pathgenefiles, tmp_path, TIME, VERBOSE)
+    TIME, tmp_sorted_ffn = usearch_sortbylength(path_gene_ffn_files, tmp_path, TIME, VERBOSE)
     # usearch7 clustering
     tmp_uc, TIME = run_usearch(tmp_sorted_ffn.name, identity_threshold_perc / 100.0, clade, output_path, tmp_path, KEEP_UC, TIME, VERBOSE)
     # Convert usearch7 result
@@ -566,7 +583,7 @@ def check_bowtie2(VERBOSE, PLATFORM='lin'):
             print('    Bowtie2 is used to generate the .bt2 index files required in panphlan_map.py\n')
         sys.exit(UNINSTALLED_ERROR_CODE)        
 # ------------------------------------------------------------------------------
-def add_filename_to_geneIDs(pathgenefiles, tmp_path, VERBOSE):
+def add_filename_to_geneIDs(path_gene_ffn_files, tmp_path, VERBOSE):
     '''
     To get unique geneIDs across all genomes:
     1) Copy gene ffn files to TMP
@@ -581,10 +598,10 @@ def add_filename_to_geneIDs(pathgenefiles, tmp_path, VERBOSE):
     new_ffn_folder = os.path.join(tmp_path,'ffn_uniqueGeneIDs','') # '' to get ending '/'
     os.makedirs(new_ffn_folder)
     
-    # create new list of ffn files: new_pathgenefiles
-    new_pathgenefiles = [os.path.join(new_ffn_folder,os.path.basename(f)) for f in pathgenefiles]
+    # create new list of ffn files: new_path_gene_ffn_files
+    new_path_gene_ffn_files = [os.path.join(new_ffn_folder,os.path.basename(f)) for f in path_gene_ffn_files]
 
-    for (ffn_in,ffn_out) in zip(pathgenefiles,new_pathgenefiles):
+    for (ffn_in,ffn_out) in zip(path_gene_ffn_files,new_path_gene_ffn_files):
         filename = os.path.splitext(os.path.basename(ffn_in))[0]
         with open(ffn_out, 'w') as f_out:
             for seq in SeqIO.parse(open(ffn_in), 'fasta'):
@@ -598,7 +615,7 @@ def add_filename_to_geneIDs(pathgenefiles, tmp_path, VERBOSE):
                 if r!=1:
                     sys.exit('[E] Error while writing sequence to ffn-file:\n    ' + ffn_out)    
 
-    return new_pathgenefiles
+    return new_path_gene_ffn_files
 # ------------------------------------------------------------------------------
 def check_genomes(ffn_folder, fna_folder, VERBOSE):
     '''
@@ -637,20 +654,20 @@ def check_genomes(ffn_folder, fna_folder, VERBOSE):
         sys.exit('Missing genome-gene file pairs')
 
     # add full path to genefile list        
-    pathgenomefiles = sorted([os.path.join(fna_folder,f) for f in genomefiles])
-    pathgenefiles   = sorted([os.path.join(ffn_folder,f) for f in genefiles])
+    path_genome_fna_files = sorted([os.path.join(fna_folder,f) for f in genomefiles])
+    path_gene_ffn_files   = sorted([os.path.join(ffn_folder,f) for f in genefiles])
     
     # check usearch7 cluster depends on file order? (bvulgatus14) Yes, result depends on gene-file order 
-    # pathgenomefiles = [ pathgenomefiles[i] for i in [2,1,0,3]]  # Original file order
-    # pathgenefiles   = [ pathgenefiles[i]   for i in [2,1,0,3]]
+    # path_genome_fna_files = [ path_genome_fna_files[i] for i in [2,1,0,3]]  # Original file order
+    # path_gene_ffn_files   = [ path_gene_ffn_files[i]   for i in [2,1,0,3]]
     
     print('\nExpected runtime: ' + str(len(genomefiles)*20) + ' minutes (start time: ' + time.strftime("%b %d %Y %H:%M") + ')\n')
     if not VERBOSE:
         print('Use option --verbose to display progress information.\n')
 
-    return pathgenomefiles, pathgenefiles
+    return path_genome_fna_files, path_gene_ffn_files
 # ------------------------------------------------------------------------------
-def clean_up(pathgenefiles, tmp_path, VERBOSE):
+def clean_up(path_gene_ffn_files, tmp_path, VERBOSE):
     '''
     Remove files not needed anymore
     1) copy of gene-sequence ffn files having prefix to geneIDs "Filename:originalGenID"
@@ -658,7 +675,7 @@ def clean_up(pathgenefiles, tmp_path, VERBOSE):
     '''
     if VERBOSE:
         print('[I] Remove copies of gene-sequence ffn files from TMP/')
-    for f in pathgenefiles:
+    for f in path_gene_ffn_files:
         if tmp_path in f: # make sure we deleting in the TMP directory
             os.remove(f)
     
@@ -770,15 +787,20 @@ def main():
     # gene2loc, gene2genome, gene2description, path_fna_file, path_ffn_files = read_gff_files(path_gff_files)
     #
     # check input genome and gene files (fna & ffn input)
-    pathgenomefiles, pathgenefiles = check_genomes(args['i_ffn'], args['i_fna'], VERBOSE)
-    pathgenefiles = add_filename_to_geneIDs(pathgenefiles, args['tmp'], VERBOSE)
-    gene2genome, gene2description = gene2genome_mapping(pathgenefiles, VERBOSE)
-    gene2loc = get_gene_locations(pathgenomefiles, pathgenefiles, VERBOSE)
+    path_genome_fna_files, path_gene_ffn_files = check_genomes(args['i_ffn'], args['i_fna'], VERBOSE)
+    path_gene_ffn_files = add_filename_to_geneIDs(path_gene_ffn_files, args['tmp'], VERBOSE)
+    gene2genome, gene2description = gene2genome_mapping(path_gene_ffn_files, VERBOSE)
+    gene2loc = get_gene_locations(path_genome_fna_files, path_gene_ffn_files, VERBOSE)
 
+    
+    # check if contigIDs from geneIDs are present in contigs from fna
+    contig2genome = get_contigs(path_genome_fna_files, VERBOSE)
+    check_for_valid_contigIDs(gene2loc,contig2genome)
+    # sys.exit(2) 
     
     # Get gene families cluster (usearch7)
     if VERBOSE: print('\nSTEP 2. Generating gene families cluster (usearch7) ...')
-    gene2family, TIME = usearch_clustering(pathgenefiles,args['th'],args['clade'],
+    gene2family, TIME = usearch_clustering(path_gene_ffn_files,args['th'],args['clade'],
                                            args['output'],args['tmp'],KEEP_UC,gene2description,TIME,VERBOSE)
 
     # Write the pangenome database file: panphlan_clade_pangenome.csv
@@ -786,9 +808,9 @@ def main():
     write_pangenome_file(gene2loc, gene2family, gene2genome, args['output'], args['clade'], VERBOSE)
     
     # Get bowtie2 index files
-    TIME = create_bt2_indexes(pathgenomefiles, args['clade'], args['output'], args['tmp'], TIME, VERBOSE)
+    TIME = create_bt2_indexes(path_genome_fna_files, args['clade'], args['output'], args['tmp'], TIME, VERBOSE)
     
-    clean_up(pathgenefiles, args['tmp'], VERBOSE)
+    clean_up(path_gene_ffn_files, args['tmp'], VERBOSE)
     end_program(time.time() - TOTAL_TIME)
 
 # ------------------------------------------------------------------------------
