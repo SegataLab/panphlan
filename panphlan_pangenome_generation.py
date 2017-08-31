@@ -809,7 +809,7 @@ def main():
     # check if contigIDs from geneIDs are present in contigs from fna
     contig2genome = get_contigs(path_genome_fna_files, VERBOSE)
     check_for_valid_contigIDs(gene2loc,contig2genome)
-    sys.exit(2) # for testing 
+    # sys.exit(2) # for testing 
     
     # Get gene families cluster (usearch7)
     if VERBOSE: print('\nSTEP 2. Generating gene families cluster (usearch7) ...')
