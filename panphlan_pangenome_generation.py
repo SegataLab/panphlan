@@ -23,8 +23,8 @@ from fnmatch import fnmatch
 import re # for gene genome mapping
 
 __author__  = 'Matthias Scholz, Thomas Tolio, Nicola Segata (panphlan-users@googlegroups.com)'
-__version__ = '1.2.2.2'
-__date__    = '17 August 2017'
+__version__ = '1.2.3.1'
+__date__    = '31 August 2017'
 
 try:
     from Bio import SeqIO
@@ -221,6 +221,7 @@ def get_gene_locations(path_genome_fna_files, path_gene_ffn_files, VERBOSE):
                 gene2loc[r.id] = (str(contig), start, stop)
         except (IndexError, ValueError) as err: # alternatively, run BLAST-like python gene-genome mapping to get locations
             if VERBOSE:
+                print('    Expected geneID format: ">contigID:start-stop" (1-based)')
                 print('    Extraction from geneID failed, map gene-sequences against genome...')
             gene2multiloc = {} # tmp-dict for all hits, including sets of multiple gene locations
             # read genome sequence
@@ -599,7 +600,11 @@ def add_filename_to_seqIDs(path_gene_fxx_files, tmp_path, Fxx, VERBOSE):
     if VERBOSE and Fxx=='ffn': print('[I] To get unique contigIDs across genomes: add filename as prefix to contigIDs')
     # create new folder 'fxx_uniqueGeneIDs' in TMP
     new_fxx_folder = os.path.join(tmp_path, Fxx+'_uniqueSeqIDs','') # '' to get ending '/'
-    os.makedirs(new_fxx_folder)
+    if os.path.exists(new_fxx_folder):
+        # print('\n\n ERROR: directory exist already: ' + new_fxx_folder)
+        sys.exit('\n\n ERROR: directory exist already: ' + new_fxx_folder + '\n Please rename or remove: ' + tmp_path + '\n\n')
+    else:
+        os.makedirs(new_fxx_folder)
     
     # create new list of fxx files: new_path_gene_fxx_files
     new_path_gene_fxx_files = [os.path.join(new_fxx_folder,os.path.basename(f)) for f in path_gene_fxx_files]
@@ -804,7 +809,7 @@ def main():
     # check if contigIDs from geneIDs are present in contigs from fna
     contig2genome = get_contigs(path_genome_fna_files, VERBOSE)
     check_for_valid_contigIDs(gene2loc,contig2genome)
-    # sys.exit(2) # for testing 
+    sys.exit(2) # for testing 
     
     # Get gene families cluster (usearch7)
     if VERBOSE: print('\nSTEP 2. Generating gene families cluster (usearch7) ...')
