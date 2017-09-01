@@ -43,9 +43,8 @@ if '--i_gff' in sys.argv:
         sys.exit(2)
 
 
-
 __author__  = 'Matthias Scholz, Thomas Tolio, Nicola Segata (panphlan-users@googlegroups.com)'
-__version__ = '1.2.3.1'
+__version__ = '1.2.3.2'
 __date__    = '31 August 2017'
 
 try:
