@@ -280,7 +280,7 @@ def gff_add_genome_seq(gff_folder, fna_folder, VERBOSE):
                     for line in f_in:
                         f_out.write(line)
         else:
-            print('\n WARNING: Cannot find genome file: ' + os.path.join(fna_folder,genomeID+'.fna'))
+            print('\n WARNING: Cannot find genome file: ' + os.path.join(fna_folder,genomeID+'.fna\n'))
     
     num_new_gff = len([os.path.join(new_gff_folder,f) for f in os.listdir(new_gff_folder) if f.endswith(('.gff'))])
     if num_new_gff==0: sys.exit('\n\n ERROR: Could not add fna genome sequence to any gff file.\n')
