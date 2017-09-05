@@ -25,7 +25,6 @@ import os, subprocess, sys, tempfile, time
 from fnmatch import fnmatch
 import re # for gene genome mapping
 import shutil
-# import itertools
 
 if '--i_gff' in sys.argv:
     try:
@@ -47,18 +46,6 @@ if '--i_gff' in sys.argv:
         print('  pip install biopython\n\n')
         sys.exit(2)
 
-
-<<<<<<< local
-__author__  = 'Matthias Scholz, Thomas Tolio, Nicola Segata (panphlan-users@googlegroups.com)'
-__version__ = '1.2.3.2'
-__date__    = '31 August 2017'
-=======
-
-__author__  = 'Matthias Scholz, Moreno Zolfo, Thomas Tolio, Nicola Segata (panphlan-users@googlegroups.com)'
-__version__ = '1.2.3.2'
-__date__    = '5 September 2017'
->>>>>>> other
-
 try:
     from Bio import SeqIO
     from Bio.SeqRecord import SeqRecord
@@ -68,7 +55,13 @@ except ImportError as err:
     print('    The "Bio" module is required for extracting gene locations')
     print('    by mapping genes against their genome.\n')
     sys.exit(2)
-    
+
+
+__author__  = 'Matthias Scholz, Moreno Zolfo, Thomas Tolio, Nicola Segata (panphlan-users@googlegroups.com)'
+__version__ = '1.2.3.2'
+__date__    = '5 September 2017'
+
+
 # Operating systems
 LINUX                   = 'lin'
 WINDOWS                 = 'win'
