@@ -9,7 +9,10 @@
 # Strain-level microbial epidemiology and population genomics from shotgun metagenomics.
 # Nature Methods, 13, 435-438, 2016.
 #
-# For help type: ./panphlan_map.py -h
+# For help type: ./panphlan_pangenome_generation.py -h
+#
+# Example:
+# ./panphlan_pangenome_generation.py --i_gff ncbi_download_gff/ --i_fna ncbi_download_fna/ -c speciesname
 #
 # https://bitbucket.org/CibioCM/panphlan
 # ==============================================================================
@@ -21,6 +24,8 @@ from collections import defaultdict
 import os, subprocess, sys, tempfile, time
 from fnmatch import fnmatch
 import re # for gene genome mapping
+import shutil
+# import itertools
 
 if '--i_gff' in sys.argv:
     try:
@@ -43,9 +48,16 @@ if '--i_gff' in sys.argv:
         sys.exit(2)
 
 
+<<<<<<< local
 __author__  = 'Matthias Scholz, Thomas Tolio, Nicola Segata (panphlan-users@googlegroups.com)'
 __version__ = '1.2.3.2'
 __date__    = '31 August 2017'
+=======
+
+__author__  = 'Matthias Scholz, Moreno Zolfo, Thomas Tolio, Nicola Segata (panphlan-users@googlegroups.com)'
+__version__ = '1.2.3.2'
+__date__    = '5 September 2017'
+>>>>>>> other
 
 try:
     from Bio import SeqIO
@@ -121,6 +133,16 @@ def time_message(start_time, message):
     current_time = time.time()
     print('[I] ' + message + ' Execution time: ' + str(round(current_time - start_time, 2)) + ' seconds.')
     return current_time
+
+def openread( filename, mode = "r" ):
+    # open file for reading, allow both compressed or uncompressed versions
+    if filename.endswith('.gz'):
+        return gzip.open(filename,mode)
+    elif filename.endswith('.bz2'):
+        import bz2 # bz2 not always available on servers: import only when needed
+        return bz2.BZ2File(filename,mode)
+    else:
+        return open(filename,mode)
 
 # ------------------------------------------------------------------------------
 # MAJOR FUNCTIONS
@@ -204,15 +226,84 @@ def write_pangenome_file(gene2loc, gene2family, gene2genome, output_path, clade,
     if VERBOSE:
         print('[I] Pangenome file has been generated:\n    ' + pangenome_csv)            
 # ------------------------------------------------------------------------------
+def gff_add_genome_seq(gff_folder, fna_folder, VERBOSE):
+    '''
+    Add genome sequence from .fna file to .gff file (gff's from NCBI don't have genome sequence included)
+    PanPhlAn (and Roary) work with genome sequence included as in Prokka gff's.
+    1) read all .gff, gff.gz, and gff,bz2 files (if both compressed and uncompressed version exist, take uncompressed)
+    2) check for missing genome sequence (not missing -> don't add fna, copy orig gff to new folder)
+    3) add sequence from .fna file
+    '''
+    # read .gff or .gff.gz
+    path_gff_files = [os.path.join(gff_folder,f) for f in os.listdir(gff_folder) if f.endswith(('.gff','.gff.gz','.gff.bz2'))]
+    if len(path_gff_files) < 1: print('\nERROR: Cannot find .gff files in folder\n  '+gff_folder+'\n')
+    # if both raw .gff and compressed gff.gz are present, keep only uncompressed .gff in list
+    path_gff_files =  [f for f in path_gff_files if not os.path.splitext(f)[0] in path_gff_files]
+    
+    # create new gff folder 'gff_added_fna' (genome sequence included in gff files)
+    new_gff_folder = os.path.join(os.getcwd(),'gff_added_fna','') # '' to get ending '/'
+    if os.path.exists(new_gff_folder):
+        print('\nERROR: New gff directory exist already:\n  '+new_gff_folder+'\n  Please rename or remove the directory and try again.\n')
+        sys.exit(2)
+    else:
+        os.makedirs(new_gff_folder)
+    
+    for gff_file in path_gff_files:
+        # read and check presence of seq
+        genomeID = os.path.basename(gff_file).replace('.gff.gz','').replace('.gff.bz2','').replace('.gff','') # to allow dots in genome-name
+        # genomeID = os.path.splitext(os.path.basename(gff_file))[0] # not working for compressed files, gff remains
+        if VERBOSE: print('[I] ' + genomeID + '\n    Read gff file:\n    ' + gff_file)
+
+        contig = next(GFF.parse(openread(gff_file)))
+        
+        # check if FASTA genome sequence is already present     
+        gff_version = int(contig.annotations['gff-version'][0])
+        if VERBOSE: print('    gff-version: ' + str(gff_version))
+        if type(contig.seq)==UnknownSeq: # type check for Bio.Seq.UnknownSeq
+            fna_present = False
+        else:
+            fna_present = True
+            print('\n WARNING: genome sequence is already present in gff file (--fna not needed): ' + genomeID + '\n')
+
+        # search fna file (FASTA genome sequence)
+        fna_search_files = [os.path.join(fna_folder,genomeID+ending) for ending in ('.fna','.fna.gz','.fna.bz2')]
+        fna_files_exist = [f for f in fna_search_files if os.path.exists(f)]
+        fna_file = fna_files_exist[0] if fna_files_exist else None
+        
+        # add fna to gff file, and save in new gff folder
+        gff_out = os.path.join(new_gff_folder,genomeID+'.gff')
+        if fna_present: # copy gff file, if sequence already included
+            print('    Keep gff file unchanged, copy gff file to\n    ' + gff_out)
+            with openread(gff_file) as f_in, open(gff_out, 'w') as f_out:
+                    shutil.copyfileobj(f_in, f_out)
+        elif fna_file: # add fna genome sequence, if fna file exist
+            if VERBOSE: print('    Add fna sequence to gff file\n    ' + gff_out)
+            with open(gff_out, 'w') as f_out:
+                with openread(gff_file) as f_in:
+                    for line in f_in:
+                        f_out.write(line)
+                f_out.write('##FASTA\n') # add '##FASTA' separator
+                with openread(fna_file) as f_in: # add fna genome file
+                    for line in f_in:
+                        f_out.write(line)
+        else:
+            print('\n WARNING: Cannot find genome file: ' + os.path.join(fna_folder,genomeID+'.fna'))
+    
+    num_new_gff = len([os.path.join(new_gff_folder,f) for f in os.listdir(new_gff_folder) if f.endswith(('.gff'))])
+    if num_new_gff==0: sys.exit('\n\n ERROR: Could not add fna genome sequence to any gff file.\n')
+    print('\n[I] ' + str(num_new_gff) + ' gff files that include the .fna genome sequence are written to folder:\n    ' + new_gff_folder + '\n')
+    return new_gff_folder
+# ------------------------------------------------------------------------------
 def read_gff_write_fna_ffn(gff_folder, VERBOSE):
     '''
     gene2loc,gene2genome,gene2description,gene2gffdata,path_fna_files,path_ffn_files = read_gff_write_fna_ffn(gff_folder)
+    main parts developed by Moreno Zolfo
     a) read gff-files and extract gene location and annotation
     b) write genome fna files (for bowtie2 index database)
     c) write gene ffn files (for usearch7 clustering)
     gene2loc    = {geneID : (contig,start,stop)}
     gene2genome = {geneID : genomefilename}
-    gene2description = {geneID : description}
+    gene2description = {geneID : description} 
     '''
     # read gff and prepare output folder fna ffn
     path_gff_files = [os.path.join(gff_folder,f)for f in os.listdir(gff_folder) if fnmatch(f,'*.gff')]
@@ -855,16 +946,12 @@ def check_args():
         print('Python version: ' + sys.version.split()[0])
         print('System: ' + sys.platform)
         print(' '.join(sys.argv))
+        print('')
 
     # valid options:
-    # panphlan_pangenome_generation.py --gff  gff-files/   # only convert gff to fna and ffn (no bowtie, no usearch), genome seq included in gff
-    # panphlan_pangenome_generation.py --gff  ncbi_download_gff/--fna ncbi_download_fna/ # add genome fna to gff and convert gff to fna and ffn (filename prefix added to seqID)
+    # panphlan_pangenome_generation.py --i_gff  ncbi_download_gff/--fna ncbi_download_fna/ # add genome fna to gff (no bowtie, no usearch)
+    # panphlan_pangenome_generation.py --i_gff  prokka_gff/   # only convert gff to fna and ffn (filename prefix added to seqID) (no bowtie, no usearch) (genome seq needs to be included in gff)
     # panphlan_pangenome_generation.py    ....   -c species # generate database
-    
-    if args['i_gff'] and not args['clade']:
-        print('\nConverting .gff files to gene .ffn (and genome .fna) files.') # no bowtie2, no usearch
-    if args['i_gff'] and args['clade']:
-        print('\nGenerating panphlan database from .gff files.') # run bowtie2 and usearch/roary
     
     # not valid option combinations
     if args['i_ffn'] and not args['i_fna']: sys.exit('\n Error: Genome sequence .fna files required, add option:  --i_fna genomes/\n')
@@ -908,6 +995,7 @@ def check_args():
     if args['clade']: # don't need to check if only converting gff to fna & ffn
         # Check: CLADE -------------------------------------------------------------
         args['clade']=args['clade'].replace('panphlan_','') # remove panphlan_ prefix (added later only for bowtie2)
+        args['clade']=args['clade'].replace('_','-') # convert underscore '_' to dash '-'  (underscore is used as separator in _map)
         if VERBOSE: print('[I] Species database name: ' + args['clade'])
 
         # Check: IDENTITY_PERCENATGE -----------------------------------------------
@@ -948,23 +1036,25 @@ def main():
     
     TOTAL_TIME = time.time()
     TIME = time.time()
-    
+
     # Check if software is installed
     if VERBOSE: print('\nSTEP 1. Checking required software installations...')
     if args['clade']:
         bowtie2   = check_bowtie2(VERBOSE, PLATFORM)  # for generating .bt2 index files
     if args['clade'] and not args['roary_genefamilies']: 
         usearch7  = check_usearch7(VERBOSE, PLATFORM) # for generating usearch7 gene-family cluster
-    
-    
-    if VERBOSE: print('\nSTEP 2. Prepare input gene and genome files...')
-    if args['i_gff'] and args['i_fna']:
-        print('=== Add genome fna sequences to gff files, still in progress... coming soon...\n\n')
-        # args['i_gff'] = gff_add_genome_seq(args['i_gff'])
-        sys.exit(2)
 
-    if args['i_gff']:
-        if VERBOSE: print('[I] Read gff files, extract gene location and annotation, write genome fna and gene ffn sequences.')
+
+    if VERBOSE: print('\nSTEP 2. Prepare input gene and genome files...')
+
+    if args['i_gff'] and args['i_fna']: # if not 'clade': skip bowtie2 & usearch, only add genome to gff files
+        print('[I] Add genome fna sequences to gff files')
+        args['i_gff'] = gff_add_genome_seq(args['i_gff'], args['i_fna'], VERBOSE)
+
+    if (args['i_gff'] and not args['i_fna'])  or  (args['i_gff'] and args['i_fna'] and args['clade']):
+        # extract fna & ffn from gff always if 'clade'
+        # if not 'clade': only extract fna & ffn from gff, but not if 'fna' added right before  
+        print('[I] Read gff files, extract gene location and annotation, write genome fna and gene ffn sequences.')
         gene2loc,gene2genome,gene2description,gene2gffdata,path_genome_fna_files,path_gene_ffn_files = read_gff_write_fna_ffn(args['i_gff'], VERBOSE)
 
     if args['i_fna'] and not args['i_gff'] and args['clade']: # classic input: fna & ffn files (usearch approach)
@@ -984,7 +1074,7 @@ def main():
         # sys.exit(2) # for testing
     
         # Get gene families cluster (usearch7)
-        if VERBOSE: print('\nSTEP 3. Generating gene families cluster (usearch7) ...')
+        print('\nSTEP 3. Generating gene families cluster (usearch7) ...')
         gene2family, TIME = usearch_clustering(path_gene_ffn_files,args['th'],args['clade'],
                                            args['output'],args['tmp'],KEEP_UC,gene2description,TIME,VERBOSE)
 
