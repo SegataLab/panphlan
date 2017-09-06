@@ -25,6 +25,7 @@ import os, subprocess, sys, tempfile, time
 from fnmatch import fnmatch
 import re # for gene genome mapping
 import shutil
+import gzip
 
 if '--i_gff' in sys.argv:
     try:
