@@ -431,6 +431,7 @@ def get_gene_locations(path_genome_fna_files, path_gene_ffn_files, VERBOSE):
         try: # extract gene-location from geneIDs
             if VERBOSE:
                 print('    Extract gene-location from geneIDs')
+            gene_location_check_done = False
             for r in SeqIO.parse(open(genefile, mode='r'), 'fasta'): 
                 # extract gene-locations from gi-gene-IDs, examples
                 #   gi|545636471|ref|NC_022443.1|:3480-3965
@@ -449,6 +450,10 @@ def get_gene_locations(path_genome_fna_files, path_gene_ffn_files, VERBOSE):
                 contig = ':'.join(r.id.split(':')[:-1]) # take all before last ':' as contigID
                 start, stop = min(pos1, pos2), max(pos1, pos2) # to always have start < stop
                 gene2loc[r.id] = (str(contig), start, stop)
+                if not gene_location_check_done: # double check first gene for correct start-stop location
+                    if not check_gene_location(genomefile, genefile, r.id, gene2loc[r.id], VERBOSE):
+                        raise IndexError('Location extracted from geneID is not correct')
+                    gene_location_check_done = True
         except (IndexError, ValueError) as err: # alternatively, run BLAST-like python gene-genome mapping to get locations
             if VERBOSE:
                 print('    Expected geneID format: ">contigID:start-stop" (1-based)')
@@ -498,6 +503,31 @@ def get_gene_locations(path_genome_fna_files, path_gene_ffn_files, VERBOSE):
                 for g,c in zip(sorted(geneIDset),sorted(locSet)): # sorted: to get indentical results in python 2 and 3   
                     gene2loc[g]=c
     return gene2loc
+# ------------------------------------------------------------------------------
+def check_gene_location(genomefile,genefile,geneID,geneLocation, VERBOSE):
+    '''
+    check if gene-location from geneID gives correct gene sequence
+    1) extract gene sequence from genome, based on geneLocation (contig, start, stop)
+    2) extract gene sequence from ffn-gene-file
+    3) check: both sequences have to be identical!
+    '''
+    if VERBOSE: print('    Check if location extracted from geneID is correct, gene: ' + geneID)
+    for contig in SeqIO.parse(open(genomefile, mode='r'), 'fasta'):
+        if contig.id==geneLocation[0]:
+            start=geneLocation[1]
+            stop =geneLocation[2]
+            gene_from_fna        = contig.seq[start-1:stop]
+            gene_from_fna_0based = contig.seq[start:stop] # 0-based bedtools format
+    for gene in SeqIO.parse(open(genefile, mode='r'), 'fasta'):
+        if gene.id==geneID:
+            gene_from_ffn = gene.seq
+    if gene_from_ffn == gene_from_fna:
+        return True
+    if VERBOSE: print('    Sequence location in genome file is not identical with gene sequence!')
+    if gene_from_ffn == gene_from_fna_0based:
+        if VERBOSE: print('    GeneID might follow 0-based (start-1) BED-tools format, PanPhlAn requires 1-based locations as in .gff files.')
+        if VERBOSE: print('    Use panphlan to extract .ffn gene sequences using .gff gene annotations')
+    return False
 # ------------------------------------------------------------------------------
 def get_contigs(path_genome_fna_files, VERBOSE):
     '''
@@ -900,8 +930,6 @@ def check_genomes(ffn_folder, fna_folder, VERBOSE):
     # path_gene_ffn_files   = [ path_gene_ffn_files[i]   for i in [2,1,0,3]]
     
     print('\nExpected runtime: ' + str(len(genomefiles)*20) + ' minutes (start time: ' + time.strftime("%b %d %Y %H:%M") + ')\n')
-    if not VERBOSE:
-        print('Use option --verbose to display progress information.\n')
 
     return path_genome_fna_files, path_gene_ffn_files
 # ------------------------------------------------------------------------------
