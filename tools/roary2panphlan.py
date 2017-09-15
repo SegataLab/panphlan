@@ -4,6 +4,7 @@ __author__  = 'Moreno Zolfo (panphlan-users@googlegroups.com)'
 __version__ = '0.1'
 __date__    = '1 September 2017'
 
+
 class bcolors:
 	HEADER = '\033[95m'
 	OKBLUE = '\033[94m'
