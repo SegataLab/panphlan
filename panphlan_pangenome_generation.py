@@ -59,8 +59,8 @@ except ImportError as err:
 
 
 __author__  = 'Matthias Scholz, Moreno Zolfo, Thomas Tolio, Nicola Segata (panphlan-users@googlegroups.com)'
-__version__ = '1.2.3.2'
-__date__    = '5 September 2017'
+__version__ = '1.2.3.3'
+__date__    = '15 January 2018'
 
 
 # Operating systems
@@ -131,7 +131,7 @@ def time_message(start_time, message):
 def openread( filename, mode = "r" ):
     # open file for reading, allow both compressed or uncompressed versions
     if filename.endswith('.gz'):
-        return gzip.open(filename,mode)
+        return gzip.open(filename,mode+"t") #  to force text mode 't' in python3 (read gff.gz files)
     elif filename.endswith('.bz2'):
         import bz2 # bz2 not always available on servers: import only when needed
         return bz2.BZ2File(filename,mode)
