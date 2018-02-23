@@ -59,8 +59,8 @@ except ImportError as err:
 
 
 __author__  = 'Matthias Scholz, Moreno Zolfo, Thomas Tolio, Nicola Segata (panphlan-users@googlegroups.com)'
-__version__ = '1.2.3.3'
-__date__    = '15 January 2018'
+__version__ = '1.2.3.4'
+__date__    = '23 February 2018'
 
 
 # Operating systems
@@ -97,7 +97,7 @@ class PanPhlAnGenParser(ArgumentParser):
         self.add_argument('--i_gff',         metavar='INPUT_GFF_FOLDER',     type=str,   default=False,      help='Folder containing the .gff gene annotation files')
         self.add_argument('-c','--clade',    metavar='CLADE_NAME',           type=str,   default=False,      help='Name of the species pangenome database, for example: -c ecoli17')
         self.add_argument('-o','--output',   metavar='OUTPUT_FOLDER',        type=str,   default='database', help='Result folder for all database files')
-        self.add_argument('--roary_genefamilies', metavar='ROARY_CLUSTER_RESULT', type=str,default=False,    help='Coming soon... Gene family cluster result of roary based on gff')
+        self.add_argument('--roary_dir',     metavar='ROARY_FOLDER',         type=str,   default=False,      help='Use pre-processed Roary pangenome clustering (instead of usearch): Folder containing gene family cluster results of Roary based on gff')
         self.add_argument('--th',            metavar='IDENTITY_PERCENATGE',  type=float, default=95.0,       help='Threshold of gene sequence similarity (in percentage), default: 95.0 %%.')
         self.add_argument('--tmp',           metavar='TEMP_FOLDER',          type=str,   default='TMP_panphlan_db', help='Folder for temporary files, default: TMP_panphlan_db')
         self.add_argument('--uc',            action='store_true',                                            help='Keep all usearch7 output files')
@@ -595,6 +595,59 @@ def gene2genome_mapping(path_gene_ffn_files, VERBOSE):
                 print('    ' + seq_record.id + '\n')
                 sys.exit(NONUNIQUEGENE_ERROR_CODE)
     return gene2genome, gene2description
+# --- Roary --------------------------------------------------------------------
+def read_roary_gene_clustering(roary_folder, VERBOSE):
+    '''
+    Read roary clustering result
+    1) Search for file: 'gene_presence_absence.csv'
+    2) Read file and create dict mappings:  
+         gene2family       = {geneID   : familyID}
+         family2annotation = {familyID : function} 
+    '''
+    # check if roary cluster file exist
+    roary_cluster_csv = os.path.join(roary_folder,'gene_presence_absence.csv')
+    if not os.path.exists(roary_cluster_csv):
+        print('\nERROR: Cannot find Roary gene_presence_absence.csv file:\n  '+roary_cluster_csv+'\n')
+        sys.exit(2)
+    # read roary file
+    if VERBOSE: print('    Read Roary gene cluster "gene_presence_absence.csv" file:\n    '+roary_cluster_csv+'\n')
+    gene2family       = {} 
+    family2annotation = {}
+    NotSampleColumns = ['Gene', 'Non-unique Gene name', 'Annotation', 'No. isolates', 'No. sequences', 'Avg sequences per isolate', 'Genome Fragment', 'Order within Fragment', 'Accessory Fragment', 'Accessory Order with Fragment', 'QC', 'Min group size nuc', 'Max group size nuc', 'Avg group size nuc']    
+    with open(roary_cluster_csv, mode='r') as f:
+        headerline=f.readline().strip().strip('"').split('","')
+        if 'Gene' not in headerline:
+            print('\nERROR: Cannot find column "Gene" in Roary gene_presence_absence.csv file:\n  '+roary_cluster_csv+'\n')
+            sys.exit(2)
+        if 'Annotation' not in headerline:
+            print('\nERROR: Cannot find column "Annotation" in Roary gene_presence_absence.csv file:\n  '+roary_cluster_csv+'\n')
+            sys.exit(2)
+        for line in f:
+            # time.sleep(0.1) # <<<<<<<<<<<<<<<<<
+            l=line.strip().strip('"').strip('",').split('","')
+            genefamily=''
+            for (i,h) in zip(l,headerline):
+                # print(i + ' - ' + h)
+                if h=='Gene': genefamily = i
+                if h=='Annotation': family2annotation[genefamily] = i
+                if h not in NotSampleColumns:
+                    genomeID = h
+                    geneID = i
+                    if geneID: # if not empty (gene-family present in reference genome)
+                        # add filename prefix in front of gene-name
+                        if not geneID.startswith(genomeID): geneID = genomeID + ':' + geneID
+                        # print(genomeID + ' - ' + geneID)
+                        gene2family[geneID]=genefamily
+    return gene2family, family2annotation
+# ------------------------------------------------------------------------------
+def convert_roary_geneIDs(roary_gene2family,gene2gffdata):
+    '''
+    Covert Roary geneIDs (gff) to PanPhlAn geneIDs (contig based, former NCBI format)
+    example: REF_wMel_A:gene_00793 (Roary) --> REF_wMel_A:NC_002978.6:153-1535 (PanPhlAn)
+    - remove Roary geneIDs, not present in gff-input (gene2gffdata) and vice versa
+    '''
+    gene2family={} # still to do     
+    return gene2family
 # --- usearch7 -----------------------------------------------------------------
 def family_of(index):
     return 'g' + str(format(index, '06d'))
@@ -1063,7 +1116,7 @@ def main():
     if VERBOSE: print('\nSTEP 1. Checking required software installations...')
     if args['clade']:
         bowtie2   = check_bowtie2(VERBOSE, PLATFORM)  # for generating .bt2 index files
-    if args['clade'] and not args['roary_genefamilies']: 
+    if args['clade'] and not args['roary_dir']: 
         usearch7  = check_usearch7(VERBOSE, PLATFORM) # for generating usearch7 gene-family cluster
 
 
@@ -1093,16 +1146,23 @@ def main():
         contig2genome = get_contigs(path_genome_fna_files, VERBOSE)
         check_for_valid_contigIDs(gene2loc,contig2genome)
         
-        # sys.exit(2) # for testing
-    
-        # Get gene families cluster (usearch7)
-        print('\nSTEP 3. Generating gene families cluster (usearch7) ...')
-        gene2family, TIME = usearch_clustering(path_gene_ffn_files,args['th'],args['clade'],
+        print('\nSTEP 3. Get gene-family clusters (usearch7 or Roary) ...')
+        if args['roary_dir']: # later: check for (roary_dir or run_roary)
+            print('\n\nRoary import in progess, coming soon..\n\n')
+            sys.exit(2) 
+            roary_gene2family, roary_family2annotation = read_roary_gene_clustering(args['roary_dir'], VERBOSE)
+            gene2family = convert_roary_geneIDs(roary_gene2family,gene2gffdata)
+        else: # Run usearch7 to get gene families cluster
+            gene2family, TIME = usearch_clustering(path_gene_ffn_files,args['th'],args['clade'],
                                            args['output'],args['tmp'],KEEP_UC,gene2description,TIME,VERBOSE)
+
+        # sys.exit(2) # for testing
 
         # Write the pangenome database file: panphlan_clade_pangenome.csv
         if VERBOSE: print('\nSTEP 4. Write pangenome file...')
         write_pangenome_file(gene2loc, gene2family, gene2genome, args['output'], args['clade'], VERBOSE)
+    
+       
     
         # Get bowtie2 index files
         TIME = create_bt2_indexes(path_genome_fna_files, args['clade'], args['output'], args['tmp'], TIME, VERBOSE)
