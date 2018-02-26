@@ -209,16 +209,25 @@ def write_pangenome_file(gene2loc, gene2family, gene2genome, output_path, clade,
         geneFamily | geneID | genomeName(filename) | contigID | start | stop
     '''
     pangenome_csv = output_path + 'panphlan_' + clade + '_pangenome.csv'
+    missing_geneIDs_in_familycluster = []
+    n=0
     with open(pangenome_csv, mode='w') as ocsv:
         genes_list = sorted(gene2loc.keys())
         for gene in genes_list:
             if gene in gene2family:
+                n=n+1
                 ocsv.write(gene2family[gene] + '\t' + gene + '\t' + gene2genome[gene] + '\t' + gene2loc[gene][0] + '\t' + str(gene2loc[gene][1]) + '\t' + str(gene2loc[gene][2]) + '\n')
             else:
-                print('[W] Could not find gene in usearch7 cluster result (dict gene2family): '   + gene)
-                print('    Check presence of gene in file: usearch7_species_cluster.uc, option --uc')
-    if VERBOSE:
-        print('[I] Pangenome file has been generated:\n    ' + pangenome_csv)            
+                missing_geneIDs_in_familycluster.append(gene)
+                # print('[W] Could not find gene in gene-family cluster result (dict gene2family): '   + gene)
+                # print('    Check presence of gene in file: usearch7_species_cluster.uc, option --uc')
+    if VERBOSE: print('    ' + str(len(missing_geneIDs_in_familycluster)) + ' of ' + str(len(genes_list)) + ' genes are not present in gene-family clusters: ')
+    maxN=min(5,len(missing_geneIDs_in_familycluster))
+    for g in missing_geneIDs_in_familycluster[0:maxN]:
+        if VERBOSE: print('      '+ g)
+    if VERBOSE: print('      o o o')
+    print('      If many genes are missing, check file: usearch7_species_cluster.uc, option --uc, or Roary gene_presence_absence.csv')
+    if VERBOSE: print('[I] Pangenome file has been generated ('+str(n)+' genes):\n    ' + pangenome_csv)            
 # ------------------------------------------------------------------------------
 def gff_add_genome_seq(gff_folder, fna_folder, VERBOSE):
     '''
@@ -613,6 +622,7 @@ def read_roary_gene_clustering(roary_folder, VERBOSE):
     if VERBOSE: print('    Read Roary gene cluster "gene_presence_absence.csv" file:\n    '+roary_cluster_csv+'\n')
     gene2family       = {} 
     family2annotation = {}
+    roary_genomeIDs = []
     NotSampleColumns = ['Gene', 'Non-unique Gene name', 'Annotation', 'No. isolates', 'No. sequences', 'Avg sequences per isolate', 'Genome Fragment', 'Order within Fragment', 'Accessory Fragment', 'Accessory Order with Fragment', 'QC', 'Min group size nuc', 'Max group size nuc', 'Avg group size nuc']    
     with open(roary_cluster_csv, mode='r') as f:
         headerline=f.readline().strip().strip('"').split('","')
@@ -620,7 +630,7 @@ def read_roary_gene_clustering(roary_folder, VERBOSE):
             print('\nERROR: Cannot find column "Gene" in Roary gene_presence_absence.csv file:\n  '+roary_cluster_csv+'\n')
             sys.exit(2)
         if 'Annotation' not in headerline:
-            print('\nERROR: Cannot find column "Annotation" in Roary gene_presence_absence.csv file:\n  '+roary_cluster_csv+'\n')
+            print('\nERROR: Cannot find column "Annotation" in Roary gene_presence_absence.csv file:\n  '+roary_cluster_csv)
             sys.exit(2)
         for line in f:
             # time.sleep(0.1) # <<<<<<<<<<<<<<<<<
@@ -633,20 +643,43 @@ def read_roary_gene_clustering(roary_folder, VERBOSE):
                 if h not in NotSampleColumns:
                     genomeID = h
                     geneID = i
+                    if not genomeID in roary_genomeIDs: roary_genomeIDs.append(genomeID)
                     if geneID: # if not empty (gene-family present in reference genome)
                         # add filename prefix in front of gene-name
                         if not geneID.startswith(genomeID): geneID = genomeID + ':' + geneID
                         # print(genomeID + ' - ' + geneID)
                         gene2family[geneID]=genefamily
-    return gene2family, family2annotation
+    return gene2family, family2annotation, roary_genomeIDs
 # ------------------------------------------------------------------------------
-def convert_roary_geneIDs(roary_gene2family,gene2gffdata):
+def convert_roary_geneIDs(roary_gene2family,gene2gffdata, VERBOSE):
     '''
     Covert Roary geneIDs (gff) to PanPhlAn geneIDs (contig based, former NCBI format)
     example: REF_wMel_A:gene_00793 (Roary) --> REF_wMel_A:NC_002978.6:153-1535 (PanPhlAn)
     - remove Roary geneIDs, not present in gff-input (gene2gffdata) and vice versa
     '''
-    gene2family={} # still to do     
+    # get mapping from Roary locus-tags to PanPhlAn NCBI-geneIDs, 'REF_wRi_A:gene_00050': 'REF_wRi_A:NC_012416.1:59109-59450'
+    locustag2gene = dict( (gene2gffdata[k].get('locus_tag', 'NaN'), k) for k in gene2gffdata.keys() )
+   
+    gene2family={}
+    missingIDs_in_roary = []
+    for g in gene2gffdata.keys():
+        # print(g)
+        locustag = gene2gffdata[g].get('locus_tag', 'NaN')
+        if locustag in roary_gene2family.keys(): # 'REF_wAna_A:gene_00962': 'dnaE1'
+            gene2family[g] = roary_gene2family[locustag]
+            # print('ok')
+            # a=3
+        else:
+            missingIDs_in_roary.append(locustag)
+    if VERBOSE: print('    ' + str(len(missingIDs_in_roary)),'genes are not present in Roary clustering: ')
+    maxN=min(5,len(missingIDs_in_roary))
+    for ltag in missingIDs_in_roary[0:maxN]:
+        if VERBOSE: print('      '+ ltag + '\t' + locustag2gene[ltag])
+    if VERBOSE: print('      o o o')
+    num_roray_gff_hits = len(gene2family)
+    if VERBOSE: print('    Number of total geneIDs (present in Roary and gff): ' + str(num_roray_gff_hits))
+    if num_roray_gff_hits < 1:
+        sys.exit('\n\n ERROR: Could not match Roary geneIDs with gff-file geneIDs.\n') 
     return gene2family
 # --- usearch7 -----------------------------------------------------------------
 def family_of(index):
@@ -1035,6 +1068,18 @@ def check_args():
     
     if args['i_ffn'] and not args['clade']: sys.exit('\n Error: Species pangenome database name required, for example add option:  --clade ecoli17\n')
     
+    # Roary
+    if args['roary_dir'] and args['i_ffn']: sys.exit('\n Error: Please use --gff input (not --ffn). Required are the same gff files as used for Roary\n')
+    
+    if args['roary_dir']:
+        roary_dir = args['roary_dir']
+        roary_dir = os.path.abspath(roary_dir)
+        if not os.path.isdir(roary_dir):
+            print('\n ' + roary_dir)
+            sys.exit('\n Error (--roary_dir): Please provide the directory of Roary output (not individual files).\n')
+        roary_dir = os.path.join(roary_dir,'')
+        args['roary_dir']=roary_dir
+        
     # Check: GFF_FOLDER --------------------------------------------------------
     if args['i_gff']:
         ipath = args['i_gff']
@@ -1074,12 +1119,13 @@ def check_args():
         if VERBOSE: print('[I] Species database name: ' + args['clade'])
 
         # Check: IDENTITY_PERCENATGE -----------------------------------------------
-        identity_threshold_perc = args['th']
-        if identity_threshold_perc < 0.0 or identity_threshold_perc > 100.0:
-            args['th'] = 95.0
-            if VERBOSE: print('[I] Invalid value for identity threshold percentage. Default value (95.0 %) has been set.')
-        else:
-            if VERBOSE: print('[I] Identity threshold percentage: ' + str(args['th']) + ' %.')
+        if not args['roary_dir']: # threshold not used for Roary inport
+            identity_threshold_perc = args['th']
+            if identity_threshold_perc < 0.0 or identity_threshold_perc > 100.0:
+                args['th'] = 95.0
+                if VERBOSE: print('[I] Invalid value for identity threshold percentage. Default value (95.0 %) has been set.')
+            else:
+                if VERBOSE: print('[I] Identity threshold percentage: ' + str(args['th']) + ' %.')
 
         # Check: OUTPUT_FOLDER -----------------------------------------------------
         opath = os.path.join(args['output'],'')
@@ -1113,14 +1159,14 @@ def main():
     TIME = time.time()
 
     # Check if software is installed
-    if VERBOSE: print('\nSTEP 1. Checking required software installations...')
+    if VERBOSE: print('\nSTEP 1. Checking required software installations ...')
     if args['clade']:
         bowtie2   = check_bowtie2(VERBOSE, PLATFORM)  # for generating .bt2 index files
     if args['clade'] and not args['roary_dir']: 
         usearch7  = check_usearch7(VERBOSE, PLATFORM) # for generating usearch7 gene-family cluster
 
 
-    if VERBOSE: print('\nSTEP 2. Prepare input gene and genome files...')
+    if VERBOSE: print('\nSTEP 2. Prepare input gene and genome files ...')
 
     if args['i_gff'] and args['i_fna']: # if not 'clade': skip bowtie2 & usearch, only add genome to gff files
         print('[I] Add genome fna sequences to gff files')
@@ -1146,25 +1192,26 @@ def main():
         contig2genome = get_contigs(path_genome_fna_files, VERBOSE)
         check_for_valid_contigIDs(gene2loc,contig2genome)
         
-        print('\nSTEP 3. Get gene-family clusters (usearch7 or Roary) ...')
+        if VERBOSE: print('\nSTEP 3. Get gene-family clusters (usearch7 or Roary) ...')
         if args['roary_dir']: # later: check for (roary_dir or run_roary)
-            print('\n\nRoary import in progess, coming soon..\n\n')
-            sys.exit(2) 
-            roary_gene2family, roary_family2annotation = read_roary_gene_clustering(args['roary_dir'], VERBOSE)
-            gene2family = convert_roary_geneIDs(roary_gene2family,gene2gffdata)
+            # print('\n\nRoary import in progess, coming soon..\n\n')
+            roary_gene2family, roary_family2annotation, roary_genomeIDs = read_roary_gene_clustering(args['roary_dir'], VERBOSE)
+            gene2family = convert_roary_geneIDs(roary_gene2family,gene2gffdata, VERBOSE)
+            # sys.exit(2) 
         else: # Run usearch7 to get gene families cluster
             gene2family, TIME = usearch_clustering(path_gene_ffn_files,args['th'],args['clade'],
                                            args['output'],args['tmp'],KEEP_UC,gene2description,TIME,VERBOSE)
 
-        # sys.exit(2) # for testing
+        
 
         # Write the pangenome database file: panphlan_clade_pangenome.csv
-        if VERBOSE: print('\nSTEP 4. Write pangenome file...')
+        if VERBOSE: print('\nSTEP 4. Write pangenome file ...')
         write_pangenome_file(gene2loc, gene2family, gene2genome, args['output'], args['clade'], VERBOSE)
     
-       
+        # sys.exit(2) # for testing
     
         # Get bowtie2 index files
+        if VERBOSE: print('\nSTEP 5. Get bowtie2 index database ...')
         TIME = create_bt2_indexes(path_genome_fna_files, args['clade'], args['output'], args['tmp'], TIME, VERBOSE)
     
     
