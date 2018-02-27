@@ -59,7 +59,7 @@ except ImportError as err:
 
 
 __author__  = 'Matthias Scholz, Moreno Zolfo, Thomas Tolio, Nicola Segata (panphlan-users@googlegroups.com)'
-__version__ = '1.2.3.5'
+__version__ = '1.2.3.6'
 __date__    = '27 February 2018'
 
 
@@ -728,6 +728,25 @@ def read_roary_centroids(roary_folder, clade, output_path, locustag2gene, family
     if VERBOSE: print('      o o o')
     return family2centroidGeneID
 # ------------------------------------------------------------------------------
+def reject_genomes_not_in_roary(path_genome_fna_files, roary_genomeIDs):
+    '''
+    Remove genomes not present in Roary clustering, to avoid having unconsidered genomes in bowtie2 index database 
+    '''
+    print('\n    Check presence of .fna input genomes in Roary cluster result')
+    # Check GFF in Roary
+    for f in path_genome_fna_files[:]:  # need a copy [:], as we remove items from list
+        genome = os.path.splitext(os.path.basename(f))[0]
+        if genome not in roary_genomeIDs:
+            print('    [W] "' + genome + '" excluded from bowtie2 index (not present in Roary)')    
+            path_genome_fna_files.remove(f)        
+    # check Roary in GFF        
+    genomefiles = [os.path.splitext(os.path.basename(f))[0] for f in path_genome_fna_files]        
+    for g in roary_genomeIDs:
+        if g not in genomefiles:
+            print('    [W] "' + g + '" missing in .fna genome files')
+    if len(genomefiles)==0: sys.exit('\n Error: Roary cluster results does not match with input fna genomes\n')
+    return path_genome_fna_files
+# ------------------------------------------------------------------------------
 def write_annotations_gff(clade, output_path, family2centroidGeneID, gene2gffdata, VERBOSE):
     '''
     Write gene-family annotation file, based on gff metadata
@@ -1263,6 +1282,7 @@ def main():
             roary_gene2family, roary_family2annotation, roary_genomeIDs = read_roary_gene_clustering(args['roary_dir'], VERBOSE)
             gene2family, locustag2gene = convert_roary_geneIDs(roary_gene2family,gene2gffdata, VERBOSE)
             family2centroidGeneID      = read_roary_centroids(args['roary_dir'], args['clade'], args['output'], locustag2gene, roary_family2annotation, VERBOSE) # copy pan_genome_reference.fa and get centroidIDs 
+            path_genome_fna_files      = reject_genomes_not_in_roary(path_genome_fna_files, roary_genomeIDs) # to run bowtie2 only with genomes present in roary clustering
         else: # Run usearch7 to get gene families cluster
             gene2family, family2centroidGeneID, TIME = usearch_clustering(path_gene_ffn_files,args['th'],args['clade'],
                                            args['output'],args['tmp'],KEEP_UC,gene2description,TIME,VERBOSE)
