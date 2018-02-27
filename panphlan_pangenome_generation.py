@@ -761,7 +761,6 @@ def write_annotations_gff(clade, output_path, family2centroidGeneID, gene2gffdat
             # 'protein_id' contains no value in Prokka gff's, but in NCBI gff's
             # if gene2gffdata[geneID].get('protein_id', ''): print(gene2gffdata[geneID].get('protein_id', ''))
             ocsv.write(gfam +'\t'+ geneID +'\t'+ gene2gffdata[geneID].get('locus_tag', '') +'\t'+ gene2gffdata[geneID].get('product', '') +'\t'+ gene2gffdata[geneID].get('eC_number', '') +'\t'+ gene2gffdata[geneID].get('protein_id', '') + '\n')
-    # print(gene2gffdata)
     return True     
 # --- usearch7 -----------------------------------------------------------------
 def family_of(index):
@@ -1158,6 +1157,9 @@ def check_args():
     if args['roary_dir']:
         roary_dir = args['roary_dir']
         roary_dir = os.path.abspath(roary_dir)
+        if not os.path.exists(roary_dir):
+            print('\n ' + roary_dir)
+            sys.exit('\n Error (--roary_dir): Roary directory does not exist. Please check the above path.\n')
         if not os.path.isdir(roary_dir):
             print('\n ' + roary_dir)
             sys.exit('\n Error (--roary_dir): Please provide the directory of Roary output (not individual files).\n')
@@ -1277,7 +1279,6 @@ def main():
         check_for_valid_contigIDs(gene2loc,contig2genome)
 
         if VERBOSE: print('\nSTEP 3. Get gene-family clusters (usearch7 or Roary) ...')
-        family2centroidGeneID={} # currently only for Roary, 'False' otherwise
         if args['roary_dir']: # later:  if roary_dir or run_roary
             roary_gene2family, roary_family2annotation, roary_genomeIDs = read_roary_gene_clustering(args['roary_dir'], VERBOSE)
             gene2family, locustag2gene = convert_roary_geneIDs(roary_gene2family,gene2gffdata, VERBOSE)
@@ -1291,7 +1292,7 @@ def main():
         if VERBOSE: print('\nSTEP 4. Write pangenome file ...')
         write_pangenome_file(gene2loc, gene2family, gene2genome, args['output'], args['clade'], VERBOSE)
         # Write gene-family annotation file
-        if family2centroidGeneID and args['i_gff']:
+        if args['i_gff']:
             write_annotations_gff(args['clade'], args['output'], family2centroidGeneID, gene2gffdata, VERBOSE)
     
         # sys.exit(2) # for testing
