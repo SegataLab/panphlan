@@ -1264,7 +1264,7 @@ def main():
         if family2centroidGeneID:
             write_annotations_gff(args['clade'], args['output'], family2centroidGeneID, gene2gffdata, VERBOSE)
     
-        sys.exit(2) # for testing
+        # sys.exit(2) # for testing
     
         # Get bowtie2 index files
         if VERBOSE: print('\nSTEP 5. Get bowtie2 index database ...')
