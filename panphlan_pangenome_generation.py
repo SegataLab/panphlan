@@ -710,13 +710,14 @@ def read_roary_centroids(roary_folder, clade, output_path, locustag2gene, family
                 geneID = locustag2gene[locustag]
                 family2centroidGeneID[genefamily] = geneID
                 # write new fasta file
-                seq_record.id = genefamily
-                seq_record.description = geneID + ' ' + locustag + ' ' + roary_annotation
+                # clade + ':' + genefamID + ':' + seq.id
+                seq_record.id = clade + ':' + genefamily + ':' + geneID
+                seq_record.description = locustag + ' ' + roary_annotation
                 r=SeqIO.write(seq_record, f_out, 'fasta')
                 if r!=1: print('Error while writing sequence:  ' + seq_record.id)
             else: # add all centroids, even when nof in gff, but other genes of the group may exist in gff
-                seq_record.id = genefamily
-                seq_record.description = 'Centroid_gene_not_in_gff_files' + ' ' + locustag + ' ' + roary_annotation
+                seq_record.id = clade + ':' + genefamily + ':' + 'Centroid_gene_not_in_gff_files'
+                seq_record.description = locustag + ' ' + roary_annotation
                 r=SeqIO.write(seq_record, f_out, 'fasta')
                 if r!=1: print('Error while writing sequence:  ' + seq_record.id)
                 roary_locustags_missing_in_gff.append(locustag)
@@ -735,7 +736,7 @@ def write_annotations_gff(clade, output_path, family2centroidGeneID, gene2gffdat
     if VERBOSE: print('    Write gene-family annotations based on gff metadata\n    ' + annotation_file)
     with open(annotation_file, mode='w') as ocsv:
         genefam_list = sorted(family2centroidGeneID.keys())
-        ocsv.write('Gene_family' +'\t'+ 'Centroid_gene_ID' +'\t'+ 'Locus_tag' +'\t'+ 'Product' +'\t'+ 'EC_number' +'\t'+ 'Protein_id' + '\n')
+        ocsv.write('Gene_family' +'\t'+ 'Centroid_gene_ID' +'\t'+ 'GFF_locus_tag' +'\t'+ 'Product' +'\t'+ 'EC_number' +'\t'+ 'Protein_id' + '\n')
         for gfam in genefam_list:
             geneID   = family2centroidGeneID[gfam]
             # 'protein_id' contains no value in Prokka gff's, but in NCBI gff's
@@ -811,7 +812,7 @@ def usearch_centroids_add_geneID_prefix(clade, gene2family, output_path, gene2de
     '''
     centroids_ffn      = os.path.join(output_path,'panphlan_' + clade + '_centroids.ffn')
     centroids_orig_ffn = os.path.join(output_path,'panphlan_' + clade + '_centroids_orig.ffn')
-
+    family2centroidGeneID = {}
     if os.path.exists(centroids_ffn):
         # move panphlan_species_centroids.ffn to panphlan_species_centroids_orig.ffn
         os.rename(centroids_ffn,centroids_orig_ffn)
@@ -822,12 +823,14 @@ def usearch_centroids_add_geneID_prefix(clade, gene2family, output_path, gene2de
                 # seq.description=''
                 seq.description=gene2description[seq.id] # add description (gene annotation)
                 genefamID=gene2family[seq.id] # 'g12345'
+                family2centroidGeneID[genefamID]=seq.id # for annotation file
                 seq.id = clade + ':' + genefamID + ':' + seq.id
                 seq.name=''
                 r = SeqIO.write(seq, f, 'fasta')
                 if r!=1:
                     sys.exit('[E] Error while writing centroid sequence:  ' + seq.id)
         os.remove(centroids_orig_ffn)
+    return family2centroidGeneID    
 # ------------------------------------------------------------------------------
 def run_usearch(sorted_merged_ffn, identity, clade, output_path, tmp_path, KEEP_UC, TIME, VERBOSE):
     '''
@@ -944,14 +947,14 @@ def usearch_clustering(path_gene_ffn_files, identity_threshold_perc, clade, outp
     gene2family = usearch_get_gene2family_dict(merged_txt, VERBOSE)
     # Add prefix clade:genefamID: to geneIDs in centroid.ffn sequence file
     #  to do: add also function (gene description)
-    usearch_centroids_add_geneID_prefix(clade, gene2family, output_path, gene2description) 
+    family2centroidGeneID = usearch_centroids_add_geneID_prefix(clade, gene2family, output_path, gene2description) 
     # clean up tmp files
     if not KEEP_UC:
         os.unlink(tmp_uc.name)
     if VERBOSE: print('[I] Remove usearch7 tmp results')
     os.remove(merged_txt)
         
-    return gene2family, TIME 
+    return gene2family, family2centroidGeneID, TIME 
 # ------------------------------------------------------------------------------
 def check_usearch7(VERBOSE, PLATFORM='lin'):
     '''
@@ -1261,7 +1264,7 @@ def main():
             gene2family, locustag2gene = convert_roary_geneIDs(roary_gene2family,gene2gffdata, VERBOSE)
             family2centroidGeneID      = read_roary_centroids(args['roary_dir'], args['clade'], args['output'], locustag2gene, roary_family2annotation, VERBOSE) # copy pan_genome_reference.fa and get centroidIDs 
         else: # Run usearch7 to get gene families cluster
-            gene2family, TIME = usearch_clustering(path_gene_ffn_files,args['th'],args['clade'],
+            gene2family, family2centroidGeneID, TIME = usearch_clustering(path_gene_ffn_files,args['th'],args['clade'],
                                            args['output'],args['tmp'],KEEP_UC,gene2description,TIME,VERBOSE)
 
         # Write the pangenome database file: panphlan_clade_pangenome.csv
