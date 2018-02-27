@@ -59,8 +59,8 @@ except ImportError as err:
 
 
 __author__  = 'Matthias Scholz, Moreno Zolfo, Thomas Tolio, Nicola Segata (panphlan-users@googlegroups.com)'
-__version__ = '1.2.3.4'
-__date__    = '23 February 2018'
+__version__ = '1.2.3.5'
+__date__    = '27 February 2018'
 
 
 # Operating systems
@@ -221,12 +221,13 @@ def write_pangenome_file(gene2loc, gene2family, gene2genome, output_path, clade,
                 missing_geneIDs_in_familycluster.append(gene)
                 # print('[W] Could not find gene in gene-family cluster result (dict gene2family): '   + gene)
                 # print('    Check presence of gene in file: usearch7_species_cluster.uc, option --uc')
-    if VERBOSE: print('    ' + str(len(missing_geneIDs_in_familycluster)) + ' of ' + str(len(genes_list)) + ' genes are not present in gene-family clusters: ')
     maxN=min(5,len(missing_geneIDs_in_familycluster))
-    for g in missing_geneIDs_in_familycluster[0:maxN]:
-        if VERBOSE: print('      '+ g)
-    if VERBOSE: print('      o o o')
-    print('      If many genes are missing, check file: usearch7_species_cluster.uc, option --uc, or Roary gene_presence_absence.csv')
+    if maxN>0:
+        if VERBOSE: print('    ' + str(len(missing_geneIDs_in_familycluster)) + ' of ' + str(len(genes_list)) + ' genes are not present in gene-family clusters: ')
+        for g in missing_geneIDs_in_familycluster[0:maxN]:
+            if VERBOSE: print('      '+ g)
+        if VERBOSE: print('      o o o')
+        print('      If many genes are missing, check file: usearch7_species_cluster.uc, option --uc, or Roary gene_presence_absence.csv')
     if VERBOSE: print('[I] Pangenome file has been generated ('+str(n)+' genes):\n    ' + pangenome_csv)            
 # ------------------------------------------------------------------------------
 def gff_add_genome_seq(gff_folder, fna_folder, VERBOSE):
@@ -372,6 +373,7 @@ def read_gff_write_fna_ffn(gff_folder, VERBOSE):
                     gene2genome[ffn_geneID] = genomeID
                     
                     # get gff annotation data
+                    if not locus_tag.startswith(genomeID): locus_tag = genomeID + ':' + locus_tag # REF_wMel_A:gene_00258
                     gene2gffdata[ffn_geneID]['locus_tag']=locus_tag
                     if 'gene' in t.qualifiers:
                         gene2gffdata[ffn_geneID]['gene'] = t.qualifiers['gene'][0]
@@ -668,11 +670,12 @@ def convert_roary_geneIDs(roary_gene2family,gene2gffdata, VERBOSE):
             gene2family[g] = roary_gene2family[locustag]
         else:
             missingIDs_in_roary.append(locustag)
-    if VERBOSE: print('    ' + str(len(missingIDs_in_roary)),'genes are not present in Roary clustering: ')
     maxN=min(5,len(missingIDs_in_roary))
-    for ltag in missingIDs_in_roary[0:maxN]:
-        if VERBOSE: print('      '+ ltag + '\t' + locustag2gene[ltag])
-    if VERBOSE: print('      o o o')
+    if maxN>0: # print top 5 missing genes
+        if VERBOSE: print('    ' + str(len(missingIDs_in_roary)),'genes are not present in Roary clustering: ')
+        for ltag in missingIDs_in_roary[0:maxN]:
+            if VERBOSE: print('      '+ ltag + '\t' + locustag2gene[ltag])
+        if VERBOSE: print('      o o o')
     num_roray_gff_hits = len(gene2family)
     if VERBOSE: print('    Number of total geneIDs (present in Roary and gff): ' + str(num_roray_gff_hits))
     if num_roray_gff_hits < 1:
@@ -711,7 +714,11 @@ def read_roary_centroids(roary_folder, clade, output_path, locustag2gene, family
                 seq_record.description = geneID + ' ' + locustag + ' ' + roary_annotation
                 r=SeqIO.write(seq_record, f_out, 'fasta')
                 if r!=1: print('Error while writing sequence:  ' + seq_record.id)
-            else:
+            else: # add all centroids, even when nof in gff, but other genes of the group may exist in gff
+                seq_record.id = genefamily
+                seq_record.description = 'Centroid_gene_not_in_gff_files' + ' ' + locustag + ' ' + roary_annotation
+                r=SeqIO.write(seq_record, f_out, 'fasta')
+                if r!=1: print('Error while writing sequence:  ' + seq_record.id)
                 roary_locustags_missing_in_gff.append(locustag)
     if VERBOSE: print('    ' + str(len(roary_locustags_missing_in_gff)),' Roary genes are not present in gff files: ')
     maxN=min(5,len(roary_locustags_missing_in_gff))
@@ -728,12 +735,12 @@ def write_annotations_gff(clade, output_path, family2centroidGeneID, gene2gffdat
     if VERBOSE: print('    Write gene-family annotations based on gff metadata\n    ' + annotation_file)
     with open(annotation_file, mode='w') as ocsv:
         genefam_list = sorted(family2centroidGeneID.keys())
-        ocsv.write('Gene_family' +'\t'+ 'Centroid_gene_ID' +'\t'+ 'Product' +'\t'+ 'EC_number' + '\n')
+        ocsv.write('Gene_family' +'\t'+ 'Centroid_gene_ID' +'\t'+ 'Locus_tag' +'\t'+ 'Product' +'\t'+ 'EC_number' +'\t'+ 'Protein_id' + '\n')
         for gfam in genefam_list:
-            geneID = family2centroidGeneID[gfam]
-            # 'protein_id' no value in Prokka gff's
+            geneID   = family2centroidGeneID[gfam]
+            # 'protein_id' contains no value in Prokka gff's, but in NCBI gff's
             # if gene2gffdata[geneID].get('protein_id', ''): print(gene2gffdata[geneID].get('protein_id', ''))
-            ocsv.write(gfam +'\t'+ geneID +'\t'+ gene2gffdata[geneID].get('product', '') +'\t'+ gene2gffdata[geneID].get('eC_number', '') + '\n')
+            ocsv.write(gfam +'\t'+ geneID +'\t'+ gene2gffdata[geneID].get('locus_tag', '') +'\t'+ gene2gffdata[geneID].get('product', '') +'\t'+ gene2gffdata[geneID].get('eC_number', '') +'\t'+ gene2gffdata[geneID].get('protein_id', '') + '\n')
     # print(gene2gffdata)
     return True     
 # --- usearch7 -----------------------------------------------------------------
@@ -1246,9 +1253,9 @@ def main():
         # check if contigIDs from geneIDs are present in contigs from fna (bowtie2 index based on fna equals pangenome contig-IDs?)
         contig2genome = get_contigs(path_genome_fna_files, VERBOSE)
         check_for_valid_contigIDs(gene2loc,contig2genome)
-        
+
         if VERBOSE: print('\nSTEP 3. Get gene-family clusters (usearch7 or Roary) ...')
-        family2centroidGeneID=False # currently only for Roary
+        family2centroidGeneID={} # currently only for Roary, 'False' otherwise
         if args['roary_dir']: # later:  if roary_dir or run_roary
             roary_gene2family, roary_family2annotation, roary_genomeIDs = read_roary_gene_clustering(args['roary_dir'], VERBOSE)
             gene2family, locustag2gene = convert_roary_geneIDs(roary_gene2family,gene2gffdata, VERBOSE)
@@ -1260,8 +1267,8 @@ def main():
         # Write the pangenome database file: panphlan_clade_pangenome.csv
         if VERBOSE: print('\nSTEP 4. Write pangenome file ...')
         write_pangenome_file(gene2loc, gene2family, gene2genome, args['output'], args['clade'], VERBOSE)
-        
-        if family2centroidGeneID:
+        # Write gene-family annotation file
+        if family2centroidGeneID and args['i_gff']:
             write_annotations_gff(args['clade'], args['output'], family2centroidGeneID, gene2gffdata, VERBOSE)
     
         # sys.exit(2) # for testing
