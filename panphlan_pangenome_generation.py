@@ -336,6 +336,7 @@ def read_gff_write_fna_ffn(gff_folder, VERBOSE):
         fna_genome_seq  = []
         ffn_gene_seq    = []
         gff_version = 0
+        t1 = ''
         for contig in GFF.parse(open(gff_file)):
             if type(contig.seq)==UnknownSeq: # type check for Bio.Seq.UnknownSeq
               print('\n\n Cannot find genome sequence in gff file: \n ' + gff_file)
@@ -353,6 +354,7 @@ def read_gff_write_fna_ffn(gff_folder, VERBOSE):
             contig_record = SeqRecord(contig.seq, id=fna_contigID, name='', description='')
             fna_genome_seq.append(contig_record)
             for t in contig.features:
+                if not t1: t1=t # keep first record
                 if 'locus_tag' in t.qualifiers:
                     # get gene sequence and final geneID -> genomeID:geneID:start-stop)
                     locus_tag = t.qualifiers['locus_tag'][0]
@@ -401,16 +403,22 @@ def read_gff_write_fna_ffn(gff_folder, VERBOSE):
         # write gene.ffn and genome.fna files (genomefilename added to sequence ID's)
         fna_out = os.path.join(new_fna_folder,genomeID+'.fna')
         ffn_out = os.path.join(new_ffn_folder,genomeID+'.ffn')
-        if VERBOSE: print('    Number of genes (locus tags):  ' + str(len(ffn_gene_seq)))
+        numGenes = len(ffn_gene_seq)
+        if VERBOSE: print('    Number of genes (locus tags):  ' + str(numGenes))
         if VERBOSE: print('    Write genome .fna and gene .ffn files:\n    ' + fna_out + '\n    '  + ffn_out)
         SeqIO.write(fna_genome_seq, fna_out,'fasta')
         SeqIO.write(ffn_gene_seq  , ffn_out,'fasta')
         
-        
+    if numGenes==0:
+        print('\n\nExample of detected gff feature ("locus_tag" missing):\n',t1.qualifiers, '\n') # print last gff entry
+        print('\n  ERROR: Could not find any gene features in gff file (no "locus_tag"s)')
+        print('  ' + gff_file)
+        print('\n  Please use gene feature .gff files (not CDS.gff). Try Prokka for predicting gene location .gff files from .fna genomes.\n')
+        sys.exit('\n ERROR: Could not find any gene feature in gff file\n')    
     # get list of all fna ffn files
     path_fna_files = [os.path.join(new_fna_folder,f) for f in os.listdir(new_fna_folder) if fnmatch(f,'*.fna')]
     path_ffn_files = [os.path.join(new_ffn_folder,f) for f in os.listdir(new_ffn_folder) if fnmatch(f,'*.ffn')]
-    print('\n  Extracted gene .ffn and genome .fna sequence files are in folders:\n   ' + new_ffn_folder + '\n   '+ new_fna_folder + '\n')
+    print('\n   Extracted gene .ffn and genome .fna sequence files are in folders:\n   ' + new_ffn_folder + '\n   '+ new_fna_folder + '\n')
     
     # check for duplicated locus tags,
     # Give only warning, not error as converting to ffn and fna is possible.
@@ -1273,6 +1281,7 @@ def main():
         gene2genome, gene2description = gene2genome_mapping(path_gene_ffn_files, VERBOSE)
         gene2loc = get_gene_locations(path_genome_fna_files, path_gene_ffn_files, VERBOSE)
 
+    # sys.exit('\n --- Stop for testing/debugging --- \n\n') # for testing
 
     # clustering, write pangenome, bowtie2 (otherwise only convert gff to ffn fna)
     if args['clade']:
@@ -1297,7 +1306,7 @@ def main():
         if args['i_gff']:
             write_annotations_gff(args['clade'], args['output'], family2centroidGeneID, gene2gffdata, VERBOSE)
     
-        # sys.exit(2) # for testing
+        
     
         # Get bowtie2 index files
         if VERBOSE: print('\nSTEP 5. Get bowtie2 index database ...')
