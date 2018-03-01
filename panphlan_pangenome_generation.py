@@ -693,8 +693,10 @@ def read_roary_centroids(roary_folder, clade, output_path, locustag2gene, family
     panphlan_centroids_ffn   = os.path.join(os.path.abspath(output_path),'panphlan_' + clade + '_centroids.ffn')
     roary_centroids_ffn      = os.path.join(roary_folder,'pan_genome_reference.fa')
     if not os.path.exists(roary_centroids_ffn):
-        print('\nERROR: Cannot find Roary centroid sequence file: "pan_genome_reference.fa"\n  '+roary_centroids_ffn+'\n')
-        sys.exit(2)
+        print('\nERROR: Cannot find Roary centroid sequence file: "pan_genome_reference.fa"')
+        print('       ' + roary_centroids_ffn)
+        print('       Please run Roary with option "-e"')
+        sys.exit('\nERROR: Cannot fine Roary pan_genome_reference.fa\n\n')
     # read roary centroids
     if VERBOSE: print('\n    Convert Roary centroid sequence file into panphlan centroid file\n    Roary:    '+roary_centroids_ffn+'\n    PanPhlAn: '+panphlan_centroids_ffn+'\n')
     family2centroidGeneID = {} 
