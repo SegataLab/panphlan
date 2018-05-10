@@ -23,8 +23,8 @@ import bz2, fnmatch, multiprocessing, operator, os, subprocess, sys, tempfile, t
 from distutils.version import LooseVersion
 
 __author__  = 'Matthias Scholz, Thomas Tolio, Nicola Segata (panphlan-users@googlegroups.com)'
-__version__ = '1.2.2.4'
-__date__    = '17 August 2017'
+__version__ = '1.2.2.5'
+__date__    = '10 May 2018'
 
 
 DEFAULT_READ_LENGTH     = 70  # min=70 to account for read-length in the MetaHIT project
@@ -863,10 +863,11 @@ def check_args():
             if ifastx is 'fasta':         # only overwrite for clearly detected 'fasta',  
                 args_set['fastx']='fasta' # tar.bz2 can be both, user needs to specify if not default 'fastq' 
 
-    # Check: CLADE_NAME -------------------------------------------------------
-    clade = args_set['clade']
-    if not clade.startswith(PANPHLAN):
-        args_set['clade'] = PANPHLAN + clade
+    # Check: CLADE-NAME -------------------------------------------------------
+    # replace "_" with "-" if present in species-name: "E-coli"   
+    args_set['clade'] = args_set['clade'].replace('panphlan_','') # remove panphlan_ prefix (to do: added later only for bowtie2)
+    args_set['clade'] = args_set['clade'].replace('_','-') # convert underscore '_' to dash '-' in species-name (underscore is used as separator in _map)
+    args_set['clade'] = PANPHLAN + args_set['clade'] # add again panphlan_ prefix as it is still expected in some functions of panphlan_map
     if VERBOSE: print('[I] Clade/Species: ' + args_set['clade'].replace(PANPHLAN,'') )
 
     # Check: OUTPUT_FILE ------------------------------------------------------
