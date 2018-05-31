@@ -31,8 +31,8 @@ except ImportError as err:
     sys.exit(2)
 
 __author__  = 'Matthias Scholz, Thomas Tolio, Nicola Segata (panphlan-users@googlegroups.com)'
-__version__ = '1.2.2.2'
-__date__    = '17 August 2017'
+__version__ = '1.2.2.3'
+__date__    = '31 May 2018'
 
 # Pangenome CSV file constants
 FAMILY_INDEX    = 0
@@ -644,9 +644,11 @@ def get_genefamily_presence_absence(sample2family2dnaidx, out_filename, families
             print(' [I] Gene family presence/absence matrix is printed to ' + out_filename)
             TIME = time_message(TIME, 'Presence/absence matrix finished.')
     else:
-        print('[W] No file has been written for gene families presence/absence because there is no accpeted samples.')
-        print('    You can try very sensitive options:  --min_coverage 1 --left_max 1.70 --right_min 0.30')
-        print('    Read more: https://bitbucket.org/CibioCM/panphlan/wiki/panphlan_profile_strain_detection')
+        print('[W] No file has been written for gene-family presence/absence because no strain could be detected in any of your samples.')
+        print('    (a) You can try the very sensitive options:  --min_coverage 1 --left_max 1.70 --right_min 0.30')
+        print('        Read more: https://bitbucket.org/CibioCM/panphlan/wiki/panphlan_profile_strain_detection')
+        print('    (b) You can check the gene-family coverage curves of your samples, using options: --o_covplot covplot.png  --o_covplot_normed covplot_normed.png')
+        print('    (c) If your reads are shorter than 70bp, you can run panphlan_map.py again, using a lower min read length: --readLength 60')
     return sample2family2presence, sample_stats, TIME
 # -----------------------------------------------------------------------------
 def print_multistrain_warning(sample_stats, avg_genome_length, VERBOSE):
