@@ -997,9 +997,15 @@ def check_usearch7(VERBOSE, PLATFORM='lin'):
         usearch7_version = usearch7_version.split()[1]
     except OSError as err:
         show_error_message(err)
-        print('\n[E] Please, install Usearch 7\n    download from: http://drive5.com/usearch/')
-        if VERBOSE:
-            print('    Usearch 7 is required to merge gene sequences into gene-family cluster.\n')
+        print('\n[E] Missing "usearch7". Please install.\n')
+        print('    usearch7 is required to merge gene sequences into gene-family cluster\n')
+        print('    1) Download version 7 from http://drive5.com/usearch/')
+        print('    2) Rename into "usearch7" and place it in any tools directory present in PATH')
+        print('       For example, run the following commands:\n')
+        print('     mv usearch7.0.1090_i86osx32 usearch7 # rename')
+        print('     chmod a+x usearch7                   # set executable permissions')
+        print('     sudo mv usearch7 /usr/local/bin/     # move to system tools directory')
+        print('\n')
         sys.exit(UNINSTALLED_ERROR_CODE)
 
     if VERBOSE:
