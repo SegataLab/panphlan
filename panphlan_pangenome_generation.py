@@ -59,7 +59,7 @@ except ImportError as err:
 
 
 __author__  = 'Matthias Scholz, Moreno Zolfo, Thomas Tolio, Nicola Segata (panphlan-users@googlegroups.com)'
-__version__ = '1.2.3.6'
+__version__ = '1.2.3.7'
 __date__    = '27 February 2018'
 
 
