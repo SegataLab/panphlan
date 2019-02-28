@@ -258,7 +258,17 @@ def gff_add_genome_seq(gff_folder, fna_folder, VERBOSE):
         # genomeID = os.path.splitext(os.path.basename(gff_file))[0] # not working for compressed files, gff remains
         if VERBOSE: print('[I] ' + genomeID + '\n    Read gff file:\n    ' + gff_file)
 
-        contig = next(GFF.parse(openread(gff_file)))
+        try:
+            contig = next(GFF.parse(openread(gff_file)))
+        except Exception as err:
+            print('BCBio GFF parse error')
+            print('Error:',err)
+            print('Current Python version: ' + sys.version)
+            print('Please use Python3\n\n')
+            sys.exit(1)
+        # GFF.parse does not work under conda Python version: 2.7.15, Feb 28 2019
+        # when applied to gff file, fasta seq included, single contig 
+        # contig = next(GFF.parse(openread(gff_file)))
         
         # check if FASTA genome sequence is already present     
         gff_version = int(contig.annotations['gff-version'][0])
