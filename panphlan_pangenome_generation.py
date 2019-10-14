@@ -280,7 +280,7 @@ def gff_add_genome_seq(gff_folder, fna_folder, VERBOSE):
             print('\n WARNING: genome sequence is already present in gff file (--fna not needed): ' + genomeID + '\n')
 
         # search fna file (FASTA genome sequence)
-        fna_search_files = [os.path.join(fna_folder,genomeID+ending) for ending in ('.fna','.fna.gz','.fna.bz2')]
+        fna_search_files = [os.path.join(fna_folder, genomeID + ending) for ending in ('.fna','.fna.gz','.fna.bz2')]
         fna_files_exist = [f for f in fna_search_files if os.path.exists(f)]
         fna_file = fna_files_exist[0] if fna_files_exist else None
 

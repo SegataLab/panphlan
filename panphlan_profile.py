@@ -268,8 +268,8 @@ def create_annot_dict(presences_dict, args):
             try:
                 annot_index = column_names.index(args['field'])
             except ValueError:
-                print(' [E] The annotation field has not been found in the provided file')
-                return None # No annotation will be added
+                print(' [E] The annotation field has not been found in the provided file.\n By default the second field will be taken.')
+                annot_index = None
 
             for line in IN:
                 ids = line.strip().split('\t')
@@ -1518,12 +1518,13 @@ def main():
                             strain2family2presence, avg_genome_length, TIME, args)
 
     if not args['func_annot'] is None:
+        if VERBOSE: print('\nAdding functionnal annotation of genes... (option --func_annot)')
         family2annot = create_annot_dict(sample2family2presence, args)
         # family2annot will be None is some problem occured
     else:
         family2annot = None
 
-    # THEN HERE CALL FUNCTION FOR WRITING
+    if VERBOSE: print('\nWriting presence/absence matrix...')
     if not args['o_dna']== None :
         if ADD_STRAINS:
             write_presence_absence_matrix(ss_presence, args, family2annot)
