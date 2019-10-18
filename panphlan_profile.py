@@ -19,7 +19,7 @@ from __future__ import with_statement
 from argparse import ArgumentParser
 from collections import defaultdict
 from random import randint
-# from math import round
+from utils import end_program, show_interruption_message, show_error_message, time_message, find
 import fnmatch, operator, os, subprocess, sys, time
 import bz2
 
@@ -129,10 +129,9 @@ class PanPhlAnJoinParser(ArgumentParser):
         self.add_argument('--i_cov',                    metavar='INPUT_COV_MATRIX',             type=str,   default=None,                   help='Read coverage matrix (option --o_cov) for re-analysis using other thresholds')
         self.add_argument('--num_genomes',              metavar='INPUT_COV_GENOMES',            type=str,   default=None,                   help='In addition to option --i_cov: number of reference genomes')
         self.add_argument('--genome_avg_length',        metavar='INPUT_COV_LENGTH',             type=str,   default=None,                   help='In addition to option --i_cov: average number of gene-families')
-        # Temp solution provide one file with annot mapping and one arg for chosing which annot should be added
-        # Then, annot will be added tpo the pangenome file (along with families, position on contigs...)
+        # Annotation can be provided as supplementary tsv/csv file mapping geneIDs to annot
         self.add_argument('--func_annot',               metavar='FUNC_ANNOT_FILE',              type=str,   default=None,                   help='File mapping UniRef IDs to GO/KEGG/... annotation for functional characterization')
-        self.add_argument('-f', '--field',                metavar='ANNOT_FIELD',                  type=str,   default=None,                   help='Field in the annotation file that must be added to the presence/absence matrix')
+        self.add_argument('-f', '--field',                metavar='ANNOT_FIELD',                  type=int,   default=1,                   help='Field in the annotation file that must be added to the presence/absence matrix')
 
         self.add_argument('--add_strains',              action='store_true',                                                                help='Add reference genomes to gene-family presence/absence matrix.')
         self.add_argument('--interactive',              action='store_true',                                                                help='Plot coverage curves to screen, and not to a file.')
@@ -143,36 +142,6 @@ class PanPhlAnJoinParser(ArgumentParser):
 # ------------------------------------------------------------------------------
 # MINOR FUNCTIONS
 # ------------------------------------------------------------------------------
-
-def end_program(total_time):
-    print('\n[TERMINATING...] ' + __file__ + ', ' + str(round(total_time / 60.0, 2)) + ' minutes.\n')
-
-def show_interruption_message():
-    sys.stderr.flush()
-    sys.stderr.write('\r')
-    sys.stderr.write(INTERRUPTION_MESSAGE)
-
-def show_error_message(error):
-    sys.stderr.write('[E] Execution has encountered an error!\n')
-    sys.stderr.write('    ' + str(error) + '\n')
-
-def time_message(start_time, message):
-    current_time = time.time()
-    print(' [I] ' + message + ' Execution time: ' + str(round(current_time - start_time, 2)) + ' seconds.')
-    return current_time
-
-def find(pattern, path):
-    '''
-    Find all the files in the path whose name matches with the specified pattern
-    '''
-    result = []
-    for root, dirs, files in os.walk(path):
-        for name in files:
-            if fnmatch.fnmatch(name, pattern):
-                target = os.path.join(root, name)
-                result.append(target)
-    return result
-
 def check_output(opath, odefault, goal, VERBOSE):
     '''
     Check and, whenever necessary, create de novo the path (folders and/or file) for execution's outcome
@@ -257,34 +226,52 @@ def create_annot_dict(presences_dict, args):
     sample_and_strains = sorted(presences_dict.keys())
     families = sorted(presences_dict[sample_and_strains[0]].keys())
 
-    if not args['func_annot'] == None:
-        # read the file and map
+    if args['func_annot'] == None:
+        # if no annot file provided, look in the pangenome file
+        if args['clade'] != None:
+            filename = 'panphlan_' + clade + '_pangenome.csv'
+            pangenome_file  = os.path.join(os.getcwd(),filename)
+            with file(pangenome_file) as f:
+                line = f.readline()
+            if len(line.split()) < 7:
+                if args['verbose'] : print(' [I] No annotation data were found.\n No information about families will be added to the presence/absence matrix\n')
+                return None
+            else:
+                # get the annotation from pangenome file
+                family2annot = defaultdict(str)
+                with file(pangenome_file) as IN:
+                    for line in IN:
+                        ids = line.strip().split('\t')
+                        #1st field uniref90 mapped to 6th one, annotation (UniRef50)
+                        family2annot[ids[0]] = ids[7]
+                return family2annot
+        else :
+            if args['verbose'] : print(' [I] No annotation data were found.\n No information about families will be added to the presence/absence matrix\n')
+            return None
+    else:
+        # read the file provided
         if args['verbose'] : print(' [I] Mapping families to annotation... This operation can take several minutes')
         family2annot = defaultdict(str)
-        with open(args['func_annot'], 'r') as IN:
-            line = IN.readline()
-            # first header line
-            column_names = line.strip().split('\t')
-            try:
-                annot_index = column_names.index(args['field'])
-            except ValueError:
-                print(' [E] The annotation field has not been found in the provided file.\n By default the second field will be taken.')
-                annot_index = None
 
-            for line in IN:
-                ids = line.strip().split('\t')
-                uniref90 = ids[0]
-                if not args['field'] is None:
-                    annot = ids[annot_index]
-                else:
-                    annot = ids[1]
-                if uniref90 in families:
-                    family2annot[uniref90] = annot
-                else:
-                    family2annot[uniref90] = ""
+        # Check file extension bz2
+        if (args['func_annot']).endswith('.bz2'):
+            IN  = bz2.BZ2File(args['func_annot'], mode='r')
+        else:
+            IN = open(args['func_annot'], 'r')
 
+        line = IN.readline()
+        for line in IN:
+            ids = line.strip().split()
+            uniref90 = ids[0]
+            annot = ids[args['field']]
+            if uniref90 in families:
+                family2annot[uniref90] = annot
+            else:
+                family2annot[uniref90] = ""
+
+        IN.close()
     return family2annot
-
+# -----------------------------------------------------------------------------
 def write_presence_absence_matrix(presences_dict, args, family2annot):
     '''
     Function writing the presence/absence matrix in csv file from
@@ -1425,10 +1412,10 @@ def check_args():
 # -----------------------------------------------------------------------------
 
 def main():
-    # Check Python version
-    if sys.hexversion < 0x02060000:
+
+    if not sys.version_info.major == 3:
         print('Python version: ' + sys.version)
-        sys.exit('Python versions older than 2.6 are not supported.')
+        sys.exit('This software uses Python3, please update Python')
 
     args = check_args()
 
@@ -1489,8 +1476,6 @@ def main():
     if args['o_covplot'] or args['o_covplot_normed']:
         plot_dna_coverage(sample2accepted, norm_dna_samples_covs, sample2famcovlist, sample2color, median_normalized_covs,
                           avg_genome_length, args['o_covplot'], args['o_covplot_normed'], INTERACTIVE, TIME, VERBOSE)
-
-
 
     # DEFINE PLATEAU
     # DNA 1,-1,-2,-3 indexing

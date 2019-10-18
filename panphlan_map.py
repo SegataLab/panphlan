@@ -15,10 +15,11 @@
 # ==============================================================================
 
 from __future__ import print_function # to give equal outputs in python2 and python3
-from __future__ import with_statement 
+from __future__ import with_statement
 from argparse import ArgumentParser
 from collections import defaultdict
 from shutil import copyfileobj
+from utils import end_program, show_interruption_message, show_error_message, time_message, find
 import bz2, fnmatch, multiprocessing, operator, os, subprocess, sys, tempfile, time
 from distutils.version import LooseVersion
 
@@ -41,7 +42,7 @@ GENE_INDEX              = 1
 CONTIG_INDEX            = 3
 FROM_INDEX              = 4
 TO_INDEX                = 5
-    
+
 # Messages
 WAIT_MESSAGE            = '[W] Please wait. The computation may take several minutes...'
 INTERRUPTION_MESSAGE    = '[E] Execution has been manually halted.\n'
@@ -65,8 +66,8 @@ COMPRESSED_FORMATS      = [BZ2, GZ]
 ARCHIVE_FORMATS         = [TAR_BZ2, TAR_GZ, SRA]
 FILE_EXTENSION          = ''
 
-# input file endings, expected fasta or fastq format, decompression command 
-INPUT_FORMAT={} 
+# input file endings, expected fasta or fastq format, decompression command
+INPUT_FORMAT={}
 INPUT_FORMAT['tar.bz2']  =('fastq',['tar', '-xOf'])
 INPUT_FORMAT['tar.gz']   =('fastq',['tar', '-xOf'])
 INPUT_FORMAT['sra']      =('fastq',['fastq-dump', '-Z', '--split-spot', '--minReadLen',str(DEFAULT_READ_LENGTH)])
@@ -76,17 +77,17 @@ INPUT_FORMAT['fq.bz2']   =('fastq',['bzcat'])
 INPUT_FORMAT['fa.bz2']   =('fasta',['bzcat'])
 INPUT_FORMAT['fastq.bz2']=('fastq',['bzcat'])
 INPUT_FORMAT['fasta.bz2']=('fasta',['bzcat'])
-INPUT_FORMAT['fq.gz']    =('fastq',['gunzip', '-c']) 
-INPUT_FORMAT['fa.gz']    =('fasta',['gunzip', '-c']) 
+INPUT_FORMAT['fq.gz']    =('fastq',['gunzip', '-c'])
+INPUT_FORMAT['fa.gz']    =('fasta',['gunzip', '-c'])
 INPUT_FORMAT['fastq.gz'] =('fastq',['gunzip', '-c'])
-INPUT_FORMAT['fasta.gz'] =('fasta',['gunzip', '-c']) 
+INPUT_FORMAT['fasta.gz'] =('fasta',['gunzip', '-c'])
 INPUT_FORMAT['fastq']    =('fastq',['cat'])
 INPUT_FORMAT['fasta']    =('fasta',['cat'])
 INPUT_FORMAT['fq']       =('fastq',['cat'])
 INPUT_FORMAT['fa']       =('fasta',['cat'])
 INPUT_FORMAT['bam']      =('bam',[''])
 # only archive file (tar,sra) are decompressed and piped to bowtie2,
-# other files are directly given as bowtie2 input, but might be piped in future 
+# other files are directly given as bowtie2 input, but might be piped in future
 
 # Error codes
 INEXISTENCE_ERROR_CODE      =  1 # File or folder does not exist
@@ -98,7 +99,7 @@ SAMTOOLS_ERROR_CODE         =  6 # Some problem with Samtools
 INTERRUPTION_ERROR_CODE     =  7 # Computation has been manually halted
 INDEXES_NOT_FOUND_ERROR     =  8 # Bowtie2 indexes are not found
 PANGENOME_ERROR_CODE        =  9 # Pangenome .csv file cannot be found
-PARAMETER_ERROR_CODE        = 10 # 
+PARAMETER_ERROR_CODE        = 10 #
 
 
 # ------------------------------------------------------------------------------
@@ -113,7 +114,7 @@ class PanPhlAnParser(ArgumentParser):
         ArgumentParser.__init__(self)
         self.add_argument('-i','--input',           metavar='INPUT_FILE',                   type=str,                                                   help='Short read input files. If no file is specified, panphlan_map reads from standard input.')
         # self.add_argument('-f', '--input_format',   metavar='INPUT_FORMAT',                 type=str,                                                   help='Old option, will be removed in future version')
-        self.add_argument('--i_bowtie2_indexes',    metavar='INPUT_BOWTIE2_INDEXES',        type=str,   default=None,                                   help='Input directory of bowtie2 indexes and pangenome') 
+        self.add_argument('--i_bowtie2_indexes',    metavar='INPUT_BOWTIE2_INDEXES',        type=str,   default=None,                                   help='Input directory of bowtie2 indexes and pangenome')
         self.add_argument('--fastx',                metavar='FASTX_FORMAT',                 type=str,   default='fastq',choices=['fastq','fasta','bam'],help='Read input format (fasta or fastq), default: fastq, if not fasta recognized by file ending.')
         self.add_argument('-c','--clade',           metavar='CLADE_NAME',                   type=str,                                   required=True,  help='Name of the species or clade: -c ecoli16')
         self.add_argument('-o','--output',          metavar='OUTPUT_FILE',                  type=str,   default='map_results/',                         help='Mapping result output-file: -o path/sampleID_clade.csv')
@@ -131,58 +132,6 @@ class PanPhlAnParser(ArgumentParser):
 # ------------------------------------------------------------------------------
 # MINOR FUNCTIONS
 # ------------------------------------------------------------------------------
-
-def end_program(total_time):
-    print('[TERMINATING...] ' + __file__ + ', ' + str(round(total_time / 60.0, 2)) + ' minutes.')
-
-
-
-def show_interruption_message():
-    sys.stderr.flush()
-    sys.stderr.write('\r')
-    sys.stderr.write(INTERRUPTION_MESSAGE)
-
-
-
-def show_error_message(error):
-    sys.stderr.write('[E] Execution has encountered an error!\n')
-    sys.stderr.write('    ' + str(error) + '\n')
-
-
-
-def time_message(start_time, message):
-    current_time = time.time()
-    print('[I] ' + message + ' Execution time: ' + str(round(current_time - start_time, 2)) + ' seconds.')
-    return current_time
-
-
-
-def find(pattern, path):
-    '''
-    Find all the files in the path whose name matches with the specified pattern
-    '''
-    result = []
-    for root, dirs, files in os.walk(path):
-        for name in files:
-            if fnmatch.fnmatch(name, pattern):
-                target = os.path.join(root, name)
-                result.append(target)
-    return result
-
-
-
-# def detect_input_format(filename):
-#     '''
-#     Detect the file format
-#     If unknown, it returns None
-#     '''
-#     for extension in reversed(sorted(KNOWN_INPUT_FORMATS, key=len)):
-#         if filename.endswith(extension):
-#             return extension
-#     # Unacceptable format is found. Raise an error and close the program
-#     show_error_message('Input with unacceptable extension/format.')
-#     sys.exit(FILEFORMAT_ERROR_CODE)
-
 def detect_input_format(filename):
     '''
     Detect input file format
@@ -197,12 +146,10 @@ def detect_input_format(filename):
     show_error_message('Input with unacceptable extension/format.')
     sys.exit(FILEFORMAT_ERROR_CODE)
 
-# ---
-
 def correct_output_name(opath, ipath, panphlan_clade, VERBOSE):
     '''
     complete output filename: add clade, extension, etc..  if missing
-    correct filename: ERR260216_ecoli12.csv 
+    correct filename: ERR260216_ecoli12.csv
     Possible user input:
         a) empty (only directory): use input sampleID and add _ecoli12.csv
         b) -o ERR260216 (adding: _ecoli12.csv(.bz2) )
@@ -212,10 +159,10 @@ def correct_output_name(opath, ipath, panphlan_clade, VERBOSE):
     '''
     clade=panphlan_clade.replace('panphlan_','')
     orig_path = opath
-    
-    # get output directory, including ending '/'
-    outdir=os.path.join(os.path.dirname(opath), '') 
-    
+
+    # get output directory,  including ending '/'
+    outdir=os.path.join(os.path.dirname(opath), '')
+
     # automatic correction of output ending
     if not opath.endswith('_' + clade + '.csv'): # ending not OK
         # get out-filename without extensions (remove/ignore endings: .csv or .csv.bz2)
@@ -225,7 +172,7 @@ def correct_output_name(opath, ipath, panphlan_clade, VERBOSE):
                 sys.exit('Please specify output filename: -o Outputpath/sampleID')
             else: # takesample ID from input-filename
                 outfilename = os.path.basename(ipath).split('.')[0]
-            
+
         # add clade if not in filename
         if not outfilename.endswith(clade):
             outfilename = outfilename + '_' + clade
@@ -233,11 +180,11 @@ def correct_output_name(opath, ipath, panphlan_clade, VERBOSE):
         outfilename = outfilename + '.csv'
         # get full path
         opath = outdir + outfilename
-        
+
         if not orig_path==opath:
             print('[I] Extend output filename "' + orig_path + '" to "' + opath + '"')
 
-    # create output directory   
+    # create output directory
     if outdir: # no empty dir string
         if os.path.exists(outdir):
             if VERBOSE: print('[I] Mapping result directory: ' + outdir)
@@ -265,7 +212,7 @@ def genes_abundances(reads_file, contig2gene, gene_covs_outchannel, TIME, VERBOS
     '''
     try:
         genes_abundances = defaultdict(int)
-     
+
         f = open(reads_file, mode='r')
         if VERBOSE: print(WAIT_MESSAGE)
 
@@ -273,10 +220,10 @@ def genes_abundances(reads_file, contig2gene, gene_covs_outchannel, TIME, VERBOS
         pos2gene = defaultdict(list)
 
         for line in f:
-            # words = CONTIG, POSITION, REFERENCE BASE, COVERAGE, READ BASE, QUALITY 
+            # words = CONTIG, POSITION, REFERENCE BASE, COVERAGE, READ BASE, QUALITY
             words = line.strip().split('\t')
             contig, position, abundance = words[0], int(words[1]), int(words[3])
-            
+
             # File is organised by contigs
             # If we have just passed from a contig to a new one, ...
             if contig != current_contig:
@@ -302,14 +249,14 @@ def genes_abundances(reads_file, contig2gene, gene_covs_outchannel, TIME, VERBOS
         # Print the gene abundances in stdout
         if gene_covs_outchannel == '-':
             for g in genes_abundances:
-                if genes_abundances[g] > 0: 
+                if genes_abundances[g] > 0:
                     sys.stdout.write(str(g) + '\t' + str(genes_abundances[g]) + '\n')
         # Or in the output file (if user-defined)
         else:
             try:
                 ocsv = open(gene_covs_outchannel, mode='w')
                 for g in genes_abundances:
-                    if genes_abundances[g] > 0: 
+                    if genes_abundances[g] > 0:
                         ocsv.write(str(g) + '\t' + str(genes_abundances[g]) + '\n')
                 ocsv.close()
                 # with open(gene_covs_outchannel, 'rb') as icsv:
@@ -346,7 +293,7 @@ def build_pangenome_dicts(pangenome_file, TIME, VERBOSE):
     Build the dictionary for contig -> included gene -> location of the gene in the DNA
     '''
     contig2gene = {}
-    
+
     with open(pangenome_file, mode='r') as f:
         for line in f:
             # line = FAMILY, GENE, CONTIG, FROM, TO
@@ -363,7 +310,7 @@ def build_pangenome_dicts(pangenome_file, TIME, VERBOSE):
     #     contig2gene[ctg] = sorted(contig2gene[ctg].items(), key=operator.itemgetter(1))
 
     if VERBOSE:
-        TIME = time_message(TIME, 'Dictionary for {contig:{gene:(from,to)}} has been created.') 
+        TIME = time_message(TIME, 'Dictionary for {contig:{gene:(from,to)}} has been created.')
 
     return contig2gene, TIME
 # -----------------------------------------------------------------------------
@@ -379,13 +326,13 @@ def get_pangenome_file(bowtie2_indexes_dir, clade, VERBOSE):
             message += ', '.join(pangenome)
             message += '\n    '
         message += 'Choose file "' + pangenome[0] + '". If not good, please resolve manually the problem.'
-        print(message) 
+        print(message)
     elif len(pangenome) < 1:
         sys.stderr.write('[E] Cannot find the pangenome file for ' + clade + ' in directory ' + bowtie2_indexes_dir + '\n')
         sys.exit(PANGENOME_ERROR_CODE)
     else:
         if VERBOSE: print('[I] Pangenome file: ' + pangenome[0])
-    return pangenome[0]    
+    return pangenome[0]
 # -----------------------------------------------------------------------------
 def piling_up(bam_file, isTemp, csv_file, TIME, VERBOSE):
     '''
@@ -400,7 +347,7 @@ def piling_up(bam_file, isTemp, csv_file, TIME, VERBOSE):
                 4   Number of aligned reads covering that position (depth of abundance)
                 5   Bases at that position from aligned reads
                 6   quality of those bases (OPTIONAL)
-            
+
             Column 5: The bases string
                 . (dot)                 means a base that matched the reference on the forward strand
                 , (comma)               means a base that matched the reference on the reverse strand
@@ -436,7 +383,7 @@ def piling_up(bam_file, isTemp, csv_file, TIME, VERBOSE):
                 except Exception as err:
                     show_error_message(err)
                     sys.exit(SAMTOOLS_ERROR_CODE)
-            
+
             # If the .bam file is created as temporary file (not defined by the user), then delete it with the index .bai file
             if isTemp:
                 os.unlink(bam_file)
@@ -455,7 +402,7 @@ def piling_up(bam_file, isTemp, csv_file, TIME, VERBOSE):
                 os.unlink(bam_file)
             show_interruption_message()
             sys.exit(INTERRUPTION_ERROR_CODE)
-    
+
     except (KeyboardInterrupt, SystemExit):
         p4.kill()
         if isTemp:
@@ -478,7 +425,7 @@ def remapping(input_pair, out_bam, max_numof_mismatches, memory, tmp_path, TIME,
         tmp_sam = tempfile.NamedTemporaryFile(delete=False, prefix='panphlan_', suffix='.sam')
     else:
         tmp_sam = tempfile.NamedTemporaryFile(delete=False, prefix='panphlan_', suffix='.sam', dir=tmp_path)
-    
+
     p1 = subprocess.Popen(convertback_cmd, stdout=subprocess.PIPE)
 
     if VERBOSE:
@@ -541,18 +488,18 @@ def samtools_sam2bam(in_sam, out_bam, memory, tmp_path, TIME, VERBOSE):
             tmp_bam = None
             # 2nd command: samtools sort -m <AMOUNT OF MEMORY> - <OUTPUT BAM FILE>
             sort_cmd = ['samtools', 'sort', '-m', str(int(memory * 1024*1024*1024))]
-            
+
             if out_bam == None: # .bam file is not saved, only temporary bam file
                 if tmp_path == None:
                     tmp_bam = tempfile.NamedTemporaryFile(delete=False, prefix='panphlan_', suffix='.bam')
                 else:
                     tmp_bam = tempfile.NamedTemporaryFile(delete=False, prefix='panphlan_', suffix='.bam', dir=tmp_path)
-                
+
                 with tmp_bam:
                     if LooseVersion(samtools_version) >= LooseVersion('1.3'): # works also with two dots 1.3.1 (1 of 2 if's)
                         sort_cmd += ['-', '-o', tmp_bam.name]
                     else: # older samtools versions: only prefix, without .bam
-                        sort_cmd += ['-', tmp_bam.name[:-4]] 
+                        sort_cmd += ['-', tmp_bam.name[:-4]]
                     if VERBOSE:
                         print('[I] cmd (v'  + samtools_version + '): ' + ' '.join(sort_cmd))
                     p3 = subprocess.Popen(sort_cmd, stdin=p2.stdout, stdout=tmp_bam)
@@ -560,7 +507,7 @@ def samtools_sam2bam(in_sam, out_bam, memory, tmp_path, TIME, VERBOSE):
                     if VERBOSE:
                         print('[I] Temporary .bam file ' + tmp_bam.name + ' has been sorted')
                 outcome = (TEMPORARY_FILE, tmp_bam.name)
-            
+
             else: # .bam file is saved (option -b Bam/sample.bam)
                 if LooseVersion(samtools_version) >= LooseVersion('1.3'): # works also with two dots 1.3.1 (2 of 2 if's)
                     sort_cmd += ['-', '-o', out_bam]
@@ -577,7 +524,7 @@ def samtools_sam2bam(in_sam, out_bam, memory, tmp_path, TIME, VERBOSE):
 
             if VERBOSE:
                 TIME = time_message(TIME,'Samtools SAM->BAM translation (view+sort) completed.')
-    
+
         except (KeyboardInterrupt, SystemExit):
             p3.kill()
             show_interruption_message()
@@ -636,20 +583,20 @@ def mapping(input_set, fastx, is_multi_file, clade, out_bam, min_length, max_num
             if VERBOSE:
                 print('[I] ' + ' '.join(decompress_cmd))
             p0 = subprocess.Popen(decompress_cmd, stdout=subprocess.PIPE)
-        
+
         # bowtie2 --very-sensitive --no-unal -x <SPECIE> -U <INPUT PATH> -p <NUMBER OF PROCESSORS>
         # default: bt2_options = '--very-sensitive'
-        
+
         bowtie2_cmd = [ 'bowtie2' ] + list(filter(None,bt2_options.split('/'))) + [ '--no-unal', '-x', clade, '-U', '-' if is_multi_file else input_path,
                         ] + ([] if int(numof_proc) < 2 else ['-p', str(numof_proc)])
         if not VERBOSE:
             bowtie2_cmd.append('--quiet')
         else:
             print('[I] ' + ' '.join(bowtie2_cmd))
-            
-        if fastx is 'fasta': 
+
+        if fastx is 'fasta':
             bowtie2_cmd.append('-f') #bowtie2 default is fastq (-q)
-            
+
         if is_multi_file:
             p1 = subprocess.Popen(bowtie2_cmd, stdin=p0.stdout, stdout=subprocess.PIPE)
         else:
@@ -664,7 +611,7 @@ def mapping(input_set, fastx, is_multi_file, clade, out_bam, min_length, max_num
             print('[I] Created temporary file ' + tmp_sam.name)
 
         if VERBOSE: print(WAIT_MESSAGE)
-        
+
         # Filter the shorter reads
         if VERBOSE:
             print('[I] SAM records filtering: mismatches threshold is at ' + str(max_numof_mismatches) + ', length threshold is at ' + str(min_length))
@@ -700,21 +647,21 @@ def mapping(input_set, fastx, is_multi_file, clade, out_bam, min_length, max_num
         if VERBOSE:
             print('[I] Rejected ' + str(rejected) + ' reads over ' + str(total) + ' total')
             TIME = time_message(TIME, 'Bowtie2 mapping and SAM filtering completed.')
-        
+
         outcome, TIME = samtools_sam2bam(tmp_sam, out_bam, memory, tmp_path, TIME, VERBOSE)
-                
+
         p1.stdout.close()
 
     except (KeyboardInterrupt, SystemExit):
         p1.kill()
         show_interruption_message()
         sys.exit(INTERRUPTION_ERROR_CODE)
-    
+
     return outcome, TIME
 # -----------------------------------------------------------------------------
 def check_fastqdump(VERBOSE, PLATFORM):
     '''
-    If input is a SRA file: check if SRA-toolkit (fastq-dump tool) is installed 
+    If input is a SRA file: check if SRA-toolkit (fastq-dump tool) is installed
     '''
     try:
         fastqdump = ''
@@ -727,7 +674,7 @@ def check_fastqdump(VERBOSE, PLATFORM):
     except Exception as err:
         show_error_message(err)
         print('[W] SRA-toolkit is not installed. SRA sample files cannot be processed.')
-        sys.exit(UNINSTALLED_ERROR_CODE) 
+        sys.exit(UNINSTALLED_ERROR_CODE)
 # -----------------------------------------------------------------------------
 def check_samtools(VERBOSE = False, PLATFORM = 'lin'):
     '''
@@ -737,7 +684,7 @@ def check_samtools(VERBOSE = False, PLATFORM = 'lin'):
         samtools = ''
         if PLATFORM == WINDOWS:
             samtools = subprocess.Popen(['where', 'samtools'], stdout=subprocess.PIPE).communicate()[0].decode()
-        else: # Linux, Mac, ...    
+        else: # Linux, Mac, ...
             samtools = subprocess.Popen(['which', 'samtools'], stdout=subprocess.PIPE).communicate()[0].decode()
         # samtools_version = subprocess.Popen(['samtools', '--version'], stdout=subprocess.PIPE).communicate()[0]
         # samtools_version = samtools_version.decode().split(os.linesep)[0].split()[1]
@@ -776,7 +723,7 @@ def check_bowtie2(clade, bowtie2_indexes, VERBOSE=False, PLATFORM='lin'):
         show_error_message(err)
         print('\n[E] Please install Bowtie2.\n')
         sys.exit(UNINSTALLED_ERROR_CODE)
-    
+
     bt2_indexes = []
     if bowtie2: # check for bowtie2 index directory BOWTIE2_INDEXES
         try:
@@ -800,9 +747,9 @@ def check_bowtie2(clade, bowtie2_indexes, VERBOSE=False, PLATFORM='lin'):
         except IOError:
             print('[E] Bowtie2 index files (*.bt2) are not found! Use the option --i_bowtie2_indexes to set the location!')
             sys.exit(INDEXES_NOT_FOUND_ERROR)
-        
+
         bowtie2_indexes_dir = os.path.join(os.path.dirname(bt2_indexes[0]),'') # '' to get ending '/'
-            
+
         if VERBOSE:
             print('[I] BOWTIE2_INDEXES in ' + str(bowtie2_indexes_dir))
 
@@ -819,7 +766,7 @@ def check_args():
              panphlan.py -c ecoli -i sample.fastq --out_bam sample.bam -o sample_pangenome.csv
              panphlan.py -c ecoli -i sample.fastq --out_bam sample.bam -o sample_pangenome.csv --input_format fastq
 
-            same for already created .bam files 
+            same for already created .bam files
              panphlan.py -c ecoli -i sample.bam > sample_pangenome.csv
 
             same but using standard input and pipe
@@ -856,15 +803,15 @@ def check_args():
             # detect sample file format
             iextension, ifastx, idecompress = detect_input_format(ipath)
             FILE_EXTENSION = iextension
-                
+
             if VERBOSE:
                 print('[I] Input file: ' + ipath + '. Detected extension: ' + iextension + '; format: ' + ifastx)
             args_set['input'] = (ipath, iextension, ifastx, idecompress)
-            if ifastx is 'fasta':         # only overwrite for clearly detected 'fasta',  
-                args_set['fastx']='fasta' # tar.bz2 can be both, user needs to specify if not default 'fastq' 
+            if ifastx is 'fasta':         # only overwrite for clearly detected 'fasta',
+                args_set['fastx']='fasta' # tar.bz2 can be both, user needs to specify if not default 'fastq'
 
     # Check: CLADE-NAME -------------------------------------------------------
-    # replace "_" with "-" if present in species-name: "E-coli"   
+    # replace "_" with "-" if present in species-name: "E-coli"
     args_set['clade'] = args_set['clade'].replace('panphlan_','') # remove panphlan_ prefix (to do: added later only for bowtie2)
     args_set['clade'] = args_set['clade'].replace('_','-') # convert underscore '_' to dash '-' in species-name (underscore is used as separator in _map)
     args_set['clade'] = PANPHLAN + args_set['clade'] # add again panphlan_ prefix as it is still expected in some functions of panphlan_map
@@ -874,7 +821,7 @@ def check_args():
     opath = args_set['output']
     args_set['output'] = correct_output_name(opath, ipath, args_set['clade'], VERBOSE)
     if VERBOSE: print('[I] Output file name: ' + args_set['output'])
-    
+
     # Check: OUTPUT_BAM_FILE --------------------------------------------------
     bpath = args_set['out_bam']
     # If --out_bam is defined, and input formt is different from BAM...
@@ -914,7 +861,7 @@ def check_args():
         if VERBOSE: print('[W] Set number of processors to the maximal number on your machine: ' + str(args_set['nproc']))
     else:
         if VERBOSE: print('[I] Number of processors: ' + str(args_set['nproc']))
-    
+
     # Check: MEMORY_GIGABTES_FOR_SAMTOOLS -------------------------------------
     # if args_set['mGB'] == None:
     #     args_set['mGB'] = 0.5 # new: default directly in options
@@ -928,7 +875,7 @@ def check_args():
         print('[I] Minimum length threshold of reads: ' + str(args_set['readLength']))
 
     # Check: TEMP_FOLDER ------------------------------------------------------
-    # default TMP_panphlan_map, since system folder /tmp can have space limits  
+    # default TMP_panphlan_map, since system folder /tmp can have space limits
     tmp_path = os.path.join(args_set['tmp'],'')
     if not os.path.exists(os.path.dirname(tmp_path)):
         os.makedirs(tmp_path)
@@ -945,7 +892,7 @@ def main():
         sys.exit('Python versions older than 2.6 are not supported.')
 
     args = check_args()
-    
+
     # print('\nSTEP 0. Initialization...')
     TIME = time.time()
     TOTAL_TIME = time.time()
@@ -966,7 +913,7 @@ def main():
 
     sorted_bam_file = ''
     isTemp = False
-    
+
     # If the input is a BAM file...
     if args['input'][1] == BAM:
         sorted_bam_file = args['input'][0]
@@ -993,14 +940,14 @@ def main():
         isTemp = True if mapping_outcome[0] == TEMPORARY_FILE else False
 
     if VERBOSE: print('\nSTEP 3. Piling up...')
-    
+
     if args['tmp'] == None:
         tmp_csv__readsfile = tempfile.NamedTemporaryFile(delete=False, prefix='panphlan_', suffix='.csv')
     else:
         tmp_csv__readsfile = tempfile.NamedTemporaryFile(delete=False, prefix='panphlan_', suffix='.csv', dir=args['tmp'])
 
     TIME = piling_up(sorted_bam_file, isTemp, tmp_csv__readsfile.name, TIME, VERBOSE)
-    
+
     try:
         contig2gene, TIME = build_pangenome_dicts(pangenome_file, TIME, VERBOSE)
         gene_abundances = genes_abundances(tmp_csv__readsfile.name, contig2gene, args['output'], TIME, VERBOSE)
@@ -1013,7 +960,7 @@ def main():
     finally:
         os.unlink(tmp_csv__readsfile.name)
 
-    end_program(time.time() - TOTAL_TIME) 
+    end_program(time.time() - TOTAL_TIME)
 
 # ------------------------------------------------------------------------------
 # MAIN

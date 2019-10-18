@@ -6,20 +6,16 @@ from fnmatch import fnmatch
 from shutil import copyfileobj
 
 __author__  = 'Leonard Dubois (panphlan-users@googlegroups.com)'
-__version__ = '0.1'
+__version__ = '1.3'
 __date__    = '11 October 2019'
 
-
 # Error codes
-INEXISTENCE_ERROR_CODE      = 1 # File or folder does not exist
 UNINSTALLED_ERROR_CODE      = 2 # Software is not installed
 INTERRUPTION_ERROR_CODE     = 7 # Computation has been manually halted
-
 INTERRUPTION_MESSAGE    = '[E] Execution has been manually halted.\n'
 # ------------------------------------------------------------------------------
 # INTERNAL CLASSES
 # ------------------------------------------------------------------------------
-
 class PanPhlAnGenParser(ArgumentParser):
     '''
     Subclass of ArgumentParser for parsing command inputs for panphlan_pangenome_generation2.py
@@ -30,7 +26,6 @@ class PanPhlAnGenParser(ArgumentParser):
         self.add_argument('-c','--clade',    metavar='CLADE_NAME',           type=str,   default=False,      help='Name of the species pangenome database, for example: -c ecoli17')
         self.add_argument('-o','--output',      metavar='OUTPUT_FOLDER',        type=str,   default='database', help='Result folder for all database files')
         self.add_argument('--verbose',          action='store_true',                                            help='Show progress information')
-
 # ------------------------------------------------------------------------------
 # MINOR FUNCTIONS
 # ------------------------------------------------------------------------------
@@ -145,10 +140,8 @@ def main():
         sys.exit('This software uses Python3, please update Python')
 
     args = check_args()
-
     start_time = time.time()
     TIME = time.time()
-
     check_bowtie2(args['verbose'])
     TIME = create_bt2_indexes(args, TIME)
 
