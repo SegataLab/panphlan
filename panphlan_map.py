@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 # ==============================================================================
-# PanPhlAn v1.2.2: PANgenome-based PHyLogenomic ANalysis
+# PanPhlAn v1.3: PANgenome-based PHyLogenomic ANalysis
 # Detecting and characterizing strains in metagenomic samples
 #
 # Matthias Scholz, Doyle V. Ward, Edoardo Pasolli, Thomas Tolio, Moreno Zolfo,
@@ -14,8 +14,6 @@
 # https://bitbucket.org/CibioCM/panphlan
 # ==============================================================================
 
-from __future__ import print_function # to give equal outputs in python2 and python3
-from __future__ import with_statement
 from argparse import ArgumentParser
 from collections import defaultdict
 from shutil import copyfileobj
@@ -23,9 +21,9 @@ from utils import end_program, show_interruption_message, show_error_message, ti
 import bz2, fnmatch, multiprocessing, operator, os, subprocess, sys, tempfile, time
 from distutils.version import LooseVersion
 
-__author__  = 'Matthias Scholz, Thomas Tolio, Nicola Segata (panphlan-users@googlegroups.com)'
-__version__ = '1.2.2.5'
-__date__    = '10 May 2018'
+__author__  = 'Matthias Scholz, Thomas Tolio, Leonard Dubois and Nicola Segata (panphlan-users@googlegroups.com)'
+__version__ = '1.3'
+__date__    = '15 November 2019'
 
 
 DEFAULT_READ_LENGTH     = 70  # min=70 to account for read-length in the MetaHIT project
@@ -103,7 +101,7 @@ PARAMETER_ERROR_CODE        = 10 #
 
 
 # ------------------------------------------------------------------------------
-# INTERNAL CLASSES
+# ARGUMENT PARSER
 # ------------------------------------------------------------------------------
 
 class PanPhlAnParser(ArgumentParser):
@@ -129,9 +127,7 @@ class PanPhlAnParser(ArgumentParser):
         self.add_argument('-v', '--version',        action='version',   version="PanPhlAn version "+__version__+"\t("+__date__+")",                     help='PanPhlAn version')
 
 
-# ------------------------------------------------------------------------------
-# MINOR FUNCTIONS
-# ------------------------------------------------------------------------------
+
 def detect_input_format(filename):
     '''
     Detect input file format
@@ -145,7 +141,7 @@ def detect_input_format(filename):
     # Unacceptable format is found. Raise an error and close the program
     show_error_message('Input with unacceptable extension/format.')
     sys.exit(FILEFORMAT_ERROR_CODE)
-
+# ------------------------------------------------------------------------------
 def correct_output_name(opath, ipath, panphlan_clade, VERBOSE):
     '''
     complete output filename: add clade, extension, etc..  if missing
@@ -195,123 +191,25 @@ def correct_output_name(opath, ipath, panphlan_clade, VERBOSE):
         if VERBOSE: print('[I] Mapping results are saves in working directory.')
 
     return opath
-# -----------------------------------------------------------------------------
-# MAJOR FUNCTIONS
-# -----------------------------------------------------------------------------
-def genes_abundances(reads_file, contig2gene, gene_covs_outchannel, TIME, VERBOSE):
-    '''
-    Compute the abundance for each gene
-
-        Workflow:
-            1-  for each read R:
-                    take the contig C the read belongs
-                    take the position P
-                    take its abundance V
-            2-  take the list of genes in C
-            3-  if P is inside G, then the abundance of G increases by V
-    '''
-    try:
-        genes_abundances = defaultdict(int)
-
-        f = open(reads_file, mode='r')
-        if VERBOSE: print(WAIT_MESSAGE)
-
-        current_contig = ''
-        pos2gene = defaultdict(list)
-
-        for line in f:
-            # words = CONTIG, POSITION, REFERENCE BASE, COVERAGE, READ BASE, QUALITY
-            words = line.strip().split('\t')
-            contig, position, abundance = words[0], int(words[1]), int(words[3])
-
-            # File is organised by contigs
-            # If we have just passed from a contig to a new one, ...
-            if contig != current_contig:
-                # Clear the {position:gene} dictionary (we allocate only a subdictionary for the interesting contig)
-                pos2gene = defaultdict(list)
-                if contig in contig2gene:
-                    # For each gene in the contig, create {position:gene}
-                    for gene, (fr,to) in contig2gene[contig].items():
-                        for a in range(fr, to + 1):
-                            pos2gene[a].append(gene)
-                    current_contig = contig
-                    if VERBOSE:
-                        print('[I] Analyzing contig ' + current_contig + '...')
-
-            # Add abundance for each gene covering the position
-            if position in pos2gene:
-                genes = pos2gene[position]
-                for g in genes:
-                    genes_abundances[g] += abundance
-
-        f.close()
-
-        # Print the gene abundances in stdout
-        if gene_covs_outchannel == '-':
-            for g in genes_abundances:
-                if genes_abundances[g] > 0:
-                    sys.stdout.write(str(g) + '\t' + str(genes_abundances[g]) + '\n')
-        # Or in the output file (if user-defined)
-        else:
-            try:
-                ocsv = open(gene_covs_outchannel, mode='w')
-                for g in genes_abundances:
-                    if genes_abundances[g] > 0:
-                        ocsv.write(str(g) + '\t' + str(genes_abundances[g]) + '\n')
-                ocsv.close()
-                # with open(gene_covs_outchannel, 'rb') as icsv:
-                try:
-                    icsv = open(gene_covs_outchannel, 'rb')
-                        # with bz2.BZ2File(gene_covs_outchannel + '.bz2', 'wb', compresslevel=9) as obz2:
-                    obz2 = bz2.BZ2File(gene_covs_outchannel + '.bz2', 'wb', compresslevel=9)
-                    copyfileobj(icsv, obz2)
-                    obz2.close()
-                    icsv.close()
-                    os.remove(gene_covs_outchannel)
-
-                except (KeyboardInterrupt, SystemExit):
-                    os.remove(gene_covs_outchannel + '.bz2')
-                    show_interruption_message()
-                    sys.exit(INTERRUPTION_ERROR_CODE)
-
-            except (KeyboardInterrupt, SystemExit):
-                os.remove(gene_covs_outchannel)
-                show_interruption_message()
-                sys.exit(INTERRUPTION_ERROR_CODE)
-
-    except (KeyboardInterrupt, SystemExit):
-        os.unlink(reads_file)
-        show_interruption_message()
-        sys.exit(INTERRUPTION_ERROR_CODE)
-
-    if VERBOSE:
-        TIME = time_message(TIME, 'Gene abundances computing has just been completed.')
-    return genes_abundances
-# -----------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 def build_pangenome_dicts(pangenome_file, TIME, VERBOSE):
     '''
     Build the dictionary for contig -> included gene -> location of the gene in the DNA
     '''
     contig2gene = {}
-
     with open(pangenome_file, mode='r') as f:
         for line in f:
             # line = FAMILY, GENE, CONTIG, FROM, TO
             words = line.strip().split('\t')
             fml, gen, ctg, fr, to = words[FAMILY_INDEX], words[GENE_INDEX], words[CONTIG_INDEX], int(words[FROM_INDEX]), int(words[TO_INDEX])
-
-            # New entry in contig2gene
             if not ctg in contig2gene:
                 contig2gene[ctg] = {}
             contig2gene[ctg][gen] = (min(to, fr), max(to, fr))
-
     # Sort genes in each contig for deterministic results even if pangenome file contains overlaps (and so errors)
     # for ctg in contig2gene:
     #     contig2gene[ctg] = sorted(contig2gene[ctg].items(), key=operator.itemgetter(1))
-
     if VERBOSE:
         TIME = time_message(TIME, 'Dictionary for {contig:{gene:(from,to)}} has been created.')
-
     return contig2gene, TIME
 # -----------------------------------------------------------------------------
 def get_pangenome_file(bowtie2_indexes_dir, clade, VERBOSE):
@@ -333,6 +231,215 @@ def get_pangenome_file(bowtie2_indexes_dir, clade, VERBOSE):
     else:
         if VERBOSE: print('[I] Pangenome file: ' + pangenome[0])
     return pangenome[0]
+# -----------------------------------------------------------------------------
+def samtools_sam2bam(in_sam, out_bam, memory, tmp_path, TIME, VERBOSE):
+    '''
+    Covert a SAM file into BAM file, then sort the BAM
+        1.  samtools view -bS <INPUT SAM FILE>
+        2.  samtools sort
+              samtools version 1.2
+                samtools sort <in.bam> <out.prefix>
+                cat sample.bam | samtools sort - tmp_sorted
+              samtools version 1.3
+                samtools sort <in.bam> -o <out.bam>
+                cat sample.bam | samtools sort - -o tmp_sorted.bam
+    '''
+    outcome = (None, None)
+    try:
+        # get samtools version
+        samtools, samtools_version = check_samtools()
+        # 1st command: samtools view -bS <INPUT SAM FILE>
+        view_cmd = ['samtools', 'view', '-bS', in_sam.name]
+        if VERBOSE:
+            print('[I] ' + ' '.join(view_cmd))
+        p2 = subprocess.Popen(view_cmd, stdout=subprocess.PIPE)
+        if VERBOSE:
+            print('[I] Temporary .bam file has been generated')
+
+        try:
+            tmp_bam = None
+            # 2nd command: samtools sort -m <AMOUNT OF MEMORY> - <OUTPUT BAM FILE>
+            sort_cmd = ['samtools', 'sort', '-m', str(int(memory * 1024*1024*1024))]
+
+            if out_bam == None: # .bam file is not saved, only temporary bam file
+                if tmp_path == None:
+                    tmp_bam = tempfile.NamedTemporaryFile(delete=False, prefix='panphlan_', suffix='.bam')
+                else:
+                    tmp_bam = tempfile.NamedTemporaryFile(delete=False, prefix='panphlan_', suffix='.bam', dir=tmp_path)
+
+                with tmp_bam:
+                    if LooseVersion(samtools_version) >= LooseVersion('1.3'): # works also with two dots 1.3.1 (1 of 2 if's)
+                        sort_cmd += ['-', '-o', tmp_bam.name]
+                    else: # older samtools versions: only prefix, without .bam
+                        sort_cmd += ['-', tmp_bam.name[:-4]]
+                    if VERBOSE:
+                        print('[I] cmd (v'  + samtools_version + '): ' + ' '.join(sort_cmd))
+                    p3 = subprocess.Popen(sort_cmd, stdin=p2.stdout, stdout=tmp_bam)
+                    p3.wait() # Wait until previous process has finished its computation (otherwise there will be error raised by Samtools)
+                    if VERBOSE:
+                        print('[I] Temporary .bam file ' + tmp_bam.name + ' has been sorted')
+                outcome = (TEMPORARY_FILE, tmp_bam.name)
+
+            else: # .bam file is saved (option -b Bam/sample.bam)
+                if LooseVersion(samtools_version) >= LooseVersion('1.3'): # works also with two dots 1.3.1 (2 of 2 if's)
+                    sort_cmd += ['-', '-o', out_bam]
+                else: # older samtools versions: only prefix, without .bam
+                    sort_cmd += ['-', out_bam[:-4]]
+                if VERBOSE:
+                    print('[I] cmd (v'  + samtools_version + '): ' + ' '.join(sort_cmd))
+                with open(out_bam, mode='w') as obam:
+                    p3 = subprocess.Popen(sort_cmd, stdin=p2.stdout, stdout=obam)
+                    p3.wait() # Wait until previous process has finished its computation (otherwise there will be error raised by Samtools)
+                if VERBOSE:
+                    print('[I] User-defined .bam file ' + out_bam + ' has been sorted')
+                outcome = (USER_DEFINED, out_bam)
+
+            if VERBOSE:
+                TIME = time_message(TIME,'Samtools SAM->BAM translation (view+sort) completed.')
+
+        except (KeyboardInterrupt, SystemExit):
+            p3.kill()
+            show_interruption_message()
+            sys.exit(INTERRUPTION_ERROR_CODE)
+
+    except (KeyboardInterrupt, SystemExit):
+        p2.kill()
+        show_interruption_message()
+        sys.exit(INTERRUPTION_ERROR_CODE)
+    finally:
+        os.unlink(in_sam.name)
+
+    return outcome, TIME
+# -----------------------------------------------------------------------------
+def mapping(args, bowtie2_indexes, TIME, VERBOSE):
+    '''
+    Maps the input sample file (.fastq) into a .bam file (passing through a .sam file) using BowTie2 and Samtools commands
+
+        Pipeline:
+            1.  bowtie2 --very-sensitive --no-unal -x <SPECIE> -U <INPUT PATH> -p <NUMBER OF PROCESSORS>
+            2.  samtools view -bS <INPUT SAM FILE>
+            3.  samtools sort -m <AMOUNT OF MEMORY> - <OUTPUT BAM FILE>
+
+            About BowTie2 command:
+                --very-sensitive := -D 20 -R 3 -N 0 -L 2 -i S,1,0.5
+                -D 20           Up to 20 consecutive seed extension attempts can "fail" before Bowtie 2 moves on, using the alignments found so far. A seed extension "fails" if it does not yield a new best or a new second-best alignment.
+                -R 3            3 is the maximum number of times Bowtie 2 will "re-seed" reads with repetitive seeds. When "re-seeding" Bowtie 2 simply chooses a new set of reads (same length, same number of mismatches allowed) at different offsets and searches for more alignments.
+                -N 0            Sets the number of mismatches to allowed in a seed alignment during multiseed alignment.
+                -L 2            Sets the length of the seed substrings to align during multiseed alignment. Smaller values make alignment slower but more sensitive.
+                -i S,1,0.5      Sets a function governing the interval between seed substrings to use during multiseed alignment. This function is f(x) := 1 + 0.5 * sqrt(x)
+                --no-unal       Does not create BAM record for unaligned reads.
+                -x <SPECIE>     The basename of the index for the reference genome.
+                -U <INPUT>      Comma-separated list of files containing unpaired reads to be aligned.
+                -S <OUTPUT>     File to write SAM alignments to ("-" == stdout).
+            For major details look at http://bowtie-bio.sourceforge.net/bowtie2/manual.shtml#usage
+
+            About Samtools commands:
+                -bS             Input is in SAM format, output is in BAM format
+                -m              Amount of memory it will be used
+    '''
+    # extracting args variable
+    input_set = args['input']
+    fastx = args['fastx']
+    # if -f FASTQ_TAR_BZ2 or -f FASTQ_TAR_GZ or -f FASTQ_SRA, then the input file is an archive
+    is_multi_file = args['input'][1] in ARCHIVE_FORMATS
+    clade = bowtie2_indexes + args['clade']
+    out_bam = args['out_bam']
+    min_length = args['readLength']
+    max_numof_mismatches = args['th_mismatches']
+    bt2_options = args['bt2']
+    memory = args['mGB']
+    numof_proc = args['nproc']
+    tmp_path = args['tmp']    
+    
+    outcome = (None, None)
+    try:
+        XN_FILTER = False if max_numof_mismatches <= -1 else True
+        input_path     = input_set[0]
+        input_format   = input_set[1]
+        decompress_cmd = input_set[3]
+        total = 0
+        rejected = 0
+        outcome = (None, None)
+        if VERBOSE: print('[I] Opening ' + input_path)
+
+        if is_multi_file:
+            # decompress archive and concatenate all the files inside (both in only one command)
+            decompress_cmd.append(input_path)
+            if VERBOSE:
+                print('[I] ' + ' '.join(decompress_cmd))
+            p0 = subprocess.Popen(decompress_cmd, stdout=subprocess.PIPE)
+
+        # bowtie2 --very-sensitive --no-unal -x <SPECIE> -U <INPUT PATH> -p <NUMBER OF PROCESSORS>
+        # default: bt2_options = '--very-sensitive'
+
+        bowtie2_cmd = [ 'bowtie2' ] + list(filter(None,bt2_options.split('/'))) + [ '--no-unal', '-x', clade, '-U', '-' if is_multi_file else input_path,
+                        ] + ([] if int(numof_proc) < 2 else ['-p', str(numof_proc)])
+        if not VERBOSE:
+            bowtie2_cmd.append('--quiet')
+        else:
+            print('[I] ' + ' '.join(bowtie2_cmd))
+
+        if fastx is 'fasta':
+            bowtie2_cmd.append('-f') #bowtie2 default is fastq (-q)
+
+        if is_multi_file:
+            p1 = subprocess.Popen(bowtie2_cmd, stdin=p0.stdout, stdout=subprocess.PIPE)
+        else:
+            p1 = subprocess.Popen(bowtie2_cmd, stdout=subprocess.PIPE)
+
+        if tmp_path == None:
+            tmp_sam = tempfile.NamedTemporaryFile(delete=False, prefix='panphlan_', suffix='.sam')
+        else:
+            tmp_sam = tempfile.NamedTemporaryFile(delete=False, prefix='panphlan_', suffix='.sam', dir=tmp_path)
+
+        if VERBOSE:
+            print('[I] Created temporary file ' + tmp_sam.name)
+            print(WAIT_MESSAGE)
+            print('[I] SAM records filtering: mismatches threshold is at ' + str(max_numof_mismatches) + ', length threshold is at ' + str(min_length))
+            
+        with tmp_sam:
+            # @TODO or line.decode('utf-8')?
+            for line in p1.stdout:
+                total += 1
+                l = line.decode('utf-8')
+                if l.startswith('@'):
+                    tmp_sam.write(line)
+                # @TODO this elif could be useless
+                elif line == '':
+                    tmp_sam.write(line)
+                    break
+                else:
+                    words = l.strip().split('\t')
+                    read_length, numof_snp = len(words[9]), int(words[14].split(':')[-1])
+                    # Too short
+                    if read_length < min_length:
+                        rejected += 1
+                        #if VERBOSE:
+                        #    print('Filter out read #' + str(total) + ': length is ' + str(readLength))
+                    # Too many mismatches
+                    elif XN_FILTER:
+                        if numof_snp > max_numof_mismatches:
+                            rejected += 1
+                            #if VERBOSE:
+                            #    print('Filter out read #' + str(total) + ': found ' + str(numof_snp) + ' mismatches')
+                    # Accept the read
+                    else:
+                        tmp_sam.write(line)
+
+        if VERBOSE:
+            print('[I] Rejected ' + str(rejected) + ' reads over ' + str(total) + ' total')
+            TIME = time_message(TIME, 'Bowtie2 mapping and SAM filtering completed.')
+
+        outcome, TIME = samtools_sam2bam(tmp_sam, out_bam, memory, tmp_path, TIME, VERBOSE)
+
+        p1.stdout.close()
+
+    except (KeyboardInterrupt, SystemExit):
+        p1.kill()
+        show_interruption_message()
+        sys.exit(INTERRUPTION_ERROR_CODE)
+
+    return outcome, TIME
 # -----------------------------------------------------------------------------
 def piling_up(bam_file, isTemp, csv_file, TIME, VERBOSE):
     '''
@@ -459,206 +566,95 @@ def remapping(input_pair, out_bam, max_numof_mismatches, memory, tmp_path, TIME,
     p1.stdout.close()
 
     return outcome, TIME
-# -----------------------------------------------------------------------------
-def samtools_sam2bam(in_sam, out_bam, memory, tmp_path, TIME, VERBOSE):
+# ------------------------------------------------------------------------------
+def genes_abundances(reads_file, contig2gene, gene_covs_outchannel, TIME, VERBOSE):
     '''
-    Covert a SAM file into BAM file, then sort the BAM
-        1.  samtools view -bS <INPUT SAM FILE>
-        2.  samtools sort
-              samtools version 1.2
-                samtools sort <in.bam> <out.prefix>
-                cat sample.bam | samtools sort - tmp_sorted
-              samtools version 1.3
-                samtools sort <in.bam> -o <out.bam>
-                cat sample.bam | samtools sort - -o tmp_sorted.bam
+    Compute the abundance for each gene
+        Workflow:
+            1-  for each read R:
+                    take the contig C the read belongs
+                    take the position P
+                    take its abundance V
+            2-  take the list of genes in C
+            3-  if P is inside G, then the abundance of G increases by V
     '''
-    outcome = (None, None)
     try:
-        # get samtools version
-        samtools, samtools_version = check_samtools()
-        # 1st command: samtools view -bS <INPUT SAM FILE>
-        view_cmd = ['samtools', 'view', '-bS', in_sam.name]
-        if VERBOSE:
-            print('[I] ' + ' '.join(view_cmd))
-        p2 = subprocess.Popen(view_cmd, stdout=subprocess.PIPE)
-        if VERBOSE:
-            print('[I] Temporary .bam file has been generated')
-
-        try:
-            tmp_bam = None
-            # 2nd command: samtools sort -m <AMOUNT OF MEMORY> - <OUTPUT BAM FILE>
-            sort_cmd = ['samtools', 'sort', '-m', str(int(memory * 1024*1024*1024))]
-
-            if out_bam == None: # .bam file is not saved, only temporary bam file
-                if tmp_path == None:
-                    tmp_bam = tempfile.NamedTemporaryFile(delete=False, prefix='panphlan_', suffix='.bam')
-                else:
-                    tmp_bam = tempfile.NamedTemporaryFile(delete=False, prefix='panphlan_', suffix='.bam', dir=tmp_path)
-
-                with tmp_bam:
-                    if LooseVersion(samtools_version) >= LooseVersion('1.3'): # works also with two dots 1.3.1 (1 of 2 if's)
-                        sort_cmd += ['-', '-o', tmp_bam.name]
-                    else: # older samtools versions: only prefix, without .bam
-                        sort_cmd += ['-', tmp_bam.name[:-4]]
-                    if VERBOSE:
-                        print('[I] cmd (v'  + samtools_version + '): ' + ' '.join(sort_cmd))
-                    p3 = subprocess.Popen(sort_cmd, stdin=p2.stdout, stdout=tmp_bam)
-                    p3.wait() # Wait until previous process has finished its computation (otherwise there will be error raised by Samtools)
-                    if VERBOSE:
-                        print('[I] Temporary .bam file ' + tmp_bam.name + ' has been sorted')
-                outcome = (TEMPORARY_FILE, tmp_bam.name)
-
-            else: # .bam file is saved (option -b Bam/sample.bam)
-                if LooseVersion(samtools_version) >= LooseVersion('1.3'): # works also with two dots 1.3.1 (2 of 2 if's)
-                    sort_cmd += ['-', '-o', out_bam]
-                else: # older samtools versions: only prefix, without .bam
-                    sort_cmd += ['-', out_bam[:-4]]
-                if VERBOSE:
-                    print('[I] cmd (v'  + samtools_version + '): ' + ' '.join(sort_cmd))
-                with open(out_bam, mode='w') as obam:
-                    p3 = subprocess.Popen(sort_cmd, stdin=p2.stdout, stdout=obam)
-                    p3.wait() # Wait until previous process has finished its computation (otherwise there will be error raised by Samtools)
-                if VERBOSE:
-                    print('[I] User-defined .bam file ' + out_bam + ' has been sorted')
-                outcome = (USER_DEFINED, out_bam)
-
-            if VERBOSE:
-                TIME = time_message(TIME,'Samtools SAM->BAM translation (view+sort) completed.')
-
-        except (KeyboardInterrupt, SystemExit):
-            p3.kill()
-            show_interruption_message()
-            sys.exit(INTERRUPTION_ERROR_CODE)
-
-    except (KeyboardInterrupt, SystemExit):
-        p2.kill()
-        show_interruption_message()
-        sys.exit(INTERRUPTION_ERROR_CODE)
-    finally:
-        os.unlink(in_sam.name)
-
-    return outcome, TIME
-# -----------------------------------------------------------------------------
-def mapping(input_set, fastx, is_multi_file, clade, out_bam, min_length, max_numof_mismatches, bt2_options, memory, numof_proc, tmp_path, TIME, PLATFORM, VERBOSE):
-    '''
-    Maps the input sample file (.fastq) into a .bam file (passing through a .sam file) using BowTie2 and Samtools commands
-
-        Pipeline:
-            1.  bowtie2 --very-sensitive --no-unal -x <SPECIE> -U <INPUT PATH> -p <NUMBER OF PROCESSORS>
-            2.  samtools view -bS <INPUT SAM FILE>
-            3.  samtools sort -m <AMOUNT OF MEMORY> - <OUTPUT BAM FILE>
-
-            About BowTie2 command:
-                --very-sensitive := -D 20 -R 3 -N 0 -L 2 -i S,1,0.5
-                -D 20           Up to 20 consecutive seed extension attempts can "fail" before Bowtie 2 moves on, using the alignments found so far. A seed extension "fails" if it does not yield a new best or a new second-best alignment.
-                -R 3            3 is the maximum number of times Bowtie 2 will "re-seed" reads with repetitive seeds. When "re-seeding" Bowtie 2 simply chooses a new set of reads (same length, same number of mismatches allowed) at different offsets and searches for more alignments.
-                -N 0            Sets the number of mismatches to allowed in a seed alignment during multiseed alignment.
-                -L 2            Sets the length of the seed substrings to align during multiseed alignment. Smaller values make alignment slower but more sensitive.
-                -i S,1,0.5      Sets a function governing the interval between seed substrings to use during multiseed alignment. This function is f(x) := 1 + 0.5 * sqrt(x)
-                --no-unal       Does not create BAM record for unaligned reads.
-                -x <SPECIE>     The basename of the index for the reference genome.
-                -U <INPUT>      Comma-separated list of files containing unpaired reads to be aligned.
-                -S <OUTPUT>     File to write SAM alignments to ("-" == stdout).
-            For major details look at http://bowtie-bio.sourceforge.net/bowtie2/manual.shtml#usage
-
-            About Samtools commands:
-                -bS             Input is in SAM format, output is in BAM format
-                -m              Amount of memory it will be used
-    '''
-
-    outcome = (None, None)
-    try:
-        XN_FILTER = False if max_numof_mismatches <= -1 else True
-        input_path     = input_set[0]
-        input_format   = input_set[1]
-        decompress_cmd = input_set[3]
-        total = 0
-        rejected = 0
-        outcome = (None, None)
-        if VERBOSE: print('[I] Opening ' + input_path)
-
-        if is_multi_file:
-            # decompress archive and concatenate all the files inside (both in only one command)
-            decompress_cmd.append(input_path)
-            if VERBOSE:
-                print('[I] ' + ' '.join(decompress_cmd))
-            p0 = subprocess.Popen(decompress_cmd, stdout=subprocess.PIPE)
-
-        # bowtie2 --very-sensitive --no-unal -x <SPECIE> -U <INPUT PATH> -p <NUMBER OF PROCESSORS>
-        # default: bt2_options = '--very-sensitive'
-
-        bowtie2_cmd = [ 'bowtie2' ] + list(filter(None,bt2_options.split('/'))) + [ '--no-unal', '-x', clade, '-U', '-' if is_multi_file else input_path,
-                        ] + ([] if int(numof_proc) < 2 else ['-p', str(numof_proc)])
-        if not VERBOSE:
-            bowtie2_cmd.append('--quiet')
-        else:
-            print('[I] ' + ' '.join(bowtie2_cmd))
-
-        if fastx is 'fasta':
-            bowtie2_cmd.append('-f') #bowtie2 default is fastq (-q)
-
-        if is_multi_file:
-            p1 = subprocess.Popen(bowtie2_cmd, stdin=p0.stdout, stdout=subprocess.PIPE)
-        else:
-            p1 = subprocess.Popen(bowtie2_cmd, stdout=subprocess.PIPE)
-
-        if tmp_path == None:
-            tmp_sam = tempfile.NamedTemporaryFile(delete=False, prefix='panphlan_', suffix='.sam')
-        else:
-            tmp_sam = tempfile.NamedTemporaryFile(delete=False, prefix='panphlan_', suffix='.sam', dir=tmp_path)
-
-        if VERBOSE:
-            print('[I] Created temporary file ' + tmp_sam.name)
-
+        genes_abundances = defaultdict(int)
+        current_contig = ''
+        pos2gene = defaultdict(list)
         if VERBOSE: print(WAIT_MESSAGE)
 
-        # Filter the shorter reads
-        if VERBOSE:
-            print('[I] SAM records filtering: mismatches threshold is at ' + str(max_numof_mismatches) + ', length threshold is at ' + str(min_length))
-        with tmp_sam:
-            # @TODO or line.decode('utf-8')?
-            for line in p1.stdout:
-                total += 1
-                l = line.decode('utf-8')
-                if l.startswith('@'):
-                    tmp_sam.write(line)
-                # @TODO this elif could be useless
-                elif line == '':
-                    tmp_sam.write(line)
-                    break
-                else:
-                    words = l.strip().split('\t')
-                    read_length, numof_snp = len(words[9]), int(words[14].split(':')[-1])
-                    # Too short
-                    if read_length < min_length:
-                        rejected += 1
-                        #if VERBOSE:
-                        #    print('Filter out read #' + str(total) + ': length is ' + str(readLength))
-                    # Too many mismatches
-                    elif XN_FILTER:
-                        if numof_snp > max_numof_mismatches:
-                            rejected += 1
-                            #if VERBOSE:
-                            #    print('Filter out read #' + str(total) + ': found ' + str(numof_snp) + ' mismatches')
-                    # Accept the read
-                    else:
-                        tmp_sam.write(line)
+        with open(reads_file, mode='r') as IN:
+            for line in IN:
+                # words = CONTIG, POSITION, REFERENCE BASE, COVERAGE, READ BASE, QUALITY
+                words = line.strip().split('\t')
+                contig, position, abundance = words[0], int(words[1]), int(words[3])
+                # File is organised by contigs
+                # If we have just passed from a contig to a new one, ...
+                if contig != current_contig:
+                    # Clear the {position:gene} dictionary (we allocate only a subdictionary for the interesting contig)
+                    pos2gene = defaultdict(list)
+                    if contig in contig2gene:
+                        # For each gene in the contig, create {position:gene}
+                        for gene, (fr,to) in contig2gene[contig].items():
+                            for a in range(fr, to + 1):
+                                pos2gene[a].append(gene)
+                        current_contig = contig
+                        if VERBOSE:
+                            print('[I] Analyzing contig ' + current_contig + '...')
 
-        if VERBOSE:
-            print('[I] Rejected ' + str(rejected) + ' reads over ' + str(total) + ' total')
-            TIME = time_message(TIME, 'Bowtie2 mapping and SAM filtering completed.')
+                # Add abundance for each gene covering the position
+                if position in pos2gene:
+                    genes = pos2gene[position]
+                    for g in genes:
+                        genes_abundances[g] += abundance
 
-        outcome, TIME = samtools_sam2bam(tmp_sam, out_bam, memory, tmp_path, TIME, VERBOSE)
+        # Print the gene abundances in stdout
+        if gene_covs_outchannel == '-':
+            for g in genes_abundances:
+                if genes_abundances[g] > 0:
+                    sys.stdout.write(str(g) + '\t' + str(genes_abundances[g]) + '\n')
+        # Or in the output file (if user-defined)
+        else:
+            try:
+                ocsv = open(gene_covs_outchannel, mode='w')
+                for g in genes_abundances:
+                    if genes_abundances[g] > 0:
+                        ocsv.write(str(g) + '\t' + str(genes_abundances[g]) + '\n')
+                ocsv.close()
+                # with open(gene_covs_outchannel, 'rb') as icsv:
+                try:
+                    icsv = open(gene_covs_outchannel, 'rb')
+                        # with bz2.BZ2File(gene_covs_outchannel + '.bz2', 'wb', compresslevel=9) as obz2:
+                    obz2 = bz2.BZ2File(gene_covs_outchannel + '.bz2', 'wb', compresslevel=9)
+                    copyfileobj(icsv, obz2)
+                    obz2.close()
+                    icsv.close()
+                    os.remove(gene_covs_outchannel)
 
-        p1.stdout.close()
+                except (KeyboardInterrupt, SystemExit):
+                    os.remove(gene_covs_outchannel + '.bz2')
+                    show_interruption_message()
+                    sys.exit(INTERRUPTION_ERROR_CODE)
+
+            except (KeyboardInterrupt, SystemExit):
+                os.remove(gene_covs_outchannel)
+                show_interruption_message()
+                sys.exit(INTERRUPTION_ERROR_CODE)
 
     except (KeyboardInterrupt, SystemExit):
-        p1.kill()
+        os.unlink(reads_file)
         show_interruption_message()
         sys.exit(INTERRUPTION_ERROR_CODE)
 
-    return outcome, TIME
-# -----------------------------------------------------------------------------
+    if VERBOSE:
+        TIME = time_message(TIME, 'Gene abundances computing has just been completed.')
+    return genes_abundances
+
+# ------------------------------------------------------------------------------
+# CHECKS
+# ------------------------------------------------------------------------------
+
 def check_fastqdump(VERBOSE, PLATFORM):
     '''
     If input is a SRA file: check if SRA-toolkit (fastq-dump tool) is installed
@@ -884,75 +880,67 @@ def check_args():
     # TMP folder is not removed after finishing, since it might be used by a parallel _map run.
 
     return args_set
-# -----------------------------------------------------------------------------
+
+# ------------------------------------------------------------------------------
+# MAIN
+# ------------------------------------------------------------------------------
+
 def main():
-    # Check Python version
     if sys.hexversion < 0x02060000:
         print('Python version: ' + sys.version)
         sys.exit('Python versions older than 2.6 are not supported.')
-
     args = check_args()
-
-    # print('\nSTEP 0. Initialization...')
     TIME = time.time()
     TOTAL_TIME = time.time()
-
-    # VERBOSE: needed as a flag for verbose messaging
     VERBOSE = args['verbose']
     if not VERBOSE: print('\nUse option --verbose to display progress information.\n')
     MUST_REMAP = False if args['th_mismatches'] <= -1 else True
-    # PLATFORM: to know if the program is running on Windows or Unix
     PLATFORM = sys.platform.lower()[0:3]
-
+    
+    # --------------------------------------------------------------------------
+    
     if VERBOSE: print('\nSTEP 1. Checking software...')
     bowtie2, bowtie2_indexes   = check_bowtie2(args['clade'], args['i_bowtie2_indexes'], VERBOSE, PLATFORM)
     samtools, samtools_version = check_samtools(VERBOSE, PLATFORM)
     pangenome_file = get_pangenome_file(bowtie2_indexes, args['clade'], VERBOSE)
     if FILE_EXTENSION == SRA:
         check_fastqdump(VERBOSE, PLATFORM)
-
-    sorted_bam_file = ''
-    isTemp = False
-
+        
+    # --------------------------------------------------------------------------
+    
+    if VERBOSE: print('\nSTEP 2. Mapping short reads...')
     # If the input is a BAM file...
     if args['input'][1] == BAM:
         sorted_bam_file = args['input'][0]
         if MUST_REMAP:
-            if VERBOSE:
-                print('[I] BAM file as input argument. The BAM file needs to be remapped\.')
+            if VERBOSE: print('[I] BAM file as input argument. The BAM file needs to be remapped\.')
             # Convert BAM back to SAM, filter SAM basing on args['th_mismatches'], and reconvert into BAM and sort
             mapping_outcome, TIME = remapping(args['input'], args['out_bam'], args['th_mismatches'], args['mGB'], args['tmp'], TIME, PLATFORM, VERBOSE)
             isTemp = True if mapping_outcome[0] == TEMPORARY_FILE else False
             sorted_bam_file = mapping_outcome[1]
         else:
-            if VERBOSE:
-                print('[I] BAM file as input argument. Bowtie2 and Samtools will NOT be run to produce BAM file.')
-
-    # If the input file is something different from a BAM file...
-    # (this includes more cases: FASTQ, compressed file, multi-file archive, stdin)
-    else:
-        if VERBOSE: print('\nSTEP 2. Mapping short reads...')
-        # if -f FASTQ_TAR_BZ2 or -f FASTQ_TAR_GZ or -f FASTQ_SRA, then the input file is an archive
-        MULTI = args['input'][1] in ARCHIVE_FORMATS
-        # Call mapping
-        mapping_outcome, TIME = mapping(args['input'],args['fastx'], MULTI, bowtie2_indexes + args['clade'], args['out_bam'], args['readLength'], args['th_mismatches'], args['bt2'], args['mGB'], args['nproc'], args['tmp'], TIME, PLATFORM, VERBOSE)
+            if VERBOSE: print('[I] BAM file as input argument. Bowtie2 and Samtools will NOT be run to produce BAM file.')
+    else:    
+        mapping_outcome, TIME =  mapping(args, bowtie2_indexes, TIME, VERBOSE)
         sorted_bam_file = mapping_outcome[1]
         isTemp = True if mapping_outcome[0] == TEMPORARY_FILE else False
-
+        
+    # --------------------------------------------------------------------------
+    
     if VERBOSE: print('\nSTEP 3. Piling up...')
-
     if args['tmp'] == None:
         tmp_csv__readsfile = tempfile.NamedTemporaryFile(delete=False, prefix='panphlan_', suffix='.csv')
     else:
         tmp_csv__readsfile = tempfile.NamedTemporaryFile(delete=False, prefix='panphlan_', suffix='.csv', dir=args['tmp'])
-
     TIME = piling_up(sorted_bam_file, isTemp, tmp_csv__readsfile.name, TIME, VERBOSE)
 
+    # --------------------------------------------------------------------------
+    
+    if VERBOSE: print('\nSTEP 4. Exporting results...')
     try:
         contig2gene, TIME = build_pangenome_dicts(pangenome_file, TIME, VERBOSE)
         gene_abundances = genes_abundances(tmp_csv__readsfile.name, contig2gene, args['output'], TIME, VERBOSE)
         #os.unlink(tmp_csv__readsfile.name)
-
     except (KeyboardInterrupt, SystemExit):
         os.unlink(tmp_csv__readsfile.name)
         show_interruption_message()
@@ -961,9 +949,7 @@ def main():
         os.unlink(tmp_csv__readsfile.name)
 
     end_program(time.time() - TOTAL_TIME)
-
-# ------------------------------------------------------------------------------
-# MAIN
+    
 # ------------------------------------------------------------------------------
 
 if __name__ == '__main__':
