@@ -30,10 +30,9 @@ For more information, see our wiki [→ Download and Installation](https://bitbu
 ## Contact & User support ##
 
 [→ User Tutorial](https://bitbucket.org/CibioCM/panphlan/wiki)
-[→ User forum](https://groups.google.com/forum/#!forum/panphlan-users)
 
 The PanPhlAn software team: [Matthias Scholz](http://www.matthias-scholz.de/) (algorithm design), [Thomas Tolio](https://www.linkedin.com/in/thomastolio) (programmer), Leonard Dubois and [Nicola Segata](http://segatalab.cibio.unitn.it/) (principal investigator).  
-For help, write to [panphlan-users@googlegroups.com](mailto:panphlan-users@googlegroups.com).
+For help, use the [bioBakery help forum](https://forum.biobakery.org/).
 
 ----
 
