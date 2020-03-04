@@ -29,10 +29,10 @@ For more information, see our wiki [Download and Installation](https://github.co
 
 ## Contact & User support ##
 
-[User Tutorial](https://github.com/SegataLab/panphlan/wiki/Tutorial)
+A [user Tutorial](https://github.com/SegataLab/panphlan/wiki/Tutorial) is available on the PanPhlAn wiki. For help, use also the [bioBakery help forum](https://forum.biobakery.org/).
+
 
 The PanPhlAn software team: [Matthias Scholz](http://www.matthias-scholz.de/) (algorithm design), [Thomas Tolio](https://www.linkedin.com/in/thomastolio) (programmer), Leonard Dubois and [Nicola Segata](http://segatalab.cibio.unitn.it/) (principal investigator).  
-For help, use the [bioBakery help forum](https://forum.biobakery.org/).
 
 ----
 
