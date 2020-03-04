@@ -11,11 +11,11 @@ microbial population studies.
 PanPhlAn is written in Python and covers the three main tasks:
 
 * `panphlan_pangenome_generation.py`, to create the pangenome database of a bacterial species
-  [→ read more](https://bitbucket.org/CibioCM/panphlan/wiki/panphlan_pangenome_generation)
+  [read more](https://github.com/SegataLab/panphlan/wiki/Pangenome-generation)
 * `panphlan_map.py`, to profile each metagenomic sample by mapping it against the species specific database
-  [→ read more](https://bitbucket.org/CibioCM/panphlan/wiki/panphlan_map)
+  [read more](https://github.com/SegataLab/panphlan/wiki/PanPhlAn-mapping)
 * `panphlan_profile.py`, to merge and process the mapping results for getting the final gene presence/absence and transcriptional matrices
-  [→ read more](https://bitbucket.org/CibioCM/panphlan/wiki/panphlan_profile)
+  [read more](https://github.com/SegataLab/panphlan/wiki/PanPhlAn-profiling)
 
 
 
@@ -25,11 +25,11 @@ PanPhlAn runs under Ubuntu/Linux and requires the following software tools to be
 * Samtools
 * Python 3.x (including the Biopython module)
 
-For more information, see our wiki [→ Download and Installation](https://bitbucket.org/CibioCM/panphlan/wiki/Download_and_Installation).
+For more information, see our wiki [Download and Installation](https://github.com/SegataLab/panphlan/wiki#download-the-panphlan-software).
 
 ## Contact & User support ##
 
-[→ User Tutorial](https://bitbucket.org/CibioCM/panphlan/wiki)
+[User Tutorial](https://github.com/SegataLab/panphlan/wiki/Tutorial)
 
 The PanPhlAn software team: [Matthias Scholz](http://www.matthias-scholz.de/) (algorithm design), [Thomas Tolio](https://www.linkedin.com/in/thomastolio) (programmer), Leonard Dubois and [Nicola Segata](http://segatalab.cibio.unitn.it/) (principal investigator).  
 For help, use the [bioBakery help forum](https://forum.biobakery.org/).
