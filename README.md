@@ -10,11 +10,11 @@ microbial population studies.
 
 PanPhlAn is written in Python and covers the three main tasks:
 
-* `panphlan_pangenome_generation.py`, to create the pangenome database of a bacterial species
+* `panphlan_pangenome_generation.py`, to create the pangenome database of a bacterial species  
   [read more](https://github.com/SegataLab/panphlan/wiki/Pangenome-generation)
-* `panphlan_map.py`, to profile each metagenomic sample by mapping it against the species specific database
+* `panphlan_map.py`, to profile each metagenomic sample by mapping it against the species specific database  
   [read more](https://github.com/SegataLab/panphlan/wiki/PanPhlAn-mapping)
-* `panphlan_profile.py`, to merge and process the mapping results for getting the final gene presence/absence and transcriptional matrices
+* `panphlan_profile.py`, to merge and process the mapping results for getting the final gene presence/absence and transcriptional matrices  
   [read more](https://github.com/SegataLab/panphlan/wiki/PanPhlAn-profiling)
 
 
