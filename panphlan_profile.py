@@ -15,24 +15,24 @@
 # ==============================================================================
 
 from __future__ import print_function # to give equal outputs in python2 and python3
-from __future__ import with_statement 
+from __future__ import with_statement
 from argparse import ArgumentParser
 from collections import defaultdict
 from random import randint
-# from math import round 
+from utils import end_program, show_interruption_message, show_error_message, time_message, find
 import fnmatch, operator, os, subprocess, sys, time
 import bz2
 
 try:
     import numpy
 except ImportError as err:
-    print('\n[E]',err) 
+    print('\n[E]',err)
     print('\n[E] Please install the numpy module of Python\n')
     sys.exit(2)
 
-__author__  = 'Matthias Scholz, Thomas Tolio, Nicola Segata (panphlan-users@googlegroups.com)'
-__version__ = '1.2.2.3'
-__date__    = '31 May 2018'
+__author__  = 'Matthias Scholz, Thomas Tolio, Leonard Dubois and Nicola Segata (panphlan-users@googlegroups.com)'
+__version__ = '1.3'
+__date__    = '03 October 2019'
 
 # Pangenome CSV file constants
 FAMILY_INDEX    = 0
@@ -74,8 +74,6 @@ INEXISTENCE_ERROR_CODE  =  1 # File or folder does not exist
 PARAMETER_ERROR_CODE    =  2 # Dependent options are missed (e.g. If we define --sample_pairs, we MUST also define both --i_dna and --i_rna)
 FILEFORMAT_ERROR_CODE   =  3 # file of DNA RNA sample pairs
 
-# Strings
-PANPHLAN        = 'panphlan_'
 # NO_RNA_FILE_KEY = '# Missing RNA sample #'   # (missing RNA coverage map file, used in 'dna2rna' dict)
 INTERRUPTION_MESSAGE    = '[E] Execution has been manually halted.\n'
 
@@ -106,7 +104,7 @@ class PanPhlAnJoinParser(ArgumentParser):
     def __init__(self):
         ArgumentParser.__init__(self)
         self.add_argument('-i','--i_dna',               metavar='INPUT_DNA_FOLDER',             type=str,   default=None,                     help='Input directory of panphlan_map.py results, containing SAMPLE.csv.bz2 files')
-        self.add_argument('--i_bowtie2_indexes',        metavar='INPUT_BOWTIE2_INDEXES',        type=str,   default=None,                     help='Input directory of bowtie2 indexes') 
+        self.add_argument('--i_bowtie2_indexes',        metavar='INPUT_BOWTIE2_INDEXES',        type=str,   default=None,                     help='Input directory of bowtie2 indexes')
         self.add_argument('-c','--clade',               metavar='CLADE_NAME',                   type=str,   default=None,                   help='Panphlan species/clade database (e.g.: ecoli16)')
         self.add_argument('-o','--o_dna',               metavar='OUTPUT_FILE',                  type=str,                                   help='Write gene family presence/absence matrix: gene_presence_absence.csv')
         self.add_argument('--i_rna',                    metavar='INPUT_RNA_FOLDER',             type=str,                                   help='RNA-seq: input directory of RNA mapping results SAMPLE_RNA.csv.bz2')
@@ -117,20 +115,25 @@ class PanPhlAnJoinParser(ArgumentParser):
         self.add_argument('--min_coverage',             metavar='MIN_COVERAGE_MEDIAN',          type=float, default=None,                   help='Minimum coverage threshold, default: 2X')
         self.add_argument('--left_max',                 metavar='LEFT_MAX',                     type=float, default=None,                   help='Strain presence/absence plateau curve threshold: left max [1.25]')
         self.add_argument('--right_min',                metavar='RIGHT_MIN',                    type=float, default=None,                   help='Strain presence/absence plateau curve threshold: right min [0.75]')
-        self.add_argument('--rna_max_zeros',            metavar='RNA_MAX_ZEROES',               type=float, default=RNA_MAX_ZERO_TH,        help='Max accepted percent of zero coveraged gene-families (default: <10 %%).')          
+        self.add_argument('--rna_max_zeros',            metavar='RNA_MAX_ZEROES',               type=float, default=RNA_MAX_ZERO_TH,        help='Max accepted percent of zero coveraged gene-families (default: <10 %%).')
         self.add_argument('--rna_norm_percentile',      metavar='RNA_NORM_PERCENTILE',          type=float, default=50,                     help='Percentile for normalizing RNA/DNA ratios')
         self.add_argument('--strain_similarity_perc',   metavar='SIMILARITY_PERCENTAGE',        type=float, default=SIMILARITY_TH,          help='Minimum threshold (percentage) for genome length to add a reference genome to presence/absence matrix (default: 50).')
         self.add_argument('--np',                       metavar='NON_PRESENCE_TOKEN',           type=str,   default='NP',                   help='User-defined string to mark non-present genes. [NP]')
         self.add_argument('--nan',                      metavar='NOT_A_NUMBER_TOKEN',           type=str,   default='NaN',                  help='User-defined string to mark multicopy and undefined genes. [NaN]')
         self.add_argument('--o_covplot',                metavar='COV_PLOT_NAME',                type=str,                                   help='Filename for gene-family coverage plot.')
+        self.add_argument('--covplot_ymax',             metavar='COV_PLOT_YMAX',                type=int,   default=1000,                   help='Maximum on Y axis for coverage plot')
         self.add_argument('--o_covplot_normed',         metavar='NOR_PLOT_NAME',                type=str,                                   help='Filename for normalized gene-family coverage plot.')
         self.add_argument('--o_cov',                    metavar='PANCOVERAGE_FILE',             type=str,                                   help='Write raw gene-family coverage matrix.')
         self.add_argument('--o_idx',                    metavar='DNA_INDEX_FILE',               type=str,                                   help='Write gene-family plateau definitions (1, -1, -2, -3)')
         self.add_argument('--o_rna',                    metavar='RNA_EXPRS_FILE',               type=str,                                   help='Write normalized gene-family transcription values (RNA-seq).')
         self.add_argument('--strain_hit_genes_perc',    metavar='GENEHIT_PERC_PER_STRAIN',      type=str,                                   help='Write overlap of gene-families between samples-strains and reference genomes.')
-        self.add_argument('--i_cov',                    metavar='INPUT_COV_MATRIX',             type=str,   default=None,                     help='Read coverage matrix (option --o_cov) for re-analysis using other thresholds')
-        self.add_argument('--num_genomes',            metavar='INPUT_COV_GENOMES',            type=str,   default=None,                     help='In addition to option --i_cov: number of reference genomes')
-        self.add_argument('--genome_avg_length',      metavar='INPUT_COV_LENGTH',             type=str,   default=None,                     help='In addition to option --i_cov: average number of gene-families')
+        self.add_argument('--i_cov',                    metavar='INPUT_COV_MATRIX',             type=str,   default=None,                   help='Read coverage matrix (option --o_cov) for re-analysis using other thresholds')
+        self.add_argument('--num_genomes',              metavar='INPUT_COV_GENOMES',            type=str,   default=None,                   help='In addition to option --i_cov: number of reference genomes')
+        self.add_argument('--genome_avg_length',        metavar='INPUT_COV_LENGTH',             type=str,   default=None,                   help='In addition to option --i_cov: average number of gene-families')
+        # Annotation can be provided as supplementary tsv/csv file mapping geneIDs to annot
+        self.add_argument('--func_annot',               metavar='FUNC_ANNOT_FILE',              type=str,   default=None,                   help='File mapping UniRef IDs to GO/KEGG/... annotation for functional characterization')
+        self.add_argument('-f', '--field',                metavar='ANNOT_FIELD',                  type=int,   default=1,                   help='Field in the annotation file that must be added to the presence/absence matrix')
+
         self.add_argument('--add_strains',              action='store_true',                                                                help='Add reference genomes to gene-family presence/absence matrix.')
         self.add_argument('--interactive',              action='store_true',                                                                help='Plot coverage curves to screen, and not to a file.')
         self.add_argument('--verbose',                  action='store_true',                                                                help='Display progress information.')
@@ -140,50 +143,13 @@ class PanPhlAnJoinParser(ArgumentParser):
 # ------------------------------------------------------------------------------
 # MINOR FUNCTIONS
 # ------------------------------------------------------------------------------
-
-def end_program(total_time):
-    print('\n[TERMINATING...] ' + __file__ + ', ' + str(round(total_time / 60.0, 2)) + ' minutes.\n')
-
-def show_interruption_message():
-    sys.stderr.flush()
-    sys.stderr.write('\r')
-    sys.stderr.write(INTERRUPTION_MESSAGE)
-
-def show_error_message(error):
-    sys.stderr.write('[E] Execution has encountered an error!\n')
-    sys.stderr.write('    ' + str(error) + '\n')
-
-def time_message(start_time, message):
-    current_time = time.time()
-    print(' [I] ' + message + ' Execution time: ' + str(round(current_time - start_time, 2)) + ' seconds.')
-    return current_time
-
-def find(pattern, path):
-    '''
-    Find all the files in the path whose name matches with the specified pattern
-    '''
-    result = []
-    for root, dirs, files in os.walk(path):
-        for name in files:
-            if fnmatch.fnmatch(name, pattern):
-                target = os.path.join(root, name)
-                result.append(target)
-    return result
-
 def check_output(opath, odefault, goal, VERBOSE):
     '''
     Check and, whenever necessary, create de novo the path (folders and/or file) for execution's outcome
     '''
-    # If path does not exist, then create it
     if opath == None:
-        # # no message needed about files, we don't save (confusing), only tell what panphlan saves
-        # if VERBOSE:
-        #    # print('[I] Output file is not specified for ' + goal + '. It will be used the standard value ' + odefault)
-        #    print('[I] No output saved for ' + goal)
         return odefault
-
     else:
-        # Create the path
         if not os.path.exists(os.path.dirname(opath)):
             try:
                 folder = os.path.dirname(opath)
@@ -224,31 +190,112 @@ def random_color(used):
 # MAJOR FUNCTIONS
 # ------------------------------------------------------------------------------
 
-def is_present(family, sample2family2presence):
-    for s in sample2family2presence:
-        if sample2family2presence[s][family]:
-            return True
-    return False
+def filter_never_present(presences_dict, args):
+    """
+    Remove gene families never present.
+    Also remove those which are only present in the samples (because some ref strain has been filtered out )
+    """
+    sample_and_strains = sorted(presences_dict.keys())
+    families = sorted(presences_dict[sample_and_strains[0]].keys())
+
+    never_present_families = []
+    for f in families:
+        always_zero = True
+        for s in presences_dict:
+            if presences_dict[s][f]: # == True == 1
+                always_zero = False
+                break
+        if always_zero:
+            never_present_families.append(f)
+    if args['verbose']:
+        print(' [I] '+ str(len(never_present_families)) + ' never present gene families filtered out.')
+
+    return never_present_families
 # -----------------------------------------------------------------------------
-def print_presence_absence_profiles(sample_order, sample2family2presence, families, fileout, TIME, VERBOSE):
+def create_annot_dict(presences_dict, args):
     '''
-    Print presence/absence (1/0) family profiles (--o_dna option)
-    a) used for printing database reference genomes only
-    b) to do: used for printing sample profiles
-    c) to do: used for printing sample + addStrains (ref. genomes) profiles
-    sample_order - can be subset of samples or reference genomes
-    families - all families present in at least one sample
-    sample2family2presence - 2D dict dataset
+    build dict mapping families to annotation before writing presence/abscence matrix
     '''
-    with open(fileout, mode='w') as csv:
-        csv.write('\t' + '\t'.join(sample_order) + '\n')
+    sample_and_strains = sorted(presences_dict.keys())
+    families = sorted(presences_dict[sample_and_strains[0]].keys())
+
+
+    filename = 'panphlan_' + args['clade'] + '_pangenome.csv'
+    # if annot file provided is the same as pangenome file
+    if args['func_annot'] == filename:
+        filename = 'panphlan_' + clade + '_pangenome.csv'
+        pangenome_file  = os.path.join(os.getcwd(),filename)
+        with file(pangenome_file) as f:
+            line = f.readline()
+        if len(line.split()) < 7:
+            if args['verbose'] : print(' [I] No annotation data were found.\n No information about families will be added to the presence/absence matrix\n')
+            return None
+        else:
+            # get the annotation from pangenome file
+            family2annot = defaultdict(str)
+            with file(pangenome_file) as IN:
+                for line in IN:
+                    ids = line.strip().split('\t')
+                    #1st field uniref90 mapped to 6th one, annotation (UniRef50)
+                    family2annot[ids[0]] = ids[7]
+            return family2annot
+    else:
+        # read the file provided
+        if args['verbose'] : print(' [I] Mapping families to annotation... This operation can take several minutes')
+        family2annot = defaultdict(str)
+
+        # Check file extension bz2
+        if (args['func_annot']).endswith('.bz2'):
+            IN = bz2.BZ2File(args['func_annot'], mode='r')
+        else:
+            IN = open(args['func_annot'], 'r')
+
+        line = IN.readline()
+        for line in IN:
+            ids = line.decode('utf-8').strip().split()
+            uniref90 = ids[0]
+            annot = ids[args['field']]
+            if uniref90 in families:
+                family2annot[uniref90] = annot
+            else:
+                family2annot[uniref90] = ""
+
+        IN.close()
+    return family2annot
+# -----------------------------------------------------------------------------
+def write_presence_absence_matrix(presences_dict, args, family2annot):
+    '''
+    Function writing the presence/absence matrix in csv file from
+    a dict variable containing data about samples, strains or both.
+    It can also add a annotation collumn
+    '''
+    sample_and_strains = sorted(presences_dict.keys())
+    families = sorted(presences_dict[sample_and_strains[0]].keys())
+
+    never_present_families = filter_never_present(presences_dict, args)
+
+    if len(sample_and_strains) > 0:
+        if args['verbose']: print(' [I] Print gene-family presence/absence matrix to: ' + args['o_dna'])
+        OUT = open(args['o_dna'], mode='w')
+        header = '\t'.join(sample_and_strains) + '\n'
+        if not family2annot == None:
+            header = '\t' + 'annotation' + '\t' + header
+        else:
+            header = '\t' + header
+        OUT.write(header)
+
         for f in families:
-            csv.write(f)
-            for s in sample_order:
-                p = '\t1' if sample2family2presence[s][f] else '\t0'
-                csv.write(p)
-            csv.write('\n')
-    TIME = time_message(TIME, 'Presence/absence profiles printed to ' + fileout)
+            if f not in never_present_families:
+                line = f
+                if not family2annot == None: line = line + '\t' + str(family2annot[f])
+                for s in sample_and_strains:
+                    if presences_dict[s][f]:
+                        line = line + '\t1'
+                    else:
+                        line = line + '\t0'
+                OUT.write(line + '\n')
+
+        OUT.close()
 # -----------------------------------------------------------------------------
 def build_strain2family2presence(ref_genomes, families, genome2families, TIME, VERBOSE):
     '''
@@ -272,7 +319,7 @@ def build_strain2family2presence(ref_genomes, families, genome2families, TIME, V
         TIME = time_message(TIME, 'Gene families presence/absence in strain reference genomes computed.')
     return TIME, strain2family2presence
 # -----------------------------------------------------------------------------
-def select_related_ref_genomes(ref_genomes, strain2family2presence, similarity, samples_panfamilies, families, TIME, VERBOSE):
+def select_related_ref_genomes(ref_genomes, strain2family2presence, samples_panfamilies, families, TIME, args):
     '''
     Select reference genomes similar to strains detected in samples
     to add them in the gene-family presence/absence matrix.
@@ -282,7 +329,7 @@ def select_related_ref_genomes(ref_genomes, strain2family2presence, similarity, 
     rejected_strains = []
     i = 1
     for s in ref_genomes:
-        if VERBOSE:
+        if args['verbose']:
             print('[I] [' + str(i) + '/' + str(numof_strains) + '] Analysing ref. genome ' + s + '...')
             i += 1
         f2p = strain2family2presence[s]
@@ -290,16 +337,8 @@ def select_related_ref_genomes(ref_genomes, strain2family2presence, similarity, 
         strain_families = [f for f in f2p if f2p[f]]
         strain_length = len(strain_families)
 
-        # # Too short genomes
-        # lb, ub = genome_length + (genome_length / 10), genome_length - (genome_length / 10)
-        # if lb <= strain_length and strain_length <= ub:
-        #     rejected_strains.append(s)
-        #     if VERBOSE:
-        #         print('[W] Strain ' + s + ' is rejected because its genome is too short (size: ' + str(strain_length) + ')')
-        # # This part of code is superfluous!
-
         # Check that at least half of the strain families is present in families
-        half = int(strain_length * similarity / 100)
+        half = int(strain_length * args['strain_similarity_perc'] / 100)
         numof_ss_families = 0
         for f in strain_families:
             if f in samples_panfamilies:
@@ -308,34 +347,20 @@ def select_related_ref_genomes(ref_genomes, strain2family2presence, similarity, 
                     break # Exit from the loop to improve performances
         if numof_ss_families < half:
             rejected_strains.append(s)
-            if VERBOSE:
+            if args['verbose']:
                 print('[W] Strain ' + s + ' is rejected because only ' + str(numof_ss_families) + ' families are present in the samples.')
-
 
     # Delete entries in the dictionary
     for s in rejected_strains:
         del(strain2family2presence[s])
 
-    if VERBOSE:
+    if args['verbose']:
         print('[I] ' + str(len(rejected_strains)) + ' strain genomes filtered out. Strains are: ' + ', '.join(rejected_strains))
     selected_strains = sorted([s for s in strain2family2presence if s not in rejected_strains])
-    if VERBOSE:
+    if args['verbose']:
         print('[I] Selected strains are: ' + ', '.join(selected_strains))
 
-    # Rejections 3 (horizontal filtering): always-zero gene families
-    never_present_families = []
-    for f in families:
-        always_zero = True
-        for g in strain2family2presence:
-            if strain2family2presence[g][f]: # == True == 1
-                always_zero = False
-                break
-        if always_zero:
-            never_present_families.append(f)
-    if VERBOSE:
-        TIME = time_message(TIME, str(len(never_present_families)) + ' never present gene families filtered out.')
-
-    return TIME, selected_strains, never_present_families
+    return TIME
 # -----------------------------------------------------------------------------
 def get_samples_panfamilies(families, sample2family2presence, TIME, VERBOSE):
     '''
@@ -358,7 +383,7 @@ def rna_seq(out_channel, sample2family2dnaidx, dna_sample2family2cov, dna_accept
         1.  convert DNA samples to get (1,-1,-2,-3) DNA index matrix and DNA coverage values
         2.  convert RNA samples to coverage values only
         3.  select DNA/RNA sample pair
-                a.  reject all RNA values not in corresponding DNA plateau area "1" 
+                a.  reject all RNA values not in corresponding DNA plateau area "1"
                 b.  Normalization ...
                 c.  set gene-families "-1" and "-2" as missing (NaN or NA?)
                 d.  set non-present genes to "-" by default or by symbol specified at command line -np 0 or -np NP (the "np_symbol" given in input)
@@ -379,7 +404,7 @@ def rna_seq(out_channel, sample2family2dnaidx, dna_sample2family2cov, dna_accept
 
     '''
     # Data from Step 1 are given in input (sample2family2dnaidx, dna_samples_covs_path)
-    # Data from Step 2 are given in input (rna_samples_covs_path)    
+    # Data from Step 2 are given in input (rna_samples_covs_path)
 
     # convert path to sample-key
     # dna_sample2family2cov = dict((get_sampleID_from_path(k, clade), v) for (k,v) in dna_sample2family2cov.items())
@@ -388,14 +413,14 @@ def rna_seq(out_channel, sample2family2dnaidx, dna_sample2family2cov, dna_accept
     sample2family2rna_div_dna = defaultdict(dict)
     rna_samples = []
     # old: dna_sample_list = sorted([s for s in dna_accepted_samples if dna_accepted_samples[s]])
-    # Use only DNA samples that passed the strain detection criteria and to which a RNA sample pair is available 
+    # Use only DNA samples that passed the strain detection criteria and to which a RNA sample pair is available
     dna_sample_list = sorted([s for s in dna_accepted_samples if dna_accepted_samples[s] and s in dna2rna.keys()])
-    
+
     for dna_sample in dna_sample_list:
         # rna_sample = rna_id2file[dna2rna[dna_file2id[dna_sample]]]
         rna_sample = dna2rna[dna_sample]
         # if not rna_sample == NO_RNA_FILE_KEY: # not needed anymore? (we removed incomplete pairs from dna2rna dict)
-        rna_samples.append(dna_sample) 
+        rna_samples.append(dna_sample)
         # For each family present in at least one sample, divide RNA coverage for the correlative DNA coverage
         for f in families:
             dna_cov = dna_sample2family2cov[dna_sample][f]
@@ -404,11 +429,11 @@ def rna_seq(out_channel, sample2family2dnaidx, dna_sample2family2cov, dna_accept
             else:
                 rna_cov = rna_sample2family2cov[rna_sample][f]
                 sample2family2rna_div_dna[dna_sample][f] = rna_cov / dna_cov
-                    
+
     # Reverse dictionaries
     # rna2dna = dict((v,k) for (k,v) in dna2rna.items())
-    # rna_file2id = dict((v,k) for (k,v) in rna_id2file.items())  # not used ? 
-    # dna_id2file = dict((v,k) for (k,v) in dna_file2id.items())  # not used ? 
+    # rna_file2id = dict((v,k) for (k,v) in rna_id2file.items())  # not used ?
+    # dna_id2file = dict((v,k) for (k,v) in dna_file2id.items())  # not used ?
 
     # Define
     sample2family2median_norm = defaultdict(dict)
@@ -428,7 +453,7 @@ def rna_seq(out_channel, sample2family2dnaidx, dna_sample2family2cov, dna_accept
 
         if VERBOSE:
             print(' [I] Median of plateau gene families RNA/DNA values: ' + str(median[dna_sample]))
-        
+
         for f in families:
             # If the family is in the plateau, calculate median normalized RNA/DNA value
             if sample2family2dnaidx[dna_sample][f] == 1:
@@ -505,7 +530,7 @@ def strains_gene_hit_percentage(ss_presence, genome2families, accepted_samples, 
     samples_list = sorted([get_sampleID_from_path(s, clade) for s in accepted_samples.keys() if accepted_samples[s]])
 
     if len(samples_list) > 0:
-        # Populate { STRAIN : { SAMPLE : HIT PERCENTAGE } } 
+        # Populate { STRAIN : { SAMPLE : HIT PERCENTAGE } }
         for strain in genome2families:
             strain2sample2hit[strain] = {}
             for sample in samples_list:
@@ -537,111 +562,74 @@ def strains_gene_hit_percentage(ss_presence, genome2families, accepted_samples, 
 
         if VERBOSE:
             TIME = time_message(TIME, 'Strains hit gene families percentages computed.')
-    
+
     else:
         print('[W] No file has been written for strains gene hit percentages because there is no accepted samples.')
     return strain2sample2hit, TIME
 # ------------------------------------------------------------------------------
-def samples_strains_presences(sample2family2presence, ref_genomes, strain2family2presence, genome_length, similarity, out_channel, families, clade, TO_BE_PRINTED, TIME, VERBOSE):
+def merge_samples_strains_presences(sample2family2presence, ref_genomes, strain2family2presence, genome_length, TIME, args):
     '''
     Compute gene families presence/absence for reference genomes and merge them with detected sample strain profiles
-
     Combine sample presence/absence matrix with strain presence/absence matrix
         1. merge: first samples columns, then strains columns (still keep all gene-families present in any strain)
-        2. reject all strains which have less than 50% of its gene-families in common with the sample matrix. As total number of gene-families, we can use genome_length=2616 (saureus) for all strains. Means 50% = 1308 (saureus) gene-families of a strain have to be present in the sample set, otherwise strain is excluded.
-        3. reject completely (all zero) non-present gene-families (present only in rejected strains) 
-    NB.
-        Some gene-families can be present in samples, but not in the selected (>50%) strains.
+        2. reject all strains which have less than 50% of its gene-families in common with the sample matrix.
+            As total number of gene-families, we can use genome_length=2616 (saureus) for all strains.
+            Means 50% = 1308 (saureus) gene-families of a strain have to be present in the sample set, otherwise strain is excluded.
+    NB. Some gene-families can be present in samples, but not in the selected (>50%) strains.
         Some gene-families can be present in selected strains, but not in samples (if a strain is selected, we show all of it's gene-families).
     '''
-    sample2family2presence = dict((get_sampleID_from_path(k, clade), v) for (k,v) in sample2family2presence.items())
+
+    # Try commenting this line. Seems to be not necessary
+    # sample2family2presence = dict((get_sampleID_from_path(k, args['clade']), v) for (k,v) in sample2family2presence.items())
+    dna_samples = sorted(sample2family2presence.keys())
+    families = sample2family2presence[dna_samples[0]].keys()
 
     # Get all present (in at least one sample) families
-    TIME, samples_panfamilies = get_samples_panfamilies(families, sample2family2presence, TIME, VERBOSE)
-    TIME, selected_strains, never_present_families = select_related_ref_genomes(ref_genomes, strain2family2presence, similarity, samples_panfamilies, families, TIME, VERBOSE)
-
-    # Create sorted list of sample/strains names
-    sample_and_strain_sorted_list = []
-    sample_and_strain_sorted_list = sorted(sample2family2presence.keys())
-    sample_and_strain_sorted_list.extend(selected_strains)
+    TIME, samples_panfamilies = get_samples_panfamilies(families, sample2family2presence, TIME, args['verbose'])
+    TIME = select_related_ref_genomes(ref_genomes, strain2family2presence, samples_panfamilies, families, TIME, args)
 
     # Merge the two dictionaries
-    # sample_and_strain_presences = dict(sample2family2presence, **strain2family2presence)
     sample_and_strain_presences = {}
     for s in sample2family2presence:
         sample_and_strain_presences[s] = sample2family2presence[s]
     for s in strain2family2presence:
         sample_and_strain_presences[s] = strain2family2presence[s]
 
-    if TO_BE_PRINTED and len(sample_and_strain_sorted_list) > 0:
-        if VERBOSE: print(' [I] Print gene-family presence/absence matrix of samples and ref. genomes to: ' + out_channel)
-        with open(out_channel, mode='w') as csv:
-            # [get_sampleID_from_path(s, clade) for s in sample_and_strain_sorted_list]
-            csv.write('\t' + '\t'.join(sample_and_strain_sorted_list) + '\n')
-            for f in families:
-                if f not in never_present_families:
-                    csv.write(f)
-                    for s in sample_and_strain_sorted_list:
-                        p = '\t1' if sample_and_strain_presences[s][f] else '\t0'
-                        csv.write(p)
-                    csv.write('\n')
-
-    if VERBOSE:
+    if args['verbose']:
         TIME = time_message(TIME, 'Samples/strains gene families presence/absence matrix computed.')
     return sample_and_strain_presences, TIME
 # ------------------------------------------------------------------------------
 def presence_of(dna_index):
     return dna_index >= -1
-
-def presence_to_str(presence):
-    return '1' if presence else '0'
-
-def get_genefamily_presence_absence(sample2family2dnaidx, out_filename, families, avg_genome_length, sample_stats, TIME, VERBOSE):
+# ------------------------------------------------------------------------------
+def get_genefamily_presence_absence(sample2family2dnaidx, sample_stats, TIME, args):
     '''
     Get the gene-family presence/absence matrix.
-    
+
     Convert the 1,2,3 index matrix:
     gene family in sample has DNA index  1 or -1 ==> present (1)
     gene family in sample has DNA index -2 or -3 ==> NOT present (0)
     '''
     sample2family2presence = defaultdict(dict)
-    
     dna_samples = sorted(sample2family2dnaidx.keys())
 
-    if not out_filename == '' and len(dna_samples) > 0:
-        csv = open(out_filename, mode='w')    
-        csv.write('\t' + '\t'.join(dna_samples) + '\n')
+    # get keys (families names) from the sub dict.
+    # Since information is already here no need to pass further arg to the function
+    families = sample2family2dnaidx[dna_samples[0]].keys()
 
     for f in families:
-        #if sum(sample2family2presence[s][f] for s in sample2family2presence) > 0:
-        line = f
-        total_presence = False
         for sample in dna_samples:
             presence = presence_of(sample2family2dnaidx[sample][f])
             sample2family2presence[sample][f] = presence
-            total_presence = total_presence or presence
-            if f in sample2family2dnaidx[sample]:
-                line = line + '\t' + presence_to_str(presence)
-            else:
-                line = line + '\t0'
-        if not out_filename == '' and len(dna_samples) > 0:
-            if total_presence:
-                csv.write(line + '\n')
 
     # get number of gene-families per sample (add to dict sample_stats)
     for sample in sample2family2presence.keys():
         numGeneFamilies = sum( sample2family2presence[sample][f] for f in sample2family2presence[sample] )
         sample_stats[sample].update({'numberGeneFamilies' : numGeneFamilies})
-    if VERBOSE:
-        print(' [I] Number of gene families per sample-specific strain:')
-        for sample in sorted(sample_stats.keys()):
-            if 'numberGeneFamilies' in sample_stats[sample]:  
-                print('      ' + sample + '\t' + str(sample_stats[sample]['numberGeneFamilies']))
-        print('      Average number of gene-families in reference genomes: ' + str(avg_genome_length))        
-        
+
     if len(dna_samples) > 0:
-        if VERBOSE:
-            print(' [I] Gene family presence/absence matrix is printed to ' + out_filename)
+        if args['verbose']:
+            print(' [I] Gene family presence/absence matrix is printed to ' + args['o_dna'])
             TIME = time_message(TIME, 'Presence/absence matrix finished.')
     else:
         print('[W] No file has been written for gene-family presence/absence because no strain could be detected in any of your samples.')
@@ -649,6 +637,7 @@ def get_genefamily_presence_absence(sample2family2dnaidx, out_filename, families
         print('        Read more: https://bitbucket.org/CibioCM/panphlan/wiki/panphlan_profile_strain_detection')
         print('    (b) You can check the gene-family coverage curves of your samples, using options: --o_covplot covplot.png  --o_covplot_normed covplot_normed.png')
         print('    (c) If your reads are shorter than 70bp, you can run panphlan_map.py again, using a lower min read length: --readLength 60')
+
     return sample2family2presence, sample_stats, TIME
 # -----------------------------------------------------------------------------
 def print_multistrain_warning(sample_stats, avg_genome_length, VERBOSE):
@@ -663,7 +652,7 @@ def print_multistrain_warning(sample_stats, avg_genome_length, VERBOSE):
                 print('QUALITY WARNING: gene-families of sample ' + sampleID + ' may come from multiple strains \n  number of gene-families: '+ str(n) +' is 10% higher than expected number (average of ref. genomes): ' + str(avg_genome_length))
             if n < 0.75 * avg_genome_length:
                 print('QUALITY WARNING: sample ' + sampleID + ' shows too low number of gene-families, due to low coverage or multiple strains  \n  number of gene-families: '+ str(n) +' is 25% lower than expected number (average of ref. genomes): ' + str(avg_genome_length))
-    print('\n')    
+    print('\n')
 # -----------------------------------------------------------------------------
 def index_of(min_thresh, med_thresh, max_thresh, normalized_coverage):
     '''
@@ -705,7 +694,7 @@ def get_idx123_plateau_definitions(accepted_samples, sample2family2normcov, min_
     sample2family2dnaidx = defaultdict(dict)
 
     accepted_ids = sorted(accepted_samples)
-    
+
     for sample in accepted_samples:
         if VERBOSE: print(' [I] Get DNA 1,-1,-2,-3 levels for sample ' + sample)
         for family in families:
@@ -726,7 +715,7 @@ def get_idx123_plateau_definitions(accepted_samples, sample2family2normcov, min_
     if VERBOSE:
         TIME = time_message(TIME, 'DNA indexing executed.')
 
-    return sample2family2dnaidx, TIME 
+    return sample2family2dnaidx, TIME
 # -----------------------------------------------------------------------------
 def strain_presence_plateau_filter(samples_coverages, num_ref_genomes, avg_genome_length, th_min_coverage, th_plateau_left_max, th_plateau_right_min, families, TIME, VERBOSE=False):
     '''
@@ -738,11 +727,11 @@ def strain_presence_plateau_filter(samples_coverages, num_ref_genomes, avg_genom
     - threshold 1: curve needs to have a median coverage higher than 2X ("min_coverage")
     - threshold 2: left  plateau side needs to be lower  than value "left_max",
                    right plateau side needs to be higher than value "right_min"
-    
+
     filter settings
     avg_genome_length: number of gene-families (e.g., 2300 for S. aureus), different for each species
     num_ref_genomes: reference genomes used for creating the pangenome database (important for num<3)
-    
+
     position_median        = 0.5  ( x genome length) of sorted gene-family vector
     position_plateau_left  = 0.30 ( x genome length)
     position_plateau_right = 0.70 ( x genome length)
@@ -775,17 +764,17 @@ def strain_presence_plateau_filter(samples_coverages, num_ref_genomes, avg_genom
     if th_plateau_left_max is None:
         th_plateau_left_max=LEFT_TH
     if th_plateau_right_min is None:
-        th_plateau_right_min=RIGHT_TH    
+        th_plateau_right_min=RIGHT_TH
     if th_min_coverage is None:
         th_min_coverage=COVERAGE_TH
-    th_max_zero=ZERO_NON_PLATEAU_TH    
-        
+    th_max_zero=ZERO_NON_PLATEAU_TH
+
     if VERBOSE:
         print(' [I] Minimum median coverage threshold: '                          + str(th_min_coverage))
         print(' [I] Left maximum plateau threshold: '                             + str(th_plateau_left_max))
         print(' [I] Right minimum plateau threshold: '                            + str(th_plateau_right_min))
         print(' [I] Maximum zero non-plateau threshold (multistrain detection): ' + str(th_max_zero))
-        
+
     for sample in sorted(samples_coverages.keys()):
         d = samples_coverages[sample]
 
@@ -803,8 +792,8 @@ def strain_presence_plateau_filter(samples_coverages, num_ref_genomes, avg_genom
             normed_cov = 0.0
             if not median[sample] == 0:
                 normed_cov = cov / median[sample]
-            median_normalized_covs[sample].append(normed_cov)    
-        # 
+            median_normalized_covs[sample].append(normed_cov)
+        #
         for f in families: # all gene-families of the pangenome
             normed_cov = 0.0
             if not median[sample] == 0:
@@ -827,7 +816,7 @@ def strain_presence_plateau_filter(samples_coverages, num_ref_genomes, avg_genom
                   '; out-plateau cov: ' + str(round(zerocov,2)) )
         sample2accepted[sample] = True if mediancov >= th_min_coverage else False # min coverage filter
         if not sample2accepted[sample]:
-            print('     ' + sample + ': no strain detected, sample below MIN COVERAGE threshold')    
+            print('     ' + sample + ': no strain detected, sample below MIN COVERAGE threshold')
         if sample2accepted[sample]: # check left right plateau coverage
             if leftcov > th_plateau_left_max:
                 sample2accepted[sample] = False
@@ -836,7 +825,7 @@ def strain_presence_plateau_filter(samples_coverages, num_ref_genomes, avg_genom
             elif rightcov < th_plateau_right_min:
                 sample2accepted[sample] = False
                 if VERBOSE:
-                    print('     ' + sample + ': no strain detected, sample does not pass RIGHT-side coverage threshold.')        
+                    print('     ' + sample + ': no strain detected, sample does not pass RIGHT-side coverage threshold.')
         if sample2accepted[sample]:
             sample_stats[sample].update({'strainIsPresent' : True})
             sample_stats[sample].update({'Multistrain' : zerocov > th_max_zero})
@@ -850,18 +839,20 @@ def strain_presence_plateau_filter(samples_coverages, num_ref_genomes, avg_genom
     accepted_samples_list = sorted([s for s in sample2accepted if sample2accepted[s]])
     return sample2accepted, accepted_samples_list, norm_samples_coverages, sample2famcovlist, sample2color, median_normalized_covs, median, sample_stats
 # -----
-def plot_dna_coverage(sample2accepted, samples_coverages, sample2famcovlist, sample2color, median_normalized_covs, genome_length, plot1_name, plot2_name, INTERACTIVE, TIME, VERBOSE=False):
+def plot_dna_coverage(sample2accepted, samples_coverages, sample2famcovlist, sample2color, median_normalized_covs, genome_length, TIME, args):
     '''
     Plot gene-family coverage plots.
     a) absolute coverage
     b) median normalized coverage
     Accepted samples are plotted in colors, rejected samples in gray.
     '''
+    plot1_name = args['o_covplot']
+    plot2_name = args['o_covplot_normed']
     try:
-        if not INTERACTIVE:        # save to file
+        if not args['interactive']:        # save to file
             import matplotlib      # for non-interactive plots on server without X11
             matplotlib.use('Agg')  # set 'Agg' before import pylab
-        import matplotlib.pyplot as plt    
+        import matplotlib.pyplot as plt
         try:
             from pylab import legend, savefig
 
@@ -878,8 +869,6 @@ def plot_dna_coverage(sample2accepted, samples_coverages, sample2famcovlist, sam
 
             # Plotting...
             if not plot1_name == '' or not plot2_name == '':
-                if VERBOSE:
-                    print(' [I] Plot gene-family coverage curves')
                 used_colors = []
                 for sample in accepted2samples[True]:
                     color, reset = random_color(used_colors)
@@ -895,20 +884,20 @@ def plot_dna_coverage(sample2accepted, samples_coverages, sample2famcovlist, sam
                     plt.suptitle('Gene families coverages')
                     plt.xlabel('Gene families')
                     plt.ylabel('Coverage')
-    
+
                     for sample in sorted_samples:
                         covs = sample2famcovlist[sample][0]
                         if sample2accepted[sample]:
                             plt.plot(range(1, len(covs) + 1), covs, sample2color[sample], label=sample)
                         else:
                             plt.plot(range(1, len(covs) + 1), covs, COLOR_GREY)
-                    plt.axis([0.0, genome_length * 1.5, 0.0, 1000.0])
+                    plt.axis([0.0, genome_length * 1.5, 0.0, args['covplot_ymax']])
                     try:
                         if num_accepted > 0: plt.legend(loc='upper right', fontsize='xx-small')
                     except TypeError:
-                        print(' [W] pylab.legend fontsize does not work (please update your "pylab" module version).')  
-                    savefig(plot1_name) 
-                    if INTERACTIVE:
+                        print(' [W] pylab.legend fontsize does not work (please update your "pylab" module version).')
+                    savefig(plot1_name)
+                    if args['interactive']:
                         fig1 = plt.figure(0)
                     plt.close()
 
@@ -925,7 +914,7 @@ def plot_dna_coverage(sample2accepted, samples_coverages, sample2famcovlist, sam
                         else:
                             plt.plot(range(1, len(covs) + 1), covs, COLOR_GREY)
                     plt.axis([0.0, genome_length * 1.5, 0.0, 9.0])
-                    
+
                     # thresholds need to adapted from dna_sample_filtering
                     # plt.plot((0.0, genome_length * 1.5), (th_present, th_present), 'k--') # th_present horizontal
                     # plt.plot((0.9 * genome_length, 0.9 * genome_length), (0.0, 9.0), 'k--') # genome length lowerbound vertical
@@ -938,7 +927,7 @@ def plot_dna_coverage(sample2accepted, samples_coverages, sample2famcovlist, sam
                     except TypeError:
                         print(' [W] pylab.legend fontsize does not work (please update your "pylab" module version).')
                     savefig(plot2_name)
-                    if INTERACTIVE:
+                    if args['interactive']:
                         fig2 = plt.plot()
 
             del(samples)
@@ -949,7 +938,7 @@ def plot_dna_coverage(sample2accepted, samples_coverages, sample2famcovlist, sam
             print(' [W] "pylab" module is not installed.')
             print('     To visualize and save charts, you need both "matplotlib" and "pylab" modules.')
     except ImportError:
-        print(' [W] "matplotlib" module is not installed.')    
+        print(' [W] "matplotlib" module is not installed.')
     return False
 # -----------------------------------------------------------------------------
 def print_coverage_matrix(dna_samples_covs, out_channel, families, TIME, VERBOSE):
@@ -994,7 +983,6 @@ def get_genefamily_coverages(gene2cov, gene2family, lengths, VERBOSE):
         sum_of_lens = float(sum(e[1] for e in family2cov[f]))
         cov = sum_of_covs / (sum_of_lens / len(family2cov[f]))
         family2cov[f] = cov
-
     return family2cov
 # -----------------------------------------------------------------------------
 def read_pangenome(panphlan_clade, bowtie2_indexes_dir, VERBOSE):
@@ -1011,7 +999,7 @@ def read_pangenome(panphlan_clade, bowtie2_indexes_dir, VERBOSE):
     families = set()
     genome_lengths = defaultdict(int)
     genome2families = defaultdict(set)
-    
+
     # search pangenome file: first in argument option; second in local pwd; third in $BOWTIE2_INDEXES
     clade=panphlan_clade.replace('panphlan_','')
     filename = 'panphlan_' + clade + '_pangenome.csv'
@@ -1021,7 +1009,7 @@ def read_pangenome(panphlan_clade, bowtie2_indexes_dir, VERBOSE):
         path_bowtie = os.path.join(os.environ['BOWTIE2_INDEXES'],filename)
     except KeyError:
         path_bowtie = None
-        
+
     if bowtie2_indexes_dir and os.path.exists(os.path.join(bowtie2_indexes_dir, filename)):
         # if set, use the directory provided for the bowtie2 indexes
         pangenome_file=os.path.join(bowtie2_indexes_dir, filename)
@@ -1035,7 +1023,7 @@ def read_pangenome(panphlan_clade, bowtie2_indexes_dir, VERBOSE):
     else:
         show_error_message('Error: pangenome file "' + filename + '" not found.')
         sys.exit(INEXISTENCE_ERROR_CODE)
-     
+
     # read pangnome file
     with open(pangenome_file, mode='r') as f:
         for line in f:
@@ -1047,13 +1035,13 @@ def read_pangenome(panphlan_clade, bowtie2_indexes_dir, VERBOSE):
             if not genome.startswith(REF_PREFIX):
                 genome = REF_PREFIX + genome
             genome2families[genome].add(fml)
-    
+
     # Get expected median genome length (number of gene families)
     genome_lengths    = dict((g, len(genome2families[g])) for g in genome2families)
     num_ref_genomes   = len(genome_lengths)
     avg_genome_length = int(numpy.median(list(genome_lengths.values())))
     ref_genomes      = sorted(genome2families.keys())
-    
+
     if VERBOSE:
         print('     Number of reference genomes: '                + str(num_ref_genomes))
         print('     Average number of gene-families per genome: ' + str(avg_genome_length))
@@ -1063,7 +1051,7 @@ def read_pangenome(panphlan_clade, bowtie2_indexes_dir, VERBOSE):
 def read_map_results(i_dna, i_rna, clade, RNASEQ, VERBOSE):
     '''
     Read results from panphlan_map.py
-    
+
     to do:
      ['i_dna'] and ['i_rna'] could keep only the path, not extracted id's, if ['i_xna'] is used only here.
     '''
@@ -1109,7 +1097,7 @@ def read_gene_cov_file(input_file):
 # -----------------------------------------------------------------------------
 def read_coverage_matrix(cov_matrix_file, num_ref_genomes, avg_genome_length):
     '''
-    Read coverage matrix (option --o_cov) for re-analysis using other thresholds 
+    Read coverage matrix (option --o_cov) for re-analysis using other thresholds
     '''
     sample2family2cov = defaultdict(dict)
     familyset = set()
@@ -1135,7 +1123,7 @@ def read_coverage_matrix(cov_matrix_file, num_ref_genomes, avg_genome_length):
         familylist=sorted(list(familyset))
     # to do: check: num_ref_genomes, avg_genome_length
     # if not args['num_genomes'] and not args['genome_avg_length']:
-    return sample2family2cov, familylist, num_ref_genomes, avg_genome_length  
+    return sample2family2cov, familylist, num_ref_genomes, avg_genome_length
 # -----------------------------------------------------------------------------
 def check_args():
     '''
@@ -1148,10 +1136,9 @@ def check_args():
     '''
     parser = PanPhlAnJoinParser()
     args = vars(parser.parse_args())
-
     VERBOSE = args['verbose']
 
-    if VERBOSE:
+    if args['verbose']:
         print('\nPanPhlAn profile version '+__version__)
         print('Python version: ' + sys.version.split()[0])
         print('System: ' + sys.platform)
@@ -1160,25 +1147,25 @@ def check_args():
     # Check species/clade option -c
     if not args['clade'] and not args['i_cov']: # input --i_cov HUMAnN2 without using -c <clade>
         sys.exit('ERROR: Please provide your species database: option -c is missing')
-        
-    # read HUMAnN2 pangenome coverage values    
+
+    # read HUMAnN2 pangenome coverage values
     if args['i_cov'] and not args['clade']: # need additional pangenome info
-        if args['num_genomes'] and args['genome_avg_length']:  
+        if args['num_genomes'] and args['genome_avg_length']:
             args['num_genomes']       = int(args['num_genomes'])
             args['genome_avg_length'] = int(args['genome_avg_length'])
-        else: 
+        else:
             sys.exit('\nERROR missing pangenome info: Please provide\n  number of reference genomes "--num_genomes" and\n  expected number of gene-families "--genome_avg_length"\n')
-    
-    # re-read PanPhlAn pangenome coverage values, using info from species database     
+
+    # re-read PanPhlAn pangenome coverage values, using info from species database
     if args['i_cov'] and args['clade']:
         if args['num_genomes'] or args['genome_avg_length']:
             sys.exit('\nERROR too much options: "--num_genomes" and "--genome_avg_length" already extracted from "-c" species database\n')
-        
+
     if args['clade']:
         clade = args['clade']
-        if not clade.startswith(PANPHLAN):
-            args['clade'] = PANPHLAN + clade # to do: all functions use clade without panphlan_ prefix
-        if VERBOSE:
+        if not clade.startswith('panphlan_'):
+            args['clade'] = 'panphlan_' + clade # to do: all functions use clade without panphlan_ prefix
+        if args['verbose']:
             print('[I] Clade: ' + args['clade'].replace('panphlan_',''))
 
     # Check DNA_RNA_MAPPING
@@ -1190,8 +1177,18 @@ def check_args():
 
     if not idna and not args['add_strains'] and not args['i_cov']: # if no samples, print presence/absence of reference genomes
         sys.exit('\nERROR: input option -i missing \n  please add option "-i map_results/" or \n  "--add_strains" for getting genome profiles or \n  "--i_cov data_cov.csv" for re-analyzing coverage values')
-    
+
+    if args['o_dna'] is None and args['add_strains'] :
+        sys.exit('\nERROR: No output file is provided with --o_dna ')
+
     if idna: # Standard pipeline
+
+        if not args['func_annot'] == None:
+            # functional annotation requested and mapping file provided
+            if not os.path.exists(args['func_annot']):
+                show_error_message('Functional annotation file not found')
+                sys.exit(INEXISTENCE_ERROR_CODE)
+
         if not pairs_path == None:
             # --sample_pairs is defined: check if the file exists or not
             if not os.path.exists(pairs_path):
@@ -1246,7 +1243,7 @@ def check_args():
                     args['sample_pairs'] = dna2rna
                     args['i_dna'] = dna_file2id
                     args['i_rna'] = rna_id2file
-                    if VERBOSE:
+                    if args['verbose']:
                         print('[I] Input folder for DNAs: ' + idna)
                         print('[I] Input folder for RNAs: ' + irna)
                         print('[I] Gene coverages files:\n\t' + '\n\t'.join(sorted(list(dna_file2id.keys()))))
@@ -1254,7 +1251,7 @@ def check_args():
                         print('[I] DNA-RNA projects mapping:\n\t' + '\n\t'.join(k+' >>> '+v for k,v in sorted(dna2rna.items())))
         else:
             # --sample_pairs is not defined: check only --i_dna
-            
+
             if not irna == None: # If --sample_pairs is NOT defined BUT --i_rna yes, then error
                 show_error_message('Option --sample_pairs has not been defined, but --i_rna is defined. You must decide if define both or no one of them.')
                 sys.exit(PARAMETER_ERROR_CODE)
@@ -1262,10 +1259,10 @@ def check_args():
             if not os.path.exists(idna):
                 show_error_message('Input folder for DNA files does not exist.')
                 sys.exit(INEXISTENCE_ERROR_CODE)
-            
+
             # Find coverages file
             covs_file_pattern = '*' + args['clade'].replace('panphlan_', '') + '*.csv.bz2'
-            if VERBOSE:
+            if args['verbose']:
                 print('[I] Looking for "' + covs_file_pattern + '"-patterned files...')
             covs_files = find(covs_file_pattern, idna)
             for f in covs_files:
@@ -1275,14 +1272,14 @@ def check_args():
             if covs_files == []:
                 show_error_message('Any gene coverages file has not been found.')
                 sys.exit(INEXISTENCE_ERROR_CODE)
-            if VERBOSE:
+            if args['verbose']:
                 print('[I] Found ' + str(len(covs_files)) + ' abundances files.')
             samples_files = dict((f, get_sampleID_from_path(f, args['clade'])) for f in covs_files)
 
             # TODO choose only one pangenome file if more than one are found
 
-            args['i_dna'] = samples_files            
-            if VERBOSE:
+            args['i_dna'] = samples_files
+            if args['verbose']:
                 print('[I] Input folder: ' + idna)
                 print('[I] Gene coverages files:\n\t' + '\n\t'.join(sorted(covs_files)))
 
@@ -1294,12 +1291,12 @@ def check_args():
 
     # Check DNA_INDEX_FILE
     args['o_idx'] = check_output(args['o_idx'], '', 'gene families DNA indexing', VERBOSE)
-    
+
     # Check RNA_EXPRS_FILE
-    args['o_rna'] = check_output(args['o_rna'], '', 'transcript families normalized coverage', VERBOSE) 
+    args['o_rna'] = check_output(args['o_rna'], '', 'transcript families normalized coverage', VERBOSE)
 
     # Check GENEHIT_PERC_PER_STRAIN
-    args['strain_hit_genes_perc'] = check_output(args['strain_hit_genes_perc'], '', 'strains gene hit percentage', VERBOSE) 
+    args['strain_hit_genes_perc'] = check_output(args['strain_hit_genes_perc'], '', 'strains gene hit percentage', VERBOSE)
 
     # Check MINIMUM_THRESHOLD, MEDIUM_THRESHOLD and MAXIMUM_THRESHOLD
     a, b, c = args['th_zero'], args['th_present'], args['th_multicopy']
@@ -1342,8 +1339,8 @@ def check_args():
         show_error_message('Thresholds are set to unacceptable values.')
         if VERBOSE:
             print('    Please, follow this usage: [--th_present B [--th_zero A --th_multicopy C]]\n    with A < B < C. Default values are A = 0.25, B = 0.50, C = 1.50')
-        sys.exit(PARAMETER_ERROR_CODE)        
-        
+        sys.exit(PARAMETER_ERROR_CODE)
+
     # Check strain filter (coverage curve) LEFT_MAX, RIGHT_MIN, MIN_COVERAGE_MEDIAN
     if args['left_max'] is not None:
         if args['left_max'] <= 1:
@@ -1352,7 +1349,7 @@ def check_args():
     if args['right_min'] is not None:
         if args['right_min'] >= 1:
             show_error_message('Threshold right_min must be smaller than 1.')
-            sys.exit(PARAMETER_ERROR_CODE)    
+            sys.exit(PARAMETER_ERROR_CODE)
     if args['min_coverage'] is not None:
         if args['min_coverage'] < 0.0:
             if VERBOSE:
@@ -1390,7 +1387,7 @@ def check_args():
             print('[W] Unacceptable string for NaN token. Set default.')
     if VERBOSE:
         print('[I] NaN token: ' + str(args['nan']))
-    
+
     # Check COV_PLOT_NAME
     args['o_covplot'] = check_output(args['o_covplot'], '', 'gene coverage plot', VERBOSE) # Will never be never equals to None, so we don't need a default value
 
@@ -1399,20 +1396,17 @@ def check_args():
 
     return args
 # -----------------------------------------------------------------------------
-
 def main():
-    # Check Python version
-    if sys.hexversion < 0x02060000:
+    if not sys.version_info.major == 3:
         print('Python version: ' + sys.version)
-        sys.exit('Python versions older than 2.6 are not supported.')
+        sys.exit('This software uses Python3, please update Python')
 
-    args = check_args()    
-        
+    args = check_args()
+
     TOTAL_TIME = time.time()
     TIME       = time.time()
 
     VERBOSE     = args['verbose']
-    INTERACTIVE = args['interactive']
     ADD_STRAINS = args['add_strains']
     RNASEQ      = True if args['sample_pairs'] else False
 
@@ -1424,29 +1418,33 @@ def main():
         num_ref_genomes  =args['num_genomes']
         avg_genome_length=args['genome_avg_length']
 
-    # read mapping result files
-    if not args['i_cov']:
-        if VERBOSE: print('\nSTEP 2. Read mapping results ...')
-        dna_samples_covs, rna_samples_covs = read_map_results(args['i_dna'], args['i_rna'], args['clade'], RNASEQ, VERBOSE)
-
     # Presence/absence matrix of reference genomes without samples
     if (ADD_STRAINS or args['strain_hit_genes_perc'] != '') and args['clade']: # not clade means --i_cov HUMAnN2
-        if VERBOSE: print('\nSTEP 3a. Get genes present in reference genomes...')
+        if VERBOSE: print('\nSTEP 2a. Get genes present in reference genomes...')
         TIME, strain2family2presence = build_strain2family2presence(ref_genomes, families, genome2families, TIME, VERBOSE)
-        if ADD_STRAINS and args['i_dna'] == None:
-            if VERBOSE: print('\nSTEP 3b. Print presence/absence binary matrix only for reference genomes...')
-            TIME = print_presence_absence_profiles(ref_genomes, strain2family2presence, families, args['o_dna'], TIME, VERBOSE)
-            end_program(time.time() - TOTAL_TIME)
-            sys.exit(0) 
 
-    # Merge gene/transcript abundance into family (normalized) coverage
+        if ADD_STRAINS and args['i_dna'] == None:
+            if VERBOSE: print('\nSTEP 2b. Print presence/absence binary matrix only for reference genomes...')
+            if not args['func_annot'] is None:
+                family2annot = create_annot_dict(strain2family2presence, args)
+                write_presence_absence_matrix(strain2family2presence, args, family2annot)
+            else:
+                write_presence_absence_matrix(strain2family2presence, args, None)
+            end_program(time.time() - TOTAL_TIME)
+            sys.exit(0)
+
     if not args['i_cov']:
+        # read mapping result files
+        if VERBOSE: print('\nSTEP 3. Read mapping results ...')
+        dna_samples_covs, rna_samples_covs = read_map_results(args['i_dna'], args['i_rna'], args['clade'], RNASEQ, VERBOSE)
+
+        # Merge gene/transcript abundance into family (normalized) coverage
         if VERBOSE: print('\nSTEP 3. Merge single gene abundances to gene family coverages')
         for sample in sorted(dna_samples_covs.keys()):
             if VERBOSE: print(' [I] Normalization for DNA sample ' + sample + '...')
             dna_samples_covs[sample] = get_genefamily_coverages(dna_samples_covs[sample], gene2family, gene_lenghts, VERBOSE)
         print_coverage_matrix(dna_samples_covs, args['o_cov'], families, TIME, VERBOSE)
-    
+
     if args['i_cov']:
         if VERBOSE: print('\nSTEP 2 and 3. Read coverage matrix instead of single coverage files')
         dna_samples_covs, families, num_ref_genomes, avg_genome_length = read_coverage_matrix(args['i_cov'], num_ref_genomes, avg_genome_length)
@@ -1460,28 +1458,57 @@ def main():
         dna_samples_covs, num_ref_genomes, avg_genome_length, args['min_coverage'], args['left_max'], args['right_min'], families, TIME, VERBOSE)
     if args['o_covplot'] or args['o_covplot_normed']:
         plot_dna_coverage(sample2accepted, norm_dna_samples_covs, sample2famcovlist, sample2color, median_normalized_covs,
-                          avg_genome_length, args['o_covplot'], args['o_covplot_normed'], INTERACTIVE, TIME, VERBOSE)
+                          avg_genome_length, TIME, args)
 
+    # DEFINE PLATEAU
     # DNA 1,-1,-2,-3 indexing
     if VERBOSE: print('\nSTEP 5a: Define strain-specific, multicopy and non-present gene-families (1,-1,-2,-3 matrix, option --o_idx)')
-    sample2family2dnaidx, TIME = get_idx123_plateau_definitions(
-        accepted_samples, norm_dna_samples_covs, args['th_zero'], args['th_present'], args['th_multicopy'], args['o_idx'], families, TIME, VERBOSE)
+    sample2family2dnaidx, TIME = get_idx123_plateau_definitions(accepted_samples, norm_dna_samples_covs,
+                                    args['th_zero'], args['th_present'],args['th_multicopy'], args['o_idx'],
+                                    families, TIME, VERBOSE)
+
+    # DEFINE PRESENCE ABSENCE OF SAMPLE
     if VERBOSE: print('\nSTEP 5b: Get presence/absence of gene-families (1,-1 matrix, option --o_dna)')
-    dna_sample2family2presence, sample_stats, TIME = get_genefamily_presence_absence(
-        sample2family2dnaidx, args['o_dna'], families, avg_genome_length, sample_stats, TIME, VERBOSE)
-    
-    if ADD_STRAINS or args['strain_hit_genes_perc'] != '':
+    sample2family2presence, sample_stats, TIME = get_genefamily_presence_absence(sample2family2dnaidx, sample_stats, TIME, args)
+    if args['verbose']:
+        print(' [I] Number of gene families per sample-specific strain:')
+        for sample in sorted(sample_stats.keys()):
+            if 'numberGeneFamilies' in sample_stats[sample]:
+                print('      ' + sample + '\t' + str(sample_stats[sample]['numberGeneFamilies']))
+        print('      Average number of gene-families in reference genomes: ' + str(avg_genome_length))
+
+
+    # ADD STRAINS PRESENCE ABSCENCE IF NEEDED
+    if ADD_STRAINS:
         if VERBOSE: print('\nSTEP 5c: Calculate percent of identical gene-families between sample-strains and reference-genomes... (option --strain_hit_genes_perc)')
-        ss_presence, TIME = samples_strains_presences(dna_sample2family2presence, ref_genomes, strain2family2presence, avg_genome_length, args['strain_similarity_perc'], args['o_dna'], families, args['clade'], ADD_STRAINS, TIME, VERBOSE)
         # ss_presence = { STRAIN or SAMPLE : { GENE FAMILY : PRESENCE } }
-        if args['strain_hit_genes_perc'] != '':
+        ss_presence, TIME = merge_samples_strains_presences(sample2family2presence, ref_genomes,
+                            strain2family2presence, avg_genome_length, TIME, args)
+
+    if not args['func_annot'] is None:
+        if VERBOSE: print('\nAdding functionnal annotation of genes... (option --func_annot)')
+        family2annot = create_annot_dict(sample2family2presence, args)
+        # family2annot will be None is some problem occured
+    else:
+        family2annot = None
+
+    if VERBOSE: print('\nWriting presence/absence matrix...')
+    if not args['o_dna']== None :
+        if ADD_STRAINS:
+            write_presence_absence_matrix(ss_presence, args, family2annot)
+        else:
+            write_presence_absence_matrix(sample2family2presence, args, family2annot)
+
+
+
+    if args['strain_hit_genes_perc'] != '':
             if VERBOSE: print('\nSTEP 5d: Get percent of sample-strain gene-families present in reference-genomes (option --strain_hit_genes_perc)')
             strain2sample2hit, TIME = strains_gene_hit_percentage(ss_presence, genome2families, sample2accepted, args['strain_hit_genes_perc'], args['clade'], TIME, VERBOSE)
 
     if RNASEQ:
-        if VERBOSE: print('\nSTEP 6. RNA-seq: Merge single gene transcript abundances to gene-family transcript coverages')    
+        if VERBOSE: print('\nSTEP 6. RNA-seq: Merge single gene transcript abundances to gene-family transcript coverages')
         # for sample in rna_id_list:
-        for sample in sorted(rna_samples_covs.keys()):    
+        for sample in sorted(rna_samples_covs.keys()):
             # if not sample == NO_RNA_FILE_KEY:
             if VERBOSE: print(' [I] Normalization for RNA sample ' + sample + '...')
             rna_samples_covs[sample] = get_genefamily_coverages(rna_samples_covs[sample], gene2family, gene_lenghts, VERBOSE)
@@ -1492,9 +1519,9 @@ def main():
                 args['rna_norm_percentile'], TIME, VERBOSE)
 
 
-    end_program(time.time() - TOTAL_TIME) 
+    end_program(time.time() - TOTAL_TIME)
 
-    # WARNING for presence of multiple strains in a sample 
+    # WARNING for presence of multiple strains in a sample
     print_multistrain_warning(sample_stats, avg_genome_length, VERBOSE)
 
 

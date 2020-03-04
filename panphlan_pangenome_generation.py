@@ -18,7 +18,7 @@
 # ==============================================================================
 
 from __future__ import print_function # to give equal outputs in python2 and python3
-from __future__ import with_statement 
+from __future__ import with_statement
 from argparse import ArgumentParser
 from collections import defaultdict
 import os, subprocess, sys, tempfile, time
@@ -31,7 +31,7 @@ if '--i_gff' in sys.argv:
     try:
         from BCBio import GFF
     except ImportError as err:
-        print('\n[Error]',err) 
+        print('\n[Error]',err)
         print('\n[Error] Please install the BCBio package of Python')
         print('  https://pypi.python.org/pypi/bcbio-gff')
         print('  pip install bcbio-gff\n\n')
@@ -41,7 +41,7 @@ if '--i_gff' in sys.argv:
         from Bio.Seq import UnknownSeq
         from Bio.SeqRecord import SeqRecord
     except ImportError as err:
-        print('\n[Error]',err) 
+        print('\n[Error]',err)
         print('\n[Error] Please install the BCBio package of Python')
         print('  http://biopython.org\n  https://pypi.python.org/pypi/biopython/')
         print('  pip install biopython\n\n')
@@ -51,7 +51,7 @@ try:
     from Bio import SeqIO
     from Bio.SeqRecord import SeqRecord
 except ImportError as err:
-    print('\n[E]',err) 
+    print('\n[E]',err)
     print('\n[E] Please install Biopython.')
     print('    The "Bio" module is required for extracting gene locations')
     print('    by mapping genes against their genome.\n')
@@ -144,8 +144,8 @@ def openread( filename, mode = "r" ):
 def create_bt2_indexes(path_genome_fna_files, clade, output_path, tmp_path, TIME, VERBOSE):
     '''
     Call the build function of Bowtie2 to create the indexes for a given species
-    
-    Merge all genomes into a single file and run bowtie2-build 
+
+    Merge all genomes into a single file and run bowtie2-build
         cat /ecoli_genomes_2014/*.fna > genomes.fna
         bowtie2-build genomes.fna panphlan_ecoli14
         bowtie2-inspect -n panphlan_ecoli14
@@ -204,7 +204,7 @@ def write_pangenome_file(gene2loc, gene2family, gene2genome, output_path, clade,
     '''
     Create the pangenome database file combining all the information from
     gene mappings (location (contig, from, to), family and genome)
-        
+
     Result: pangenome file (tab-separated):
         geneFamily | geneID | genomeName(filename) | contigID | start | stop
     '''
@@ -228,7 +228,7 @@ def write_pangenome_file(gene2loc, gene2family, gene2genome, output_path, clade,
             if VERBOSE: print('      '+ g)
         if VERBOSE: print('      o o o')
         print('      If many genes are missing, check file: usearch7_species_cluster.uc, option --uc, or Roary gene_presence_absence.csv')
-    if VERBOSE: print('[I] Pangenome file has been generated ('+str(n)+' genes):\n    ' + pangenome_csv)            
+    if VERBOSE: print('[I] Pangenome file has been generated ('+str(n)+' genes):\n    ' + pangenome_csv)
 # ------------------------------------------------------------------------------
 def gff_add_genome_seq(gff_folder, fna_folder, VERBOSE):
     '''
@@ -243,7 +243,7 @@ def gff_add_genome_seq(gff_folder, fna_folder, VERBOSE):
     if len(path_gff_files) < 1: print('\nERROR: Cannot find .gff files in folder\n  '+gff_folder+'\n')
     # if both raw .gff and compressed gff.gz are present, keep only uncompressed .gff in list
     path_gff_files =  [f for f in path_gff_files if not os.path.splitext(f)[0] in path_gff_files]
-    
+
     # create new gff folder 'gff_added_fna' (genome sequence included in gff files)
     new_gff_folder = os.path.join(os.getcwd(),'gff_added_fna','') # '' to get ending '/'
     if os.path.exists(new_gff_folder):
@@ -251,7 +251,7 @@ def gff_add_genome_seq(gff_folder, fna_folder, VERBOSE):
         sys.exit(2)
     else:
         os.makedirs(new_gff_folder)
-    
+
     for gff_file in path_gff_files:
         # read and check presence of seq
         genomeID = os.path.basename(gff_file).replace('.gff.gz','').replace('.gff.bz2','').replace('.gff','') # to allow dots in genome-name
@@ -267,10 +267,10 @@ def gff_add_genome_seq(gff_folder, fna_folder, VERBOSE):
             print('Please use Python3\n\n')
             sys.exit(1)
         # GFF.parse does not work under conda Python version: 2.7.15, Feb 28 2019
-        # when applied to gff file, fasta seq included, single contig 
+        # when applied to gff file, fasta seq included, single contig
         # contig = next(GFF.parse(openread(gff_file)))
-        
-        # check if FASTA genome sequence is already present     
+
+        # check if FASTA genome sequence is already present
         gff_version = int(contig.annotations['gff-version'][0])
         if VERBOSE: print('    gff-version: ' + str(gff_version))
         if type(contig.seq)==UnknownSeq: # type check for Bio.Seq.UnknownSeq
@@ -280,10 +280,10 @@ def gff_add_genome_seq(gff_folder, fna_folder, VERBOSE):
             print('\n WARNING: genome sequence is already present in gff file (--fna not needed): ' + genomeID + '\n')
 
         # search fna file (FASTA genome sequence)
-        fna_search_files = [os.path.join(fna_folder,genomeID+ending) for ending in ('.fna','.fna.gz','.fna.bz2')]
+        fna_search_files = [os.path.join(fna_folder, genomeID + ending) for ending in ('.fna','.fna.gz','.fna.bz2')]
         fna_files_exist = [f for f in fna_search_files if os.path.exists(f)]
         fna_file = fna_files_exist[0] if fna_files_exist else None
-        
+
         # add fna to gff file, and save in new gff folder
         gff_out = os.path.join(new_gff_folder,genomeID+'.gff')
         if fna_present: # copy gff file, if sequence already included
@@ -302,7 +302,7 @@ def gff_add_genome_seq(gff_folder, fna_folder, VERBOSE):
                         f_out.write(line)
         else:
             print('\n WARNING: Cannot find genome file: ' + os.path.join(fna_folder,genomeID+'.fna\n'))
-    
+
     num_new_gff = len([os.path.join(new_gff_folder,f) for f in os.listdir(new_gff_folder) if f.endswith(('.gff'))])
     if num_new_gff==0: sys.exit('\n\n ERROR: Could not add fna genome sequence to any gff file.\n')
     print('\n[I] ' + str(num_new_gff) + ' gff files that include the .fna genome sequence are written to folder:\n    ' + new_gff_folder + '\n')
@@ -317,7 +317,7 @@ def read_gff_write_fna_ffn(gff_folder, VERBOSE):
     c) write gene ffn files (for usearch7 clustering)
     gene2loc    = {geneID : (contig,start,stop)}
     gene2genome = {geneID : genomefilename}
-    gene2description = {geneID : description} 
+    gene2description = {geneID : description}
     '''
     # read gff and prepare output folder fna ffn
     path_gff_files = [os.path.join(gff_folder,f)for f in os.listdir(gff_folder) if fnmatch(f,'*.gff')]
@@ -333,7 +333,7 @@ def read_gff_write_fna_ffn(gff_folder, VERBOSE):
     else:
         os.makedirs(new_fna_folder)
         os.makedirs(new_ffn_folder)
-        
+
     # loop over all gff files
     gene2loc = defaultdict(tuple)
     gene2genome      = {} # {geneID : genomefilename}
@@ -356,10 +356,10 @@ def read_gff_write_fna_ffn(gff_folder, VERBOSE):
             if not gff_version:
                 gff_version = int(contig.annotations['gff-version'][0])
                 if VERBOSE: print('    gff-version: ' + str(gff_version))
-            # create pure contig-record without contig.features   
-            # add genomeID(filename) to contigID to avoid duplicated contig-names  
+            # create pure contig-record without contig.features
+            # add genomeID(filename) to contigID to avoid duplicated contig-names
             fna_contigID = contig.id
-            if not fna_contigID.startswith(genomeID): 
+            if not fna_contigID.startswith(genomeID):
                 fna_contigID = genomeID + ':' + fna_contigID
             contig_record = SeqRecord(contig.seq, id=fna_contigID, name='', description='')
             fna_genome_seq.append(contig_record)
@@ -383,7 +383,7 @@ def read_gff_write_fna_ffn(gff_folder, VERBOSE):
                     ffn_geneID = fna_contigID + ':' + s_start + '-' + s_stop # contigID already contains genomefilename prefix
                     gene2loc[ffn_geneID]    = (fna_contigID, min(g_start,g_stop), max(g_start,g_stop)) # to always have start < stop
                     gene2genome[ffn_geneID] = genomeID
-                    
+
                     # get gff annotation data
                     if not locus_tag.startswith(genomeID): locus_tag = genomeID + ':' + locus_tag # REF_wMel_A:gene_00258
                     gene2gffdata[ffn_geneID]['locus_tag']=locus_tag
@@ -395,21 +395,21 @@ def read_gff_write_fna_ffn(gff_folder, VERBOSE):
                         gene2gffdata[ffn_geneID]['product'] = t.qualifiers['product'][0] # NCBI and Tin's gff
                     elif t.sub_features and 'product' in t.sub_features[0].qualifiers:
                         gene2gffdata[ffn_geneID]['product'] = t.sub_features[0].qualifiers['product'][0]
-                    if 'eC_number' in t.qualifiers: # Enzyme Commission number # wolbachia prokka gff 
-                        gene2gffdata[ffn_geneID]['eC_number'] = t.qualifiers['eC_number'][0] 
+                    if 'eC_number' in t.qualifiers: # Enzyme Commission number # wolbachia prokka gff
+                        gene2gffdata[ffn_geneID]['eC_number'] = t.qualifiers['eC_number'][0]
                     elif t.sub_features and 'eC_number' in t.sub_features[0].qualifiers: # Tin's gff (not NCBI)
                         gene2gffdata[ffn_geneID]['eC_number'] = t.sub_features[0].qualifiers['eC_number'][0]
-                    # use 'product' as gene sequence description        
+                    # use 'product' as gene sequence description
                     gene2description[ffn_geneID] = gene2gffdata[ffn_geneID].get('product', '')
-                    # gene_annotations_string = '##'.join(filter(None, gene_annotations ))    
+                    # gene_annotations_string = '##'.join(filter(None, gene_annotations ))
                     # gene_annotations_string = gene_annotations_string.replace(' ','_')
-                    
+
                     # create gene sequence record
                     ffn_description = ' '.join([locus_tag, gene2description[ffn_geneID]])
                     gene_record = SeqRecord(gene_seq, id=ffn_geneID, name='', description=ffn_description)
                     ffn_gene_seq.append(gene_record)
-                   
-                    
+
+
         # write gene.ffn and genome.fna files (genomefilename added to sequence ID's)
         fna_out = os.path.join(new_fna_folder,genomeID+'.fna')
         ffn_out = os.path.join(new_ffn_folder,genomeID+'.ffn')
@@ -418,37 +418,37 @@ def read_gff_write_fna_ffn(gff_folder, VERBOSE):
         if VERBOSE: print('    Write genome .fna and gene .ffn files:\n    ' + fna_out + '\n    '  + ffn_out)
         SeqIO.write(fna_genome_seq, fna_out,'fasta')
         SeqIO.write(ffn_gene_seq  , ffn_out,'fasta')
-        
+
     if numGenes==0:
         print('\n\nExample of detected gff feature ("locus_tag" missing):\n',t1.qualifiers, '\n') # print last gff entry
         print('\n  ERROR: Could not find any gene features in gff file (no "locus_tag"s)')
         print('  ' + gff_file)
         print('\n  Please use gene feature .gff files (not CDS.gff). Try Prokka for predicting gene location .gff files from .fna genomes.\n')
-        sys.exit('\n ERROR: Could not find any gene feature in gff file\n')    
+        sys.exit('\n ERROR: Could not find any gene feature in gff file\n')
     # get list of all fna ffn files
     path_fna_files = [os.path.join(new_fna_folder,f) for f in os.listdir(new_fna_folder) if fnmatch(f,'*.fna')]
     path_ffn_files = [os.path.join(new_ffn_folder,f) for f in os.listdir(new_ffn_folder) if fnmatch(f,'*.ffn')]
     print('\n   Extracted gene .ffn and genome .fna sequence files are in folders:\n   ' + new_ffn_folder + '\n   '+ new_fna_folder + '\n')
-    
+
     # check for duplicated locus tags,
     # Give only warning, not error as converting to ffn and fna is possible.
-    # For usearch approach (ffn,fna) no problem, seqIDs are unique by added filename prefix, but Roary is using orig gff (no prefix). 
+    # For usearch approach (ffn,fna) no problem, seqIDs are unique by added filename prefix, but Roary is using orig gff (no prefix).
     all_locus_tags = [ gene2gffdata[k].get('locus_tag') for k in gene2gffdata]
     if not len(all_locus_tags) == len(set(all_locus_tags)):
         print('\nWARNING: gff files have duplicated locus tags (across all gff files)')
         print('         Please correct before using gff files in Roary gene clustering\n\n')
 
-    return gene2loc,gene2genome,gene2description,gene2gffdata,path_fna_files,path_ffn_files 
+    return gene2loc,gene2genome,gene2description,gene2gffdata,path_fna_files,path_ffn_files
 # ------------------------------------------------------------------------------
 def get_gene_locations(path_genome_fna_files, path_gene_ffn_files, VERBOSE):
     '''
     Extract gene locations from gene-identifier or blast-like search.
-    
+
     Get gene locations: Read all .ffn files to extract start and stop location from gene-name,
-    If location cannot be extracted from gene-name, use a blast-like mapping of genes against their genomes. 
-    
+    If location cannot be extracted from gene-name, use a blast-like mapping of genes against their genomes.
+
     Gene-locations are returned as dictionary {geneID:(contig,start,stop)}
-    
+
     Requires: Biopython module
     '''
     if VERBOSE: print('[I] Get gene locations and contigs for each gene.')
@@ -461,7 +461,7 @@ def get_gene_locations(path_genome_fna_files, path_gene_ffn_files, VERBOSE):
             if VERBOSE:
                 print('    Extract gene-location from geneIDs')
             gene_location_check_done = False
-            for r in SeqIO.parse(open(genefile, mode='r'), 'fasta'): 
+            for r in SeqIO.parse(open(genefile, mode='r'), 'fasta'):
                 # extract gene-locations from gi-gene-IDs, examples
                 #   gi|545636471|ref|NC_022443.1|:3480-3965
                 #   gi|387779217|ref|NC_017349.1|:789327-789398,789400-790437
@@ -472,8 +472,8 @@ def get_gene_locations(path_genome_fna_files, path_gene_ffn_files, VERBOSE):
                 #   [0] = filename
                 #   [1] = contig
                 #   [2] = location
-                locinfo=r.id.split(':')[-1] # try to get location info from after last ':' 
-                pos1 = int(locinfo.split('-')[0].replace('c','')) 
+                locinfo=r.id.split(':')[-1] # try to get location info from after last ':'
+                pos1 = int(locinfo.split('-')[0].replace('c',''))
                 pos2 = int(locinfo.split('-')[-1].replace('c',''))
                 # contig = r.id.split(':')[-2]
                 contig = ':'.join(r.id.split(':')[:-1]) # take all before last ':' as contigID
@@ -502,14 +502,14 @@ def get_gene_locations(path_genome_fna_files, path_gene_ffn_files, VERBOSE):
                     for s in loc:  # genes can have multiple hits
                         gene2multiloc[g.id].append((cn,s+1,s+len(g))) # geneID:[(contigID, start, stop),(contigID, start, stop),...]
             # convert single hits into final dict
-            delKeys=[] 
+            delKeys=[]
             for k, v in gene2multiloc.items():
                 if len(v)==0:
                     print('[W] gene sequence does not match genome sequence')
                     print('    geneID: ' + k)
                     delKeys.append(k)
                     # del gene2multiloc[k] # cannot del during iteration: Python3 RuntimeError: dictionary changed size during iteration
-                elif len(v)==1: 
+                elif len(v)==1:
                     gene2loc[k]=gene2multiloc[k][0]
                     delKeys.append(k)
                     # del gene2multiloc[k]
@@ -520,16 +520,16 @@ def get_gene_locations(path_genome_fna_files, path_gene_ffn_files, VERBOSE):
             for k, v in gene2multiloc.items():
                 if v not in unique_gene_loc:
                     unique_gene_loc.append(v)
-            unique_geneIDsets=[] # get all geneIDs that hit to same location-set   
+            unique_geneIDsets=[] # get all geneIDs that hit to same location-set
             for i in unique_gene_loc:
                 geneIDset=[]
                 for k, v in gene2multiloc.items():
                     if v==i:
-                        geneIDset.append(k)   
-                unique_geneIDsets.append(geneIDset)    
-            # add multi-copy genes to gene2loc dictionary (assign to each multi-copy geneID a different location)    
+                        geneIDset.append(k)
+                unique_geneIDsets.append(geneIDset)
+            # add multi-copy genes to gene2loc dictionary (assign to each multi-copy geneID a different location)
             for geneIDset,locSet in zip(unique_geneIDsets,unique_gene_loc):
-                for g,c in zip(sorted(geneIDset),sorted(locSet)): # sorted: to get indentical results in python 2 and 3   
+                for g,c in zip(sorted(geneIDset),sorted(locSet)): # sorted: to get indentical results in python 2 and 3
                     gene2loc[g]=c
     return gene2loc
 # ------------------------------------------------------------------------------
@@ -577,7 +577,7 @@ def get_contigs(path_genome_fna_files, VERBOSE):
         for r in SeqIO.parse(open(f, mode='r'), 'fasta'):
             contigID=r.id
             if contigID not in contig2genome:
-                contig2genome[contigID] = genome   
+                contig2genome[contigID] = genome
                 # genome2contigs[genome].add(contigID)
             else:
                 print('\n\n[I] Duplicated contig-ID: \n      ' + contigID + '\n    found in genome files: \n      ' + contig2genome[contigID] + '\n      ' + genome)
@@ -601,7 +601,7 @@ def check_for_valid_contigIDs(gene2loc,contig2genome):
 def gene2genome_mapping(path_gene_ffn_files, VERBOSE):
     '''
     Map each gene to its genome (genome-filename)
-    
+
     requires Biopython (Bio module)
     '''
     gene2genome     = {} # {geneID : genomefilename}
@@ -629,9 +629,9 @@ def read_roary_gene_clustering(roary_folder, VERBOSE):
     '''
     Read roary clustering result
     1) Search for file: 'gene_presence_absence.csv'
-    2) Read file and create dict mappings:  
+    2) Read file and create dict mappings:
          gene2family       = {geneID   : familyID}
-         family2annotation = {familyID : function} 
+         family2annotation = {familyID : function}
     '''
     # check if roary cluster file exist
     roary_cluster_csv = os.path.join(roary_folder,'gene_presence_absence.csv')
@@ -640,10 +640,10 @@ def read_roary_gene_clustering(roary_folder, VERBOSE):
         sys.exit(2)
     # read roary file
     if VERBOSE: print('    Read Roary gene cluster "gene_presence_absence.csv" file:\n    '+roary_cluster_csv+'\n')
-    gene2family       = {} 
+    gene2family       = {}
     family2annotation = {}
     roary_genomeIDs = []
-    NotSampleColumns = ['Gene', 'Non-unique Gene name', 'Annotation', 'No. isolates', 'No. sequences', 'Avg sequences per isolate', 'Genome Fragment', 'Order within Fragment', 'Accessory Fragment', 'Accessory Order with Fragment', 'QC', 'Min group size nuc', 'Max group size nuc', 'Avg group size nuc']    
+    NotSampleColumns = ['Gene', 'Non-unique Gene name', 'Annotation', 'No. isolates', 'No. sequences', 'Avg sequences per isolate', 'Genome Fragment', 'Order within Fragment', 'Accessory Fragment', 'Accessory Order with Fragment', 'QC', 'Min group size nuc', 'Max group size nuc', 'Avg group size nuc']
     with open(roary_cluster_csv, mode='r') as f:
         headerline=f.readline().strip().strip('"').split('","')
         if 'Gene' not in headerline:
@@ -697,7 +697,7 @@ def convert_roary_geneIDs(roary_gene2family,gene2gffdata, VERBOSE):
     num_roray_gff_hits = len(gene2family)
     if VERBOSE: print('    Number of total geneIDs (present in Roary and gff): ' + str(num_roray_gff_hits))
     if num_roray_gff_hits < 1:
-        sys.exit('\n\n ERROR: Could not match Roary geneIDs with gff-file geneIDs.\n') 
+        sys.exit('\n\n ERROR: Could not match Roary geneIDs with gff-file geneIDs.\n')
     return gene2family, locustag2gene
 #-------------------------------------------------------------------------------
 def read_roary_centroids(roary_folder, clade, output_path, locustag2gene, family2annotation, VERBOSE):
@@ -717,8 +717,8 @@ def read_roary_centroids(roary_folder, clade, output_path, locustag2gene, family
         sys.exit('\nERROR: Cannot fine Roary pan_genome_reference.fa\n\n')
     # read roary centroids
     if VERBOSE: print('\n    Convert Roary centroid sequence file into panphlan centroid file\n    Roary:    '+roary_centroids_ffn+'\n    PanPhlAn: '+panphlan_centroids_ffn+'\n')
-    family2centroidGeneID = {} 
-    
+    family2centroidGeneID = {}
+
     roary_locustags_missing_in_gff = []
     with open(panphlan_centroids_ffn, 'w') as f_out:
         for seq_record in SeqIO.parse(open(roary_centroids_ffn, mode='r'), 'fasta'):
@@ -750,17 +750,17 @@ def read_roary_centroids(roary_folder, clade, output_path, locustag2gene, family
 # ------------------------------------------------------------------------------
 def reject_genomes_not_in_roary(path_genome_fna_files, roary_genomeIDs):
     '''
-    Remove genomes not present in Roary clustering, to avoid having unconsidered genomes in bowtie2 index database 
+    Remove genomes not present in Roary clustering, to avoid having unconsidered genomes in bowtie2 index database
     '''
     print('\n    Check presence of .fna input genomes in Roary cluster result')
     # Check GFF in Roary
     for f in path_genome_fna_files[:]:  # need a copy [:], as we remove items from list
         genome = os.path.splitext(os.path.basename(f))[0]
         if genome not in roary_genomeIDs:
-            print('    [W] "' + genome + '" excluded from bowtie2 index (not present in Roary)')    
-            path_genome_fna_files.remove(f)        
-    # check Roary in GFF        
-    genomefiles = [os.path.splitext(os.path.basename(f))[0] for f in path_genome_fna_files]        
+            print('    [W] "' + genome + '" excluded from bowtie2 index (not present in Roary)')
+            path_genome_fna_files.remove(f)
+    # check Roary in GFF
+    genomefiles = [os.path.splitext(os.path.basename(f))[0] for f in path_genome_fna_files]
     for g in roary_genomeIDs:
         if g not in genomefiles:
             print('    [W] "' + g + '" missing in .fna genome files')
@@ -781,7 +781,7 @@ def write_annotations_gff(clade, output_path, family2centroidGeneID, gene2gffdat
             # 'protein_id' contains no value in Prokka gff's, but in NCBI gff's
             # if gene2gffdata[geneID].get('protein_id', ''): print(gene2gffdata[geneID].get('protein_id', ''))
             ocsv.write(gfam +'\t'+ geneID +'\t'+ gene2gffdata[geneID].get('locus_tag', '') +'\t'+ gene2gffdata[geneID].get('product', '') +'\t'+ gene2gffdata[geneID].get('eC_number', '') +'\t'+ gene2gffdata[geneID].get('protein_id', '') + '\n')
-    return True     
+    return True
 # --- usearch7 -----------------------------------------------------------------
 def family_of(index):
     return 'g' + str(format(index, '06d'))
@@ -800,7 +800,7 @@ def usearch_get_gene2family_dict(merged_txt, VERBOSE):
         line 317  ==> family 'g000317'
     '''
     gene2family = {}
-    numof_line = 0 
+    numof_line = 0
     with open(merged_txt, mode='r') as itxt:
         for line in itxt:
             numof_line += 1
@@ -828,14 +828,14 @@ def convert_usearch_result(merged_uc, merged_txt, TIME, VERBOSE):
                 uc2cl[target.strip()].add( query )
             elif typ == 'S' and  query not in uc2cl:
                 uc2cl[query] = set()
-    
+
     # Printing in the TXT file
     with open(merged_txt, mode='w') as otxt:
         # k is the centroid gene, v is a gene of the its cluster
-        for index, (k,v) in enumerate(sorted(uc2cl.items(), key=lambda x:str(x[0])) ,1): # clusters are sorted by centroid-IDs; added index starting at 1    
+        for index, (k,v) in enumerate(sorted(uc2cl.items(), key=lambda x:str(x[0])) ,1): # clusters are sorted by centroid-IDs; added index starting at 1
             # Each line of the clusters .txt file is composed by: GENE_FAMILY | CENTROID_GENE | GENE | ... | GENE
             otxt.write(family_of(index) + '\t' + '\t'.join([k] + sorted(list(v))) + '\n') # Intra-line sorting
-    
+
     if VERBOSE:
         TIME = time_message(TIME, 'UC --> TXT conversion has been done.')
     return TIME
@@ -854,7 +854,7 @@ def usearch_centroids_add_geneID_prefix(clade, gene2family, output_path, gene2de
     if os.path.exists(centroids_ffn):
         # move panphlan_species_centroids.ffn to panphlan_species_centroids_orig.ffn
         os.rename(centroids_ffn,centroids_orig_ffn)
-        # add prefix species:g12345:old_geneID (read centroid_orig.ffn, write new centroid.ffn)    
+        # add prefix species:g12345:old_geneID (read centroid_orig.ffn, write new centroid.ffn)
         centroid_sequences = SeqIO.parse(open(centroids_orig_ffn),'fasta')
         with open(centroids_ffn, 'w') as f:
             for seq in centroid_sequences:
@@ -868,7 +868,7 @@ def usearch_centroids_add_geneID_prefix(clade, gene2family, output_path, gene2de
                 if r!=1:
                     sys.exit('[E] Error while writing centroid sequence:  ' + seq.id)
         os.remove(centroids_orig_ffn)
-    return family2centroidGeneID    
+    return family2centroidGeneID
 # ------------------------------------------------------------------------------
 def run_usearch(sorted_merged_ffn, identity, clade, output_path, tmp_path, KEEP_UC, TIME, VERBOSE):
     '''
@@ -912,7 +912,7 @@ def run_usearch(sorted_merged_ffn, identity, clade, output_path, tmp_path, KEEP_
 
     finally:
         os.unlink(sorted_merged_ffn)
-    
+
     if VERBOSE:
         TIME = time_message(TIME, 'Clustering with Usearch has been done.')
     return merged_uc, TIME
@@ -921,14 +921,14 @@ def usearch_sortbylength(path_gene_ffn_files, tmp_path, TIME, VERBOSE):
     '''
     Merge all the gene-sequence FFN files into a unique one, then sort by length
     '''
-    
+
     tmp_ffn        = tempfile.NamedTemporaryFile(delete=False, prefix='panphlan_', suffix='.ffn',        dir=tmp_path)
     tmp_sorted_ffn = tempfile.NamedTemporaryFile(delete=False, prefix='panphlan_', suffix='.sorted.ffn', dir=tmp_path)
-        
+
     try:
         with tmp_ffn:
             # cat genefiles.ffn > merged_file.ffn
-            cat_cmd = ['cat'] # same as for bowtie2, but based on gene.ffn files 
+            cat_cmd = ['cat'] # same as for bowtie2, but based on gene.ffn files
             for f in path_gene_ffn_files:
                 cat_cmd.append(f)
             if VERBOSE:
@@ -985,14 +985,14 @@ def usearch_clustering(path_gene_ffn_files, identity_threshold_perc, clade, outp
     gene2family = usearch_get_gene2family_dict(merged_txt, VERBOSE)
     # Add prefix clade:genefamID: to geneIDs in centroid.ffn sequence file
     #  to do: add also function (gene description)
-    family2centroidGeneID = usearch_centroids_add_geneID_prefix(clade, gene2family, output_path, gene2description) 
+    family2centroidGeneID = usearch_centroids_add_geneID_prefix(clade, gene2family, output_path, gene2description)
     # clean up tmp files
     if not KEEP_UC:
         os.unlink(tmp_uc.name)
     if VERBOSE: print('[I] Remove usearch7 tmp results')
     os.remove(merged_txt)
-        
-    return gene2family, family2centroidGeneID, TIME 
+
+    return gene2family, family2centroidGeneID, TIME
 # ------------------------------------------------------------------------------
 def check_usearch7(VERBOSE, PLATFORM='lin'):
     '''
@@ -1039,7 +1039,7 @@ def check_bowtie2(VERBOSE, PLATFORM='lin'):
         print('\n[E] Please, install Bowtie2.\n')
         if VERBOSE:
             print('    Bowtie2 is used to generate the .bt2 index files required in panphlan_map.py\n')
-        sys.exit(UNINSTALLED_ERROR_CODE)        
+        sys.exit(UNINSTALLED_ERROR_CODE)
 # ------------------------------------------------------------------------------
 def add_filename_to_seqIDs(path_gene_fxx_files, tmp_path, Fxx, VERBOSE):
     '''
@@ -1050,9 +1050,9 @@ def add_filename_to_seqIDs(path_gene_fxx_files, tmp_path, Fxx, VERBOSE):
 
     requires Biopython (Bio module)
     '''
-    
+
     if VERBOSE and Fxx=='ffn': print('[I] To get unique geneIDs   across genomes: add filename as prefix to geneIDs')
-    if VERBOSE and Fxx=='ffn': print('[I] To get unique contigIDs across genomes: add filename as prefix to contigIDs')
+    if VERBOSE and Fxx=='ffa': print('[I] To get unique contigIDs across genomes: add filename as prefix to contigIDs')
     # create new folder 'fxx_uniqueGeneIDs' in TMP
     new_fxx_folder = os.path.join(tmp_path, Fxx+'_uniqueSeqIDs','') # '' to get ending '/'
     if os.path.exists(new_fxx_folder):
@@ -1060,7 +1060,7 @@ def add_filename_to_seqIDs(path_gene_fxx_files, tmp_path, Fxx, VERBOSE):
         sys.exit('\n\n ERROR: directory exist already: ' + new_fxx_folder + '\n Please rename or remove: ' + tmp_path + '\n\n')
     else:
         os.makedirs(new_fxx_folder)
-    
+
     # create new list of fxx files: new_path_gene_fxx_files
     new_path_gene_fxx_files = [os.path.join(new_fxx_folder,os.path.basename(f)) for f in path_gene_fxx_files]
 
@@ -1070,20 +1070,20 @@ def add_filename_to_seqIDs(path_gene_fxx_files, tmp_path, Fxx, VERBOSE):
             for seq in SeqIO.parse(open(fxx_in), 'fasta'):
                 if seq.id == seq.name:
                     seq.name=''
-                if seq.id == seq.description.split()[0]:    
+                if seq.id == seq.description.split()[0]:
                     seq.description=' '.join(seq.description.split()[1:])
                 if not seq.id.startswith(filename):
-                    seq.id = filename + ':' + seq.id    
+                    seq.id = filename + ':' + seq.id
                 r = SeqIO.write(seq, f_out, 'fasta')
                 if r!=1:
-                    sys.exit('[E] Error while writing sequence to '+Fxx+'-file:\n    ' + fxx_out)    
+                    sys.exit('[E] Error while writing sequence to '+Fxx+'-file:\n    ' + fxx_out)
 
     return new_path_gene_fxx_files
 # ------------------------------------------------------------------------------
 def check_genomes(ffn_folder, fna_folder, VERBOSE):
     '''
     Check if genome files and .fna .fnn pairs are present and calculate expected runtime
-    Result are lists of correct genome and gene file pairs 
+    Result are lists of correct genome and gene file pairs
     '''
     genomefiles = [f for f in os.listdir(fna_folder) if fnmatch(f,'*.'+FNA)]
     genefiles   = [f for f in os.listdir(ffn_folder) if fnmatch(f,'*.'+FFN)]
@@ -1104,7 +1104,7 @@ def check_genomes(ffn_folder, fna_folder, VERBOSE):
         path_genomefile_fna = os.path.join(fna_folder, f.replace('.'+FFN,'.'+FNA) )
         if not os.path.exists(path_genomefile_fna):
             print('[W] Cannot find genome-file:\n    ' + path_genomefile_fna)
-            print('    Excluding corresponding genes of file: ' + f + ' from pangenome database')    
+            print('    Excluding corresponding genes of file: ' + f + ' from pangenome database')
             genefiles.remove(f)
 
     if not len(genomefiles) == len(genefiles):
@@ -1116,14 +1116,14 @@ def check_genomes(ffn_folder, fna_folder, VERBOSE):
         print('\n[E] Cannot find any genome-gene pair of .fna .fnn files having the same filename: ID.fna ID.ffn')
         sys.exit('Missing genome-gene file pairs')
 
-    # add full path to genefile list        
+    # add full path to genefile list
     path_genome_fna_files = sorted([os.path.join(fna_folder,f) for f in genomefiles])
     path_gene_ffn_files   = sorted([os.path.join(ffn_folder,f) for f in genefiles])
-    
-    # check usearch7 cluster depends on file order? (bvulgatus14) Yes, result depends on gene-file order 
+
+    # check usearch7 cluster depends on file order? (bvulgatus14) Yes, result depends on gene-file order
     # path_genome_fna_files = [ path_genome_fna_files[i] for i in [2,1,0,3]]  # Original file order
     # path_gene_ffn_files   = [ path_gene_ffn_files[i]   for i in [2,1,0,3]]
-    
+
     print('\nExpected runtime: ' + str(len(genomefiles)*20) + ' minutes (start time: ' + time.strftime("%b %d %Y %H:%M") + ')\n')
 
     return path_genome_fna_files, path_gene_ffn_files
@@ -1169,17 +1169,17 @@ def check_args():
     # panphlan_pangenome_generation.py --i_gff  ncbi_download_gff/--fna ncbi_download_fna/ # add genome fna to gff (no bowtie, no usearch)
     # panphlan_pangenome_generation.py --i_gff  prokka_gff/   # only convert gff to fna and ffn (filename prefix added to seqID) (no bowtie, no usearch) (genome seq needs to be included in gff)
     # panphlan_pangenome_generation.py    ....   -c species # generate database
-    
+
     # not valid option combinations
     if args['i_ffn'] and not args['i_fna']: sys.exit('\n Error: Genome sequence .fna files required, add option:  --i_fna genomes/\n')
     if args['i_ffn'] and args['i_fna'] and args['i_gff']: sys.exit('\n Error: Too many input options, use only (--fna & --ffn), (--gff & --fna), or --gff alone.\n')
     if not args['i_ffn'] and not args['i_fna'] and not args['i_gff']: sys.exit('\n Error: Please provide input files, either (--fna & --ffn), (--gff & --fna), or --gff alone.\n')
-    
+
     if args['i_ffn'] and not args['clade']: sys.exit('\n Error: Species pangenome database name required, for example add option:  --clade ecoli17\n')
-    
+
     # Roary
     if args['roary_dir'] and args['i_ffn']: sys.exit('\n Error: Please use --gff input (not --ffn). Required are the same gff files as used for Roary\n')
-    
+
     if args['roary_dir']:
         roary_dir = args['roary_dir']
         roary_dir = os.path.abspath(roary_dir)
@@ -1191,13 +1191,13 @@ def check_args():
             sys.exit('\n Error (--roary_dir): Please provide the directory of Roary output (not individual files).\n')
         roary_dir = os.path.join(roary_dir,'')
         args['roary_dir']=roary_dir
-        
+
     # Check: GFF_FOLDER --------------------------------------------------------
     if args['i_gff']:
         ipath = args['i_gff']
         if not os.path.exists(ipath):
             show_error_message('Input folder -i_gff does not exist.')
-            sys.exit(INEXISTENCE_ERROR_CODE)    
+            sys.exit(INEXISTENCE_ERROR_CODE)
         ipath = os.path.abspath(ipath)
         ipath = os.path.join(ipath,'')
         args['i_gff'] = ipath
@@ -1207,7 +1207,7 @@ def check_args():
         ipath = args['i_ffn']
         if not os.path.exists(ipath):
             show_error_message('Input folder -i_ffn does not exist.')
-            sys.exit(INEXISTENCE_ERROR_CODE)    
+            sys.exit(INEXISTENCE_ERROR_CODE)
         ipath = os.path.abspath(ipath)
         ipath = os.path.join(ipath,'')
         args['i_ffn'] = ipath
@@ -1223,7 +1223,7 @@ def check_args():
         args['i_fna'] = ipath
         if VERBOSE: print('[I] Input genome FNA folder: ' + args['i_fna'])
 
-    
+
     if args['clade']: # don't need to check if only converting gff to fna & ffn
         # Check: CLADE -------------------------------------------------------------
         args['clade']=args['clade'].replace('panphlan_','') # remove panphlan_ prefix (added later only for bowtie2)
@@ -1245,7 +1245,7 @@ def check_args():
             os.makedirs(opath)
         args['output'] = opath
         if VERBOSE: print('[I] Output folder: ' + args['output'])
-        
+
         # Check: TEMP_FOLDER ------------------------------------------------------
         tmp_path = os.path.join(args['tmp'],'')
         if not os.path.exists(os.path.dirname(tmp_path)):
@@ -1266,7 +1266,7 @@ def main():
     VERBOSE = args['verbose']
     KEEP_UC = args['uc']
     PLATFORM = sys.platform.lower()[0:3]
-    
+
     TOTAL_TIME = time.time()
     TIME = time.time()
 
@@ -1274,7 +1274,7 @@ def main():
     if VERBOSE: print('\nSTEP 1. Checking required software installations ...')
     if args['clade']:
         bowtie2   = check_bowtie2(VERBOSE, PLATFORM)  # for generating .bt2 index files
-    if args['clade'] and not args['roary_dir']: 
+    if args['clade'] and not args['roary_dir']:
         usearch7  = check_usearch7(VERBOSE, PLATFORM) # for generating usearch7 gene-family cluster
 
 
@@ -1286,7 +1286,7 @@ def main():
 
     if (args['i_gff'] and not args['i_fna'])  or  (args['i_gff'] and args['i_fna'] and args['clade']):
         # extract fna & ffn from gff always if 'clade'
-        # if not 'clade': only extract fna & ffn from gff, but not if 'fna' added right before  
+        # if not 'clade': only extract fna & ffn from gff, but not if 'fna' added right before
         print('[I] Read gff files, extract gene location and annotation, write genome fna and gene ffn sequences.')
         gene2loc,gene2genome,gene2description,gene2gffdata,path_genome_fna_files,path_gene_ffn_files = read_gff_write_fna_ffn(args['i_gff'], VERBOSE)
 
@@ -1309,7 +1309,7 @@ def main():
         if args['roary_dir']: # later:  if roary_dir or run_roary
             roary_gene2family, roary_family2annotation, roary_genomeIDs = read_roary_gene_clustering(args['roary_dir'], VERBOSE)
             gene2family, locustag2gene = convert_roary_geneIDs(roary_gene2family,gene2gffdata, VERBOSE)
-            family2centroidGeneID      = read_roary_centroids(args['roary_dir'], args['clade'], args['output'], locustag2gene, roary_family2annotation, VERBOSE) # copy pan_genome_reference.fa and get centroidIDs 
+            family2centroidGeneID      = read_roary_centroids(args['roary_dir'], args['clade'], args['output'], locustag2gene, roary_family2annotation, VERBOSE) # copy pan_genome_reference.fa and get centroidIDs
             path_genome_fna_files      = reject_genomes_not_in_roary(path_genome_fna_files, roary_genomeIDs) # to run bowtie2 only with genomes present in roary clustering
         else: # Run usearch7 to get gene families cluster
             gene2family, family2centroidGeneID, TIME = usearch_clustering(path_gene_ffn_files,args['th'],args['clade'],
@@ -1321,14 +1321,14 @@ def main():
         # Write gene-family annotation file
         if args['i_gff']:
             write_annotations_gff(args['clade'], args['output'], family2centroidGeneID, gene2gffdata, VERBOSE)
-    
-        
-    
+
+
+
         # Get bowtie2 index files
         if VERBOSE: print('\nSTEP 5. Get bowtie2 index database ...')
         TIME = create_bt2_indexes(path_genome_fna_files, args['clade'], args['output'], args['tmp'], TIME, VERBOSE)
-    
-    
+
+
         clean_up(path_genome_fna_files, args['tmp'], VERBOSE)
         clean_up(path_gene_ffn_files,   args['tmp'], VERBOSE)
         end_program(time.time() - TOTAL_TIME)
