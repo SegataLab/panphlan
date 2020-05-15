@@ -954,12 +954,15 @@ def print_coverage_matrix(dna_samples_covs, out_channel, families, TIME, VERBOSE
             # csv.write('\t' + '\t'.join([get_sampleID_from_path(s, clade) for s in dna_sample_ids]) + '\n')
             csv.write('\t' + '\t'.join(dna_sample_ids) + '\n')
             for f in families:
-                if sum(dna_samples_covs[s][f] for s in dna_samples_covs) > 0.0:
-                    csv.write(f)
-                    for s in dna_sample_ids:
-                        # csv.write('\t' + str(format(dna_samples_covs_path[id2file[s]][f], '.3f')))
-                        csv.write('\t' + str(format(dna_samples_covs[s][f], '.3f')))
-                    csv.write('\n')
+                tmp = [dna_samples_covs[s][f] for s in dna_samples_covs]
+                if isinstance(tmp[0], list) : continue
+                if len(tmp) > 0 :
+                    if sum(tmp) > 0:
+                        csv.write(f)
+                        for s in dna_sample_ids:
+                            # csv.write('\t' + str(format(dna_samples_covs_path[id2file[s]][f], '.3f')))
+                            csv.write('\t' + str(format(dna_samples_covs[s][f], '.3f')))
+                        csv.write('\n')
         if VERBOSE:
             TIME = time_message(TIME, 'Gene families coverage matrix has been printed in ' + out_channel + ' -')
     return TIME
@@ -1261,7 +1264,8 @@ def check_args():
                 sys.exit(INEXISTENCE_ERROR_CODE)
 
             # Find coverages file
-            covs_file_pattern = '*' + args['clade'].replace('panphlan_', '') + '*.csv.bz2'
+            #covs_file_pattern = '*' + args['clade'].replace('panphlan_', '') + '*.csv.bz2'
+            covs_file_pattern = '*.tsv.bz2'
             if args['verbose']:
                 print('[I] Looking for "' + covs_file_pattern + '"-patterned files...')
             covs_files = find(covs_file_pattern, idna)
