@@ -1,3 +1,6 @@
+# The newest version PanphlAn 3.0 is available [here](https://github.com/SegataLab/panphlan/tree/3.0)
+
+
 ## PanPhlAn - strain detection and characterization
 
 #### Pangenome-based Phylogenomic Analysis
