@@ -491,16 +491,18 @@ def plot_dna_coverage(samples_coverages, sample_stats, genome_length, args, norm
                 for s in samples:
                     covs = samples_coverages[s].values() # also finc a way to extract covs from here
                     covs = sorted(list(covs), reverse =True)
+                    print(s)
+                    print(covs)
                     if accepted2samples[s]:
                         plt.plot(range(1, len(covs) +1), covs, sample2color[s], label=s)
-                    elif not sum(covs) == 0:
-                        plt.plot(range(1, len(covs) +1), covs, '#c0c0c0')
-                plt.axis([0.0, genome_length * 1.5, 0.0, 9.0])
+                    #elif not sum(covs) == 0:
+                    #    plt.plot(range(1, len(covs) +1), covs, '#c0c0c0')
+                plt.axis([0.0, genome_length * 1.5, 0.0, 15])
                 try:
                     if num_accepted > 0: plt.legend(loc='upper right', fontsize='xx-small')
                 except TypeError:
                     print(' [W] pylab.legend fontsize does not work (please update your "pylab" module version).')
-                savefig(plot_name)
+                savefig(plot_name, dpi = 300)
                 plt.close()
 
                 del(samples)
