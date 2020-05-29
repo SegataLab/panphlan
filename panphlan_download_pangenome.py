@@ -85,7 +85,7 @@ def download(url, download_file, overwrite=False, verbose=False):
             urlretrieve(url, download_file, reporthook=ReportHook().report)
             info('\n')
         except EnvironmentError:
-            error('unable to download "{}"'.format(url), exit=True)
+            info('unable to download "{}"'.format(url), exit=True)
     else:
         info('File "{}" already present\n'.format(download_file))
 

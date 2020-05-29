@@ -11,6 +11,7 @@ import argparse as ap
 from collections import defaultdict
 from shutil import copyfileobj
 from misc import random_color
+from random import randint
 
 
 __author__ = 'Leonard Dubois, Matthias Scholz, Thomas Tolio and Nicola Segata (contact on https://forum.biobakery.org/)'
