@@ -460,12 +460,13 @@ def plot_dna_coverage(samples_coverages, sample_stats, genome_length, args, norm
 
             samples = sorted(samples_coverages.keys())
             accepted2samples = defaultdict(list)
+            num_accepted = 0
             for s in samples:
                 if sample_stats[s]['accepted']:
-                    accepted2samples[True].append(s)
+                    accepted2samples[s] = True
+                    num_accepted = num_accepted +1
                 else:
-                    accepted2samples[False].append(s)
-            num_accepted = len(accepted2samples[True])
+                    accepted2samples[s] = False
 
             if normalized : # find a way to define this kind of of boolean
                 plot_name = args.o_covplot_normed
@@ -478,21 +479,22 @@ def plot_dna_coverage(samples_coverages, sample_stats, genome_length, args, norm
 
             if not plot_name == '':
                 used_colors = []
-                for sample in accepted2samples[True]:
+                for sample in accepted2samples.keys():
                     color, reset = random_color(used_colors)
                     sample2color[sample] = color
                     if reset:
                         used_colors = [color]
                     else:
                         used_colors.append(color)
-
+                
                 plt.xlabel('Gene families')
                 for s in samples:
-                    covs = samples_coverages[s] # also finc a way to extract covs from here
+                    covs = samples_coverages[s].values() # also finc a way to extract covs from here
+                    covs = sorted(list(covs), reverse =True)
                     if accepted2samples[s]:
-                        plt.plot(range(1, len(covs) + 1), covs, sample2color[s], label=s)
-                    else:
-                        plt.plot(range(1, len(covs) + 1), covs, '#c0c0c0')
+                        plt.plot(range(1, len(covs) +1), covs, sample2color[s], label=s)
+                    elif not sum(covs) == 0:
+                        plt.plot(range(1, len(covs) +1), covs, '#c0c0c0')
                 plt.axis([0.0, genome_length * 1.5, 0.0, 9.0])
                 try:
                     if num_accepted > 0: plt.legend(loc='upper right', fontsize='xx-small')

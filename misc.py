@@ -2,6 +2,7 @@
 
 
 import os, subprocess, sys, time, bz2
+from random import randint
 
 
 """Check if bowtie2 is installed. Stops programm if not"""
