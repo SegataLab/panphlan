@@ -491,8 +491,6 @@ def plot_dna_coverage(samples_coverages, sample_stats, genome_length, args, norm
                 for s in samples:
                     covs = samples_coverages[s].values() # also finc a way to extract covs from here
                     covs = sorted(list(covs), reverse =True)
-                    print(s)
-                    print(covs)
                     if accepted2samples[s]:
                         plt.plot(range(1, len(covs) +1), covs, sample2color[s], label=s)
                     #elif not sum(covs) == 0:
