@@ -95,19 +95,18 @@ def check_samtools():
 #   STEP 2 
 # ------------------------------------------------------------------------------
 """Get sample file name and extension"""
-def check_input(input):
+def check_input(input_path):
     decompress_cmd = {}
     decompress_cmd['tar.bz2']  = ['tar', '-jxOf']
     decompress_cmd['tar.gz']   = ['tar', '-zxOf']
     decompress_cmd['sra']      = ['fastq-dump', '-Z', '--split-spot', '--minReadLen', str(DEFAULT_MIN_READ_LENGTH)]
-    filename, extension = os.path.splitext(input)
-    if extension in decompress_cmd.keys():
-        to_do = decompress_cmd[extension]
-        to_do.append(filename)
-        print('[I] ' + ' '.join(input))
-    else :
-        to_do = None
-    return to_do
+    for extension in decompress_cmd.keys():
+        if input_path.endswith(extension):
+            to_do = decompress_cmd[extension]
+            to_do.append(input_path.replace("." + extension, "")
+            print('[I] ' + ' '.join(input_path))
+            return to_do
+    return None
     
 
 """Convert a SAM file into BAM file, then sort the BAM"""
