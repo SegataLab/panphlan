@@ -19,7 +19,7 @@ from __future__ import with_statement
 from argparse import ArgumentParser
 from collections import defaultdict
 from random import randint
-from utils import end_program, show_interruption_message, show_error_message, time_message, find
+from .utils import end_program, show_interruption_message, show_error_message, time_message, find
 import fnmatch, operator, os, subprocess, sys, time
 import bz2
 

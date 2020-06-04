@@ -10,11 +10,14 @@ setuptools.setup(
     author='Matthias Scholz',
     author_email='matthias.scholz.de@gmail.com',
     url='http://github.com/SegataLab/panphlan/',
-    py_modules=['panphlan_map', 'panphlan_profile', 'panphlan_new_pangenome_generation', 'panphlan_pangenome_generation', 'utils'],
-    entry_points = { "console_scripts" : [ "panphlan_map = panphlan_map:main",
-                                           "panphlan_profile = panphlan_profile:main",
-                                           "panphlan_new_pangenome_generation = panphlan_new_pangenome_generation:main",
-                                           "panphlan_pangenome_generation = panphlan_pangenome_generation:main"
+    packages=setuptools.find_namespace_packages(),
+    package_data = { 'panphlan' : [
+        'panphlan/tools/*'
+    ]},
+    entry_points = { "console_scripts" : [ "panphlan_map.py = panphlan.panphlan_map:main",
+                                           "panphlan_profile.py = panphlan.panphlan_profile:main",
+                                           "panphlan_new_pangenome_generation.py = panphlan.panphlan_new_pangenome_generation:main",
+                                           "panphlan_pangenome_generation.py = panphlan.panphlan_pangenome_generation:main"
                                          ] },
     long_description_content_type='text/markdown',
     long_description=open('README.md').read(),

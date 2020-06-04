@@ -17,7 +17,7 @@
 from argparse import ArgumentParser
 from collections import defaultdict
 from shutil import copyfileobj
-from utils import end_program, show_interruption_message, show_error_message, time_message, find
+from .utils import end_program, show_interruption_message, show_error_message, time_message, find
 import bz2, fnmatch, multiprocessing, operator, os, subprocess, sys, tempfile, time
 from distutils.version import LooseVersion
 
