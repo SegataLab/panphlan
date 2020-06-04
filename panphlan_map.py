@@ -103,7 +103,7 @@ def check_input(input_path):
     for extension in decompress_cmd.keys():
         if input_path.endswith(extension):
             to_do = decompress_cmd[extension]
-            to_do.append(input_path.replace("." + extension, "")
+            to_do.append(input_path.replace("." + extension, ""))
             print('[I] ' + ' '.join(input_path))
             return to_do
     return None
@@ -190,19 +190,19 @@ def mapping(args):
     
     bt2_options = args.bt2
     try:
-        preprocess_needed = check_input(args.input)
-        if preprocess_needed:
-            p0 = subprocess.Popen(cmd1, stdout=subprocess.PIPE)
+        preprocess_cmd = check_input(args.input)
+        if preprocess_cmd:
+            p0 = subprocess.Popen(preprocess_cmd, stdout=subprocess.PIPE)
         # bowtie2 --very-sensitive --no-unal -x <SPECIE> -U <INPUT PATH> -p <NUMBER OF PROCESSORS>
         # default: bt2_options = '--very-sensitive'
         bowtie2_cmd = ([ 'bowtie2' ] + 
                     list(filter(None, bt2_options.split('/'))) +
-                    [ '--no-unal', '-x', args.indexes, '-U', '-' if preprocess_needed else args.input] +
+                    [ '--no-unal', '-x', args.indexes, '-U', '-' if preprocess_cmd else args.input] +
                     ([] if int(args.nproc) < 2 else ['-p', str(args.nproc)]))
         if not args.verbose: bowtie2_cmd.append('--quiet')
         if args.fasta: bowtie2_cmd.append('-f') #bowtie2 default is fastq (-q)
         print('[I] ' + ' '.join(bowtie2_cmd))
-        if preprocess_needed:
+        if preprocess_cmd:
             p1 = subprocess.Popen(bowtie2_cmd, stdin=p0.stdout, stdout=subprocess.PIPE)
         else:
             p1 = subprocess.Popen(bowtie2_cmd, stdout=subprocess.PIPE)
