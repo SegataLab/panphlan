@@ -3,7 +3,7 @@ from setuptools.command.install import install
 from io import open
 import os
 
-install_requires = ["numpy", "pandas", "scipy", "sklearn", "matplotlib", "seaborn"]
+install_requires = ["numpy", "pandas", "scipy", "scikit-learn", "matplotlib", "seaborn"]
 setuptools.setup(
     name='panphlan',
     version='3.0',
