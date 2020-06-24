@@ -67,6 +67,19 @@ def read_params():
     p.add_argument('--strain_similarity_perc', metavar='SIMILARITY_PERCENTAGE', type=float, default=50.0,
                     help='Minimum threshold (percentage) for genome length to add a reference genome to presence/absence matrix (default: 50).')
 
+    # TRANSCRIPTOMICS ARGUMENTS
+    p.add_argument('--i_rna', metavar='INPUT_RNA_FOLDER', type=str, 
+                   help='RNA-seq: input directory of RNA mapping results SAMPLE_RNA.csv.bz2')
+    p.add_argument('--sample_pairs', metavar='DNA_RNA_MAPPING', type=str,
+                   help='RNA-seq: list of DNA-RNA sequencing pairs from the same biological sample.')
+    p.add_argument('--rna_max_zeros', metavar='RNA_MAX_ZEROES', type=float, default=10.0,
+                   help='Max accepted percent of zero coveraged gene-families (default: <10 %%).')
+    p.add_argument('--rna_norm_percentile', metavar='RNA_NORM_PERCENTILE', type=float, default=50,
+                   help='Percentile for normalizing RNA/DNA ratios')
+    p.add_argument('--o_rna', metavar='RNA_EXPRS_FILE', type=str, 
+                   help='Write normalized gene-family transcription values (RNA-seq).')
+                   
+
     # OPTIONAL ARGUMENTS
     p.add_argument('--add_ref', action='store_true',
                    help='Add reference genomes to gene-family presence/absence matrix.')
@@ -678,6 +691,143 @@ def merge_samples_strains_presences(sample2family2presence, genome2families, arg
     return sample_and_strain_presences
 
 # ------------------------------------------------------------------------------
+#  STEP 7 RNA ANALYSIS
+# ------------------------------------------------------------------------------
+
+def read_rna_coverage(input_rna, genes_info, verbose):
+    rna_samples_covs = read_map_results(input_rna, verbose)
+    for sample in sorted(rna_samples_covs.keys()):
+        if verbose: print(' [I] Gene family normalization for RNA sample ' + sample + '...')
+        rna_samples_covs[sample] = get_genefamily_coverages(rna_samples_covs[sample], genes_info, verbose)
+        # dict of samples, for each sample : nested dict with familly and normalized coverage
+    return rna_samples_covs
+    
+    
+def read_samples_pairs(mapping_file):
+    dna2rna = dict()
+    if os.path.exists(mapping_file):
+        with open(mapping_file, "r") as IN:
+            for l in IN:
+                if l.startswith("#"): continue
+                ids = l.strip().split('\t')
+                dna2rna[ids[0]] = ids[1]
+    else:
+        print("DNA-RNA mapping file not found. Exiting")
+        exit()
+    return dna2rna
+
+
+def create_ratio_matrix(rna_samples_covs, dna_samples_covs, dna2rna, dna_accepted_samples, families):
+    sample2family2rna_div_dna = defaultdict(dict)
+    rna_samples = []
+    # Use only DNA samples that passed the strain detection criteria and to which a RNA sample pair is available
+    dna_sample_list = sorted([s for s in dna_accepted_samples if s in dna2rna.keys()])
+
+    for dna_sample in dna_sample_list:
+        rna_sample = dna2rna[dna_sample]
+        rna_samples.append(dna_sample)
+        # For each family present in at least one sample, divide RNA coverage for the correlative DNA coverage
+        for f in families:
+            dna_cov = dna_samples_covs[dna_sample][f]
+            if dna_cov == 0.0: # We avoid a division by zero :)
+                sample2family2rna_div_dna[dna_sample][f] = 0.0
+            else:
+                rna_cov = rna_samples_covs[rna_sample][f]
+                sample2family2rna_div_dna[dna_sample][f] = rna_cov / dna_cov
+    return sample2family2rna_div_dna
+
+
+def filter_normalize_rna_rate(sample2family2rna_div_dna, sample2family2dnaidx, families, args ):
+    
+    sample2family2median_norm = defaultdict(dict)
+    sample2zeroes = defaultdict(tuple)
+    sample2zeroes_ratio = defaultdict(float)
+    median = defaultdict(float)
+    
+    # Percentile (default 50 = median) normalization
+    # plateau_rna_div_dna = []
+    for sample in sample2family2rna_div_dna.keys():
+        sample2zeroes[sample] = (0,0)
+        # Take all the gene families belonging to the plateau and calculte the median of their RNA/DNA values
+        # print(sample)
+        # for f in sample2family2rna_div_dna[sample]:
+        #     print("{} : {}".format(f, sample2family2dnaidx[sample][f]))
+        #     if sample2family2dnaidx[sample][f] == 1:
+        #         plateau_rna_div_dna.append(sample2family2rna_div_dna[sample][f])
+        # 
+        plateau_rna_div_dna = [sample2family2rna_div_dna[sample][f] for f in sample2family2rna_div_dna[sample] if sample2family2dnaidx[sample][f] == 1]
+        if len(plateau_rna_div_dna) == 0:
+            continue
+        median[sample] = numpy.percentile(plateau_rna_div_dna, args.rna_norm_percentile) # default: 50
+        if args.verbose:
+            print(' [I] Median of plateau gene families RNA/DNA values: ' + str(median[sample]))
+        for f in families:
+            # If the family is in the plateau, calculate median normalized RNA/DNA value
+            if sample2family2dnaidx[sample][f] == 1:
+                sample2family2median_norm[sample][f] = sample2family2rna_div_dna[sample][f] / median[sample]
+                # Update the number of zeroes over the total families (belonging to the plateau)
+                numof_zeroes, numof_families = sample2zeroes[sample]
+                numof_families += 1
+                if sample2family2median_norm[sample][f] == 0.0:
+                    numof_zeroes += 1
+                sample2zeroes[sample] = (numof_zeroes, numof_families)
+            # If not in the plateau, set to NaN
+            elif sample2family2dnaidx[sample][f] == -3:
+                sample2family2median_norm[sample][f] = 'NP'
+            else:
+                sample2family2median_norm[sample][f] = 'NaN'
+        sample2zeroes_ratio[sample] = float(sample2zeroes[sample][0]) / sample2zeroes[sample][1]
+        
+    print(sample2zeroes_ratio)
+    # Reject samples with too many zeros
+    rnaseq_accepted_samples = []
+    for s in sample2zeroes_ratio:
+        perc = sample2zeroes_ratio[s] * 100.0
+        if args.verbose:
+            print(' [I] Percentage of zero values for sample ' + s + ': ' + str(perc) + '%')
+        if perc <= args.rna_max_zeroes:
+            rnaseq_accepted_samples.append(s)
+            print('     Sample is accepted.')
+        else:
+            print('     Sample is rejected.')
+
+    # Log nomalization
+    sample2family2log_norm = defaultdict(dict)
+    for sample in rnaseq_accepted_samples:
+        for f in families:
+            v = sample2family2median_norm[sample][f]
+            if type(v) is str:
+                sample2family2log_norm[sample][f] = sample2family2median_norm[sample][f]
+            else:
+                sample2family2log_norm[sample][f] = 0.0 if v == 0.0 else (numpy.log2(v) / 10) + 1.0
+
+    return sample2family2log_norm
+    
+    
+def write_rna_rate_matrix(sample2family2log_norm, output_path, families):
+    rnaseq_accepted_samples = sample2family2log_norm.keys()
+    if not output_path == '':
+        with open(output_path, mode='w') as OUT:
+            OUT.write('\t' + '\t'.join(rnaseq_accepted_samples) + '\n')
+            for f in families:
+                # Skip the never present gene families
+                all_null = True
+                for s in rnaseq_accepted_samples:
+                    if not sample2family2log_norm[s][f] == 'NP':
+                        if not sample2family2log_norm[s][f] == 'NaN':
+                            all_null = False
+                            break
+                if not all_null:
+                    OUT.write(f)
+                    for s in rnaseq_accepted_samples:
+                        v = sample2family2log_norm[s][f]
+                        if type(v) is float or type(v) is numpy.float64:
+                            OUT.write('\t' + str(format(v, '.3f')))
+                        else:
+                            OUT.write('\t' + v)
+                    OUT.write('\n')
+
+# ------------------------------------------------------------------------------
 #   MAIN
 # ------------------------------------------------------------------------------
 def main():
@@ -750,12 +900,26 @@ def main():
         family2annot = None
 
     if args.o_matrix:
-        print('\nFINAL STEP: Writing presence/absence matrix...')
+        print('\nSTEP 6: Writing presence/absence matrix...')
         if args.add_ref:
             write_presence_absence_matrix(ss_presence, args, family2annot)
         else:
             write_presence_absence_matrix(sample2family2presence, args, family2annot)
 
+    # RNA SEQ
+    if args.o_rna:
+        print('\nSTEP 7: Meta-transcriptomics analysis : Gene family transcription rate')
+        # read rna coverage 
+        rna_samples_covs = read_rna_coverage(args.i_rna, genes_info, args.verbose)
+        # check samples sample_pairs
+        dna2rna = read_samples_pairs(args.sample_pairs)
+        # build ratio matrix
+        dna_accepted_samples = sample2family2presence.keys()
+        sample2family2rna_div_dna = create_ratio_matrix(rna_samples_covs, dna_samples_covs, dna2rna, dna_accepted_samples, families)
+        # filter and normalize this MATRIX
+        #sample2family2rna_div_dna = filter_normalize_rna_rate(sample2family2rna_div_dna, sample2family2dnaidx, families, args )
+        # output it
+        write_rna_rate_matrix(sample2family2rna_div_dna, args.o_rna, families )
 
 
 if __name__ == '__main__':
