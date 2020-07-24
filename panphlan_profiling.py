@@ -59,7 +59,7 @@ def read_params():
     # Gene families presence/absence threshold
     p.add_argument('--th_non_present', type=float, default = 0.05,
                    help='Gene families threshold: not present if lower')
-    p.add_argument('--th_present', type=float, default = 0.5,
+    p.add_argument('--th_present', type=float, default = 0.1,
                    help='Gene families threshold: present if higher')
     p.add_argument('--th_multicopy', type=float, default = 0.15,
                    help='Gene families threshold: multicopy if higher')
@@ -748,7 +748,7 @@ def filter_normalize_rna_rate(sample2family2rna_div_dna, sample2family2dnaidx, f
     # plateau_rna_div_dna = []
     for sample in sample2family2rna_div_dna.keys():
         sample2zeroes[sample] = (0,0)
-        # Take all the gene families belonging to the plateau and calculte the median of their RNA/DNA values
+        # Take all the gene families belonging to the plateau and calculate the median of their RNA/DNA values
         # print(sample)
         # for f in sample2family2rna_div_dna[sample]:
         #     print("{} : {}".format(f, sample2family2dnaidx[sample][f]))
@@ -764,7 +764,10 @@ def filter_normalize_rna_rate(sample2family2rna_div_dna, sample2family2dnaidx, f
         for f in families:
             # If the family is in the plateau, calculate median normalized RNA/DNA value
             if sample2family2dnaidx[sample][f] == 1:
-                sample2family2median_norm[sample][f] = sample2family2rna_div_dna[sample][f] / median[sample]
+                if median[sample] == 0: 
+                    sample2family2median_norm[sample][f] = 0.0
+                else:
+                    sample2family2median_norm[sample][f] = sample2family2rna_div_dna[sample][f] / median[sample]
                 # Update the number of zeroes over the total families (belonging to the plateau)
                 numof_zeroes, numof_families = sample2zeroes[sample]
                 numof_families += 1
@@ -785,7 +788,7 @@ def filter_normalize_rna_rate(sample2family2rna_div_dna, sample2family2dnaidx, f
         perc = sample2zeroes_ratio[s] * 100.0
         if args.verbose:
             print(' [I] Percentage of zero values for sample ' + s + ': ' + str(perc) + '%')
-        if perc <= args.rna_max_zeroes:
+        if perc <= args.rna_max_zeros:
             rnaseq_accepted_samples.append(s)
             print('     Sample is accepted.')
         else:
@@ -917,7 +920,7 @@ def main():
         dna_accepted_samples = sample2family2presence.keys()
         sample2family2rna_div_dna = create_ratio_matrix(rna_samples_covs, dna_samples_covs, dna2rna, dna_accepted_samples, families)
         # filter and normalize this MATRIX
-        #sample2family2rna_div_dna = filter_normalize_rna_rate(sample2family2rna_div_dna, sample2family2dnaidx, families, args )
+        sample2family2rna_div_dna = filter_normalize_rna_rate(sample2family2rna_div_dna, sample2family2dnaidx, families, args )
         # output it
         write_rna_rate_matrix(sample2family2rna_div_dna, args.o_rna, families )
 
