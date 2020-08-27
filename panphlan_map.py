@@ -349,7 +349,6 @@ def genes_abundances(reads_file, contig2gene, args):
                 if genes_abundances[g] > 0:
                     sys.stdout.write(str(g) + '\t' + str(genes_abundances[g]) + '\n')
         else: 
-            
             # WRITE AND THEN COMPRESS WITH copyobj()
             with bz2.open(args.output + '.bz2', 'wt', compresslevel=9) as OUT:
                 for g in genes_abundances:

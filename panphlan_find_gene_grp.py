@@ -39,13 +39,16 @@ def read_params():
     p.add_argument('--out_plot', type = str, default = None,
                     help='Path to heatmap plot output.')
     p.add_argument('-p', '--pangenome', type = str, default = None,
-                    help='Path to pangenome file.')
-                    
+                    help='Path to pangenome file.')    
+                            
     p.add_argument('--optics_xi', type = float, default = 0.01,
                     help='Xi parameter for OPTICS clustering')
-    p.add_argument('-a', '--analysis', action = "store_true",
-                    help='Should gene groups be analyzed?')
-    p.add_argument('--empirical', type = int, default = 500,
+    p.add_argument('--n_jobs', type = int, default = 4,
+                    help='How many cores to use for OPTICS clustering.  Default 4')
+    
+    p.add_argument('--close_analysis', action='store_true',
+                    help='Compute analysis of genes proximity in genomes')    
+    p.add_argument('--empirical', type = int, default = 1000,
                     help='How many ramdom sample in empirical pvalue generation ? Default 500')
     
     p.add_argument('-v', '--verbose', action='store_true',
@@ -77,7 +80,7 @@ def read_and_filter_matrix(filepath, threshold_sums, verbose):
 
 def compute_dist(panphlan_matrix, verbose):
     if verbose:
-        print(' [I] Comuting Jaccard distance between gene families...')
+        print(' [I] Computing Jaccard distance between gene families...')
     a = pdist(panphlan_matrix, 'jaccard')
     dist_matrix = pd.DataFrame(squareform(a),
                                 index = panphlan_matrix.index,
@@ -89,12 +92,12 @@ def compute_dist(panphlan_matrix, verbose):
 #   CLUSTERING AND DEFINING GROUPS
 # ------------------------------------------------------------------------------
 
-def process_OPTICS(dist_matrix, xi_value, verbose):
+def process_OPTICS(dist_matrix, xi_value, n_jobs, verbose):
     if verbose:
         print(' [I] Performing OPTICS clustering...')
     clustering = OPTICS(min_samples = OPTICS_MIN_PTS, 
                         cluster_method = "xi", xi = xi_value,
-                        metric="precomputed").fit(dist_matrix)
+                        metric="precomputed", n_jobs = n_jobs).fit(dist_matrix)
     
     a = pd.DataFrame(clustering.labels_)
     # a[0].value_counts()
@@ -129,38 +132,50 @@ def write_clusters(dbscan_res, out_file, operon_pval = None, subspec_pval = None
 #   PLOTTING HEATMAP WITH LABELS
 # ------------------------------------------------------------------------------
 
-def plot_heatmap(panphlan_matrix, dbscan_res, out_path ):
+def plot_heatmap(panphlan_matrix, out_path, clust_res = None  ):
     from matplotlib import pyplot as plt
     import seaborn as sns
-    sns.set(color_codes = True, font_scale = 0.1)
-
-    clust_names = set(dbscan_res.values())
-    clust_to_col = dict(zip(clust_names, sns.color_palette("hls", len(clust_names) )))
-    # # identify cluster of core genome : biggest clust that is not -1 (noise points)
-    # table_count = {a : list(dbscan_res.values()).count(a) for a in dbscan_res.values()}
-    # table_count = sorted(table_count, key = table_count.get, reverse = True)
-    # if table_count[0] == -1 :
-    #     core_gene_clust = table_count[1]
-    # else:
-    #     core_gene_clust = table_count[0]
-    # # changing colors for core genes and rare genes 
-    #clust_to_col.update({core_gene_clust : (0.2,0.2,0.2)})
-    clust_to_col.update({-1 : (1,1,1)})
-
-    lbl_to_col = {lbl : clust_to_col[clust] for lbl, clust in dbscan_res.items()  }
-    lbl_to_col = pd.Series(lbl_to_col)
-
-    plot_width = round(panphlan_matrix.shape[0] / 50)
-    plot_height = round(panphlan_matrix.shape[1] / 50) 
     
-    plt.figure()
-    p = sns.clustermap(data = panphlan_matrix,
-                    metric = 'jaccard',
-                    row_colors = lbl_to_col,
-                    cmap = sns.color_palette(["#f7f7f7", "#ca0020"])
-                    )
-    p.cax.set_visible(False)
-    plt.savefig(out_path, dpi = 500)
+    if clust_res is None:
+        plt.figure(figsize=(20,20))
+        p = sns.clustermap(data = panphlan_matrix, metric = 'jaccard',
+                        cmap = sns.color_palette(["#f7f7f7", "#ca0020"]),
+                        xticklabels = [], yticklabels = [],
+                        dendrogram_ratio=0.1)
+        p.cax.set_visible(False)
+        plt.axis('off')
+        p.savefig(out_path, dpi = 300)
+    else :
+    
+        sns.set(color_codes = True, font_scale = 0.1)
+
+        clust_names = set(clust_res.values())
+        clust_to_col = dict(zip(clust_names, sns.color_palette("hls", len(clust_names) )))
+        # # identify cluster of core genome : biggest clust that is not -1 (noise points)
+        # table_count = {a : list(dbscan_res.values()).count(a) for a in dbscan_res.values()}
+        # table_count = sorted(table_count, key = table_count.get, reverse = True)
+        # if table_count[0] == -1 :
+        #     core_gene_clust = table_count[1]
+        # else:
+        #     core_gene_clust = table_count[0]
+        # # changing colors for core genes and rare genes 
+        #clust_to_col.update({core_gene_clust : (0.2,0.2,0.2)})
+        clust_to_col.update({-1 : (1,1,1)})
+
+        lbl_to_col = {lbl : clust_to_col[clust] for lbl, clust in clust_res.items()  }
+        lbl_to_col = pd.Series(lbl_to_col)
+
+        #plot_width = round(panphlan_matrix.shape[0] / 50)
+        #plot_height = round(panphlan_matrix.shape[1] / 50) 
+        #plt.figure()
+        p = sns.clustermap(data = panphlan_matrix,
+                        metric = 'jaccard',
+                        row_colors = lbl_to_col,
+                        cmap = sns.color_palette(["#f7f7f7", "#ca0020"]), 
+                        xticklabels = [], yticklabels = [],
+                        dendrogram_ratio=0.1)
+        p.cax.set_visible(False)
+        p.savefig(out_path, dpi = 300)
 
 # ------------------------------------------------------------------------------
 #   ANALYZING GENES GROUPS
@@ -275,21 +290,23 @@ def main():
     args = read_params()
 
     panphlan_matrix = read_and_filter_matrix(args.i_matrix, args.cut_top, args.verbose)
-    dist_matrix = compute_dist(panphlan_matrix, args.verbose)
     
-    optics_res = process_OPTICS(dist_matrix, args.optics_xi, args.verbose)
-
-    if args.analysis and args.output:
-
-        operon_pval = assessment_operon(optics_res, args)
+    if args.output:
+        dist_matrix = compute_dist(panphlan_matrix, args.verbose)
+        
+        optics_res = process_OPTICS(dist_matrix, args.optics_xi, args.n_jobs, args.verbose)
+        if args.close_analysis:
+            operon_pval = assessment_operon(optics_res, args)
+        else:
+            operon_pval = None
         #subspec_pval = assessment_subspecies_gene(dbscan_res, panphlan_matrix)
         #write_clusters(dbscan_res, args.output, operon_pval = operon_pval, subspec_pval = subspec_pval)
         write_clusters(optics_res, args.output, operon_pval = operon_pval)
-    elif args.output:
-        write_clusters(optics_res, args.output)
-
-    if args.out_plot:
-        plot_heatmap(panphlan_matrix, optics_res, args.out_plot)
+        if args.out_plot:
+            plot_heatmap(panphlan_matrix, args.out_plot,  optics_res)
+    elif args.out_plot:
+        plot_heatmap(panphlan_matrix, args.out_plot)
+    
 
 
 if __name__ == '__main__':
