@@ -28,8 +28,8 @@ def read_params():
     p = ap.ArgumentParser(description="")
     p.add_argument('-i', '--input', type = str, default=sys.stdin,
                    help='Metagenomic sample to map')
-    p.add_argument('--indexes', type = str, 
-                   help='Bowtie2 indexes path and file prefix')         
+    p.add_argument('--indexes', type = str,
+                   help='Bowtie2 indexes path and file prefix')
     p.add_argument('-p', '--pangenome', type = str,
                    help='Path to pangenome tsv file exported from ChocoPhlAn')
     p.add_argument('-o', '--output', type = str, default=None,
@@ -42,7 +42,7 @@ def read_params():
                    help='Maximum number of processors to use. Default is 12 or a lower number of available processors.')
     p.add_argument('--min_read_length', type=int, default=DEFAULT_MIN_READ_LENGTH,
                    help='Minimum read length, default 70')
-    p.add_argument('--th_mismatches', type=int, default=-1, 
+    p.add_argument('--th_mismatches', type=int, default=-1,
                    help='Number of mismatches to filter (bam)')
     p.add_argument('-m', '--sam_memory', type=float, default=4.0,
                    help='Maximum amount of memory for Samtools (in Gb). Default 4')
@@ -55,7 +55,7 @@ def read_params():
 
 """Check arguments consistency"""
 def check_args(args):
-    
+
     if args.input:
         if not os.path.exists(args.input):
             sys.exit('[E] Sample file (' + args.input + ') not found\n')
@@ -67,9 +67,9 @@ def check_args(args):
             sys.exit('[E] Pangenome file (' + args.pangenome + ') not found\n')
     else:
         sys.exit('[E] Please provide a valid pangenome file (argument -p or --pangenome).\n')
-    
+
 # ------------------------------------------------------------------------------
-#   STEP 1 
+#   STEP 1
 # ------------------------------------------------------------------------------
 """Check if Samtools is installed. Stops programm if not"""
 def check_samtools():
@@ -92,7 +92,7 @@ def check_samtools():
     return samtools_version
 
 # ------------------------------------------------------------------------------
-#   STEP 2 
+#   STEP 2
 # ------------------------------------------------------------------------------
 """Get sample file name and extension"""
 def check_input(input_path):
@@ -109,7 +109,7 @@ def check_input(input_path):
             print('[I] ' + 'input_path')
             return to_do
     return None
-    
+
 
 """Convert a SAM file into BAM file, then sort the BAM"""
 def samtools_sam2bam(in_sam, args):
@@ -143,7 +143,7 @@ def samtools_sam2bam(in_sam, args):
                 out_bam = tmp_bam.name
             else:
                 is_tmp = False
-            
+
             sort_cmd += ['-', '-o', out_bam]
             if args.verbose: print('[I] cmd (v'  + samtools_version + '): ' + ' '.join(sort_cmd))
             with open(out_bam, mode='w') as OUT:
@@ -152,9 +152,9 @@ def samtools_sam2bam(in_sam, args):
             if args.verbose:
                 print('[I] Temporary .bam file ' + tmp_bam.name + ' has been sorted')
                 print('[I] User-defined .bam file ' + out_bam + ' has been sorted')
-                print('Samtools SAM->BAM translation (view+sort) completed.')        
+                print('Samtools SAM->BAM translation (view+sort) completed.')
             outcome = (is_tmp, out_bam)
-                
+
         except (KeyboardInterrupt, SystemExit):
             p3.kill()
             sys.stderr.flush()
@@ -187,9 +187,9 @@ def mapping(args):
         -x <SPECIE>     The basename of the index for the reference genome.
         -U <INPUT>      Comma-separated list of files containing unpaired reads to be aligned.
         -S <OUTPUT>     File to write SAM alignments to ("-" == stdout).
-    For major details look at http://bowtie-bio.sourceforge.net/bowtie2/manual.shtml#usage    
+    For major details look at http://bowtie-bio.sourceforge.net/bowtie2/manual.shtml#usage
     """
-    
+
     bt2_options = args.bt2
     try:
         preprocess_cmd = check_input(args.input)
@@ -197,7 +197,7 @@ def mapping(args):
             p0 = subprocess.Popen(preprocess_cmd, stdout=subprocess.PIPE)
         # bowtie2 --very-sensitive --no-unal -x <SPECIE> -U <INPUT PATH> -p <NUMBER OF PROCESSORS>
         # default: bt2_options = '--very-sensitive'
-        bowtie2_cmd = ([ 'bowtie2' ] + 
+        bowtie2_cmd = ([ 'bowtie2' ] +
                     list(filter(None, bt2_options.split('/'))) +
                     [ '--no-unal', '-x', args.indexes, '-U', '-' if preprocess_cmd else args.input] +
                     ([] if int(args.nproc) < 2 else ['-p', str(args.nproc)]))
@@ -213,7 +213,7 @@ def mapping(args):
             print('[I] Created temporary file ' + tmp_sam.name)
             print('[W] Please wait. The computation may take several minutes...')
             print('[I] SAM records filtering: mismatches threshold is at ' +
-                  str(args.th_mismatches) + ', length threshold is at ' + str(args.min_read_length))    
+                  str(args.th_mismatches) + ', length threshold is at ' + str(args.min_read_length))
         # Now, filter SAM
         total = 0
         rejected = 0
@@ -230,7 +230,7 @@ def mapping(args):
                     read_length, numof_snp = len(words[9]), int(words[14].split(':')[-1])
                     if read_length < args.min_read_length: # Too short
                         rejected += 1
-                        if args.verbose: print('Filter out read #' + str(total) + ': length is ' + str(readLength))
+                        if args.verbose: print('Filter out read #' + str(total) + ': length is ' + str(read_length))
                     elif args.th_mismatches > -1: # Too many mismatches
                         if numof_snp > args.th_mismatches:
                             rejected += 1
@@ -291,7 +291,7 @@ def piling_up(bam_file, is_tmp, csv_file, args):
                     show_error_message(err)
                     sys.stderr.flush()
                     sys.stderr.write('\r')
-                    sys.exit('[E] Samtools encountered some error.\n')   
+                    sys.exit('[E] Samtools encountered some error.\n')
             # delete tmp file
             if is_tmp: os.unlink(bam_file)
             os.unlink(bam_file + '.bai')
@@ -308,7 +308,7 @@ def piling_up(bam_file, is_tmp, csv_file, args):
         sys.stderr.flush()
         sys.stderr.write('\r')
         sys.exit('[E] Execution has been manually halted.\n')
-        
+
 # ------------------------------------------------------------------------------
 #   STEP 4
 # ------------------------------------------------------------------------------
@@ -343,12 +343,12 @@ def genes_abundances(reads_file, contig2gene, args):
                     for gene, (fr,to) in contig2gene[contig].items():
                         if position in range(fr, to+1):
                             genes_abundances[gene] += abundance
-        # WRITE 
+        # WRITE
         if args.output == None:
             for g in genes_abundances:
                 if genes_abundances[g] > 0:
                     sys.stdout.write(str(g) + '\t' + str(genes_abundances[g]) + '\n')
-        else: 
+        else:
             # WRITE AND THEN COMPRESS WITH copyobj()
             with bz2.open(args.output + '.bz2', 'wt', compresslevel=9) as OUT:
                 for g in genes_abundances:
@@ -368,32 +368,31 @@ def genes_abundances(reads_file, contig2gene, args):
 def main():
     if not sys.version_info.major == 3:
         sys.stderr.write('[E] Python version: ' + sys.version)
-        sys.exit('[E] This software uses Python3, please update Python')       
-    
+        sys.exit('[E] This software uses Python3, please update Python')
+
     args = read_params()
     check_args(args)
-    
+
     if args.verbose: print('\nSTEP 1. Checking software...')
     check_bowtie2()
     samtools_version = check_samtools()
-    
+
     if args.verbose: print('\nSTEP 2.  Mapping the reads...')
     tmp_sam =  mapping(args)
     is_tmp, out_bam = samtools_sam2bam(tmp_sam, args)
-    
+
     if args.verbose: print('\nSTEP 3. Piling up...')
     tmp_csv = tempfile.NamedTemporaryFile(delete=False, prefix='panphlan_', suffix='.csv')
     piling_up(out_bam, is_tmp, tmp_csv.name, args)
-    
+
     if args.verbose: print('\nSTEP 4. Exporting results...')
     contig2gene = build_pangenome_dicts(args)
     genes_abundances(tmp_csv.name, contig2gene, args)
     os.unlink(tmp_csv.name)
-    
-    
+
+
 if __name__ == '__main__':
-    start_time = time.time() 
+    start_time = time.time()
     main()
     mins_elapsed = round((time.time() - start_time) / 60.0, 2)
     print('[TERMINATING...] ' + __file__ + ', ' + str(mins_elapsed) + ' minutes.')
-    
