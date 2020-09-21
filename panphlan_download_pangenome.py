@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 """
-Downloading PanPhlAn pangenome files 
+Downloading PanPhlAn pangenome files
 """
 
 import os, subprocess, sys, time, bz2
@@ -41,7 +41,7 @@ def byte_to_megabyte(byte):
     """Convert byte value to megabyte
     """
     return (byte / 1048576)
-    
+
 class ReportHook():
 
     def __init__(self):
@@ -91,7 +91,7 @@ def download(url, download_file, overwrite=False, verbose=False):
 
 
 # ------------------------------------------------------------------------------
-#   DATABASE MAPPING FILE 
+#   DATABASE MAPPING FILE
 # ------------------------------------------------------------------------------
 
 
@@ -99,9 +99,9 @@ def find_url(query, verbose):
     if verbose:
         print("Retrieving mapping file...")
     mapping_file = os.path.basename(DOWNLOAD_URL).replace('?dl=1', '')
-    download(DOWNLOAD_URL, mapping_file, overwrite=True, verbose=False)    
+    download(DOWNLOAD_URL, mapping_file, overwrite=True, verbose=False)
     IN = open(mapping_file, mode='r')
-    
+
     url = ""
     for line in IN:
         line = line.strip()
@@ -115,14 +115,14 @@ def find_url(query, verbose):
         print("Pangenome not found.\nEither the species is not available or the name provided is incorrect")
         sys.exit()
 
-    url = url.replace('?dl=0', '?dl=1')          
+    url = url.replace('?dl=0', '?dl=1')
     return(url, filename)
 
 
 def extract_pangenome(archive_name, output_path):
     print("Extracting archive")
     process = subprocess.Popen(['tar', 'jxvf', os.path.join(output_path, archive_name), '-C', output_path],
-                     stdout=subprocess.PIPE, 
+                     stdout=subprocess.PIPE,
                      stderr=subprocess.PIPE)
     stdout, stderr = process.communicate()
 
@@ -136,10 +136,13 @@ def main():
         sys.exit('[E] This software uses Python 3, please update Python')
     args = read_params()
 
+    if not os.path.exists(args.output) :
+        os.mkdir(args.output)
+
     url, filename = find_url(args.input_name, args.verbose)
     download(url, os.path.join(args.output, filename) )
     extract_pangenome(filename, args.output)
-    
+
 
 if __name__ == '__main__':
     start_time = time.time()

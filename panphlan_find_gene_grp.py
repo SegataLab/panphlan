@@ -34,23 +34,23 @@ def read_params():
                     help='Path to presence/absence matrix')
     p.add_argument('-o', '--output', type = str, default = None,
                     help='Path to ouput file with genes groups')
-    p.add_argument('-c', '--cut_top', type = float, default = 0.01,
-                    help='Amount of rows to remove based on top and bottom row sums. Default 0.01')
+    p.add_argument('-c', '--cut_core_thres', type = float, default = 0.9,
+                    help='Remove gene families present in [cut_core_thres] of the sample. Defaul is 90 percent (extended core)')
     p.add_argument('--out_plot', type = str, default = None,
                     help='Path to heatmap plot output.')
     p.add_argument('-p', '--pangenome', type = str, default = None,
-                    help='Path to pangenome file.')    
-                            
+                    help='Path to pangenome file.')
+
     p.add_argument('--optics_xi', type = float, default = 0.01,
                     help='Xi parameter for OPTICS clustering')
     p.add_argument('--n_jobs', type = int, default = 4,
                     help='How many cores to use for OPTICS clustering.  Default 4')
-    
+
     p.add_argument('--close_analysis', action='store_true',
-                    help='Compute analysis of genes proximity in genomes')    
+                    help='Compute analysis of genes proximity in genomes')
     p.add_argument('--empirical', type = int, default = 1000,
                     help='How many ramdom sample in empirical pvalue generation ? Default 500')
-    
+
     p.add_argument('-v', '--verbose', action='store_true',
                     help='Show progress information')
     return p.parse_args()
@@ -59,22 +59,22 @@ def read_params():
 #   READ AND PROCESS PANPHLAN MATRIX
 # ------------------------------------------------------------------------------
 
-def read_and_filter_matrix(filepath, threshold_sums, verbose):    
+def read_and_filter_matrix(filepath, threshold_sums, verbose):
     panphlan_matrix = pd.read_csv(filepath, sep = '\t', header = 0, index_col = 0)
     if verbose:
         print(' [I] Reading PanPhlAn presence/absence matrix from : ' + str(filepath))
         print('     Matrix with ' + str(panphlan_matrix.shape[0]) + ' genes families (rows) and')
         print('                 ' + str(panphlan_matrix.shape[1]) + ' samples (columns)')
+
     row_sums = panphlan_matrix.sum(axis = 1)
     thres_bottom = round(panphlan_matrix.shape[1] * threshold_sums)
-    thres_top = panphlan_matrix.shape[1] - thres_bottom
-    keep = (row_sums > thres_bottom) & (row_sums < thres_top)
+    keep = row_sums < thres_bottom
     panphlan_matrix = panphlan_matrix[keep]
     if verbose:
         print(' [I] After removing genes too often present/absent. Cut-off at ' + str(threshold_sums * 100) + ' % of the samples :')
         print('     Matrix with ' + str(panphlan_matrix.shape[0]) + ' genes families (rows) and')
         print('                 ' + str(panphlan_matrix.shape[1]) + ' samples (columns)')
-        
+
     return panphlan_matrix
 
 
@@ -95,10 +95,10 @@ def compute_dist(panphlan_matrix, verbose):
 def process_OPTICS(dist_matrix, xi_value, n_jobs, verbose):
     if verbose:
         print(' [I] Performing OPTICS clustering...')
-    clustering = OPTICS(min_samples = OPTICS_MIN_PTS, 
+    clustering = OPTICS(min_samples = OPTICS_MIN_PTS,
                         cluster_method = "xi", xi = xi_value,
                         metric="precomputed", n_jobs = n_jobs).fit(dist_matrix)
-    
+
     a = pd.DataFrame(clustering.labels_)
     # a[0].value_counts()
     optics_res = dict(zip(dist_matrix.index, clustering.labels_) )
@@ -135,7 +135,9 @@ def write_clusters(dbscan_res, out_file, operon_pval = None, subspec_pval = None
 def plot_heatmap(panphlan_matrix, out_path, clust_res = None  ):
     from matplotlib import pyplot as plt
     import seaborn as sns
-    
+
+    sys.setrecursionlimit(10**7)
+
     if clust_res is None:
         plt.figure(figsize=(20,20))
         p = sns.clustermap(data = panphlan_matrix, metric = 'jaccard',
@@ -146,7 +148,7 @@ def plot_heatmap(panphlan_matrix, out_path, clust_res = None  ):
         plt.axis('off')
         p.savefig(out_path, dpi = 300)
     else :
-    
+
         sns.set(color_codes = True, font_scale = 0.1)
 
         clust_names = set(clust_res.values())
@@ -158,7 +160,7 @@ def plot_heatmap(panphlan_matrix, out_path, clust_res = None  ):
         #     core_gene_clust = table_count[1]
         # else:
         #     core_gene_clust = table_count[0]
-        # # changing colors for core genes and rare genes 
+        # # changing colors for core genes and rare genes
         #clust_to_col.update({core_gene_clust : (0.2,0.2,0.2)})
         clust_to_col.update({-1 : (1,1,1)})
 
@@ -166,12 +168,12 @@ def plot_heatmap(panphlan_matrix, out_path, clust_res = None  ):
         lbl_to_col = pd.Series(lbl_to_col)
 
         #plot_width = round(panphlan_matrix.shape[0] / 50)
-        #plot_height = round(panphlan_matrix.shape[1] / 50) 
+        #plot_height = round(panphlan_matrix.shape[1] / 50)
         #plt.figure()
         p = sns.clustermap(data = panphlan_matrix,
                         metric = 'jaccard',
                         row_colors = lbl_to_col,
-                        cmap = sns.color_palette(["#f7f7f7", "#ca0020"]), 
+                        cmap = sns.color_palette(["#f7f7f7", "#ca0020"]),
                         xticklabels = [], yticklabels = [],
                         dendrogram_ratio=0.1)
         p.cax.set_visible(False)
@@ -200,7 +202,7 @@ def assessment_operon(clust_res, args):
     if args.verbose:
         print(' [I] Computing empirical pvalue for span of gene families clusters...')
         print('     Generating ' + str(args.empirical) + ' empirical samples to compute the pvalue (arg --empirical, default 500)')
-        
+
     clust_is_operon = dict()
     table_count = {a : list(clust_res.values()).count(a) for a in clust_res.values()}
     table_count = sorted(table_count, key = table_count.get, reverse = True)
@@ -237,19 +239,19 @@ def assessment_operon(clust_res, args):
             # create sample of span values
             pvalue = sum([a > cluster_span_ratio for a in random_ratio]) / len(random_ratio)
             result_contig.append(pvalue)
-            
-        result_contig = [x for x in result_contig if not x is None]    
-        
+
+        result_contig = [x for x in result_contig if not x is None]
+
         if len(result_contig) >= 1:
             clust_is_operon.update({cluster : min(result_contig)})
         else:
             clust_is_operon.update({cluster : "NA"})
-    
+
     return clust_is_operon
 
 
 def assessment_subspecies_gene(dbscan_res, panphlan_matrix):
-    """WIP 
+    """WIP
     Check if group of genes is driving the phylogenetic dendrogramm
     WIP
     """
@@ -289,11 +291,11 @@ def main():
         sys.exit('[E] This software uses Python 3, please update Python')
     args = read_params()
 
-    panphlan_matrix = read_and_filter_matrix(args.i_matrix, args.cut_top, args.verbose)
-    
+    panphlan_matrix = read_and_filter_matrix(args.i_matrix, args.cut_core_thres, args.verbose)
+
     if args.output:
         dist_matrix = compute_dist(panphlan_matrix, args.verbose)
-        
+
         optics_res = process_OPTICS(dist_matrix, args.optics_xi, args.n_jobs, args.verbose)
         if args.close_analysis:
             operon_pval = assessment_operon(optics_res, args)
@@ -306,7 +308,7 @@ def main():
             plot_heatmap(panphlan_matrix, args.out_plot,  optics_res)
     elif args.out_plot:
         plot_heatmap(panphlan_matrix, args.out_plot)
-    
+
 
 
 if __name__ == '__main__':
