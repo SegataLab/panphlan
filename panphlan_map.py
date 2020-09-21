@@ -97,7 +97,7 @@ def check_samtools():
 # ------------------------------------------------------------------------------
 """Get sample file name and extension"""
 def check_input(input_path):
-    if not args.input is sys.stdin :
+    if not input_path is sys.stdin :
         decompress_cmd = {}
         decompress_cmd['tar.bz2']  = ['tar', '-jxOf']
         decompress_cmd['tar.gz']   = ['tar', '-zxOf']
