@@ -57,8 +57,9 @@ def read_params():
 def check_args(args):
 
     if args.input:
-        if not os.path.exists(args.input):
-            sys.exit('[E] Sample file (' + args.input + ') not found\n')
+        if not args.input is sys.stdin:
+            if not os.path.exists(args.input):
+                sys.exit('[E] Sample file (' + args.input + ') not found\n')
     else:
         sys.exit('[E] Please provide a valid sample file (argument -i or --input).\n')
 
