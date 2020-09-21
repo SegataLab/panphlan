@@ -97,18 +97,19 @@ def check_samtools():
 # ------------------------------------------------------------------------------
 """Get sample file name and extension"""
 def check_input(input_path):
-    decompress_cmd = {}
-    decompress_cmd['tar.bz2']  = ['tar', '-jxOf']
-    decompress_cmd['tar.gz']   = ['tar', '-zxOf']
-    decompress_cmd['gz']       = ['gunzip', '-c']
-    decompress_cmd['bz2']      = ['bzcat']
-    decompress_cmd['sra']      = ['fastq-dump', '-Z', '--split-spot', '--minReadLen', str(DEFAULT_MIN_READ_LENGTH)]
-    for extension in decompress_cmd.keys():
-        if input_path.endswith(extension):
-            to_do = decompress_cmd[extension]
-            to_do.append(input_path)
-            print('[I] ' + 'input_path')
-            return to_do
+    if not args.input is sys.stdin :
+        decompress_cmd = {}
+        decompress_cmd['tar.bz2']  = ['tar', '-jxOf']
+        decompress_cmd['tar.gz']   = ['tar', '-zxOf']
+        decompress_cmd['gz']       = ['gunzip', '-c']
+        decompress_cmd['bz2']      = ['bzcat']
+        decompress_cmd['sra']      = ['fastq-dump', '-Z', '--split-spot', '--minReadLen', str(DEFAULT_MIN_READ_LENGTH)]
+        for extension in decompress_cmd.keys():
+            if input_path.endswith(extension):
+                to_do = decompress_cmd[extension]
+                to_do.append(input_path)
+                print('[I] ' + 'input_path')
+                return to_do
     return None
 
 

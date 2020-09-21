@@ -133,8 +133,9 @@ def write_clusters(dbscan_res, out_file, operon_pval = None, subspec_pval = None
 # ------------------------------------------------------------------------------
 
 def plot_heatmap(panphlan_matrix, out_path, clust_res = None  ):
-    from matplotlib import pyplot as plt
     import seaborn as sns
+    from matplotlib import pyplot as plt
+
 
     sys.setrecursionlimit(10**7)
 
