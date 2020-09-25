@@ -31,7 +31,7 @@ If visualizations are made, one also needs :
 * matplotlib
 * seaborn
 
-For any help see the wiki or the [bioBakery forum](https://forum.biobakery.org/)
+For any help see the wiki or the [bioBakery forum](https://forum.biobakery.org/) for overall discussions. Purely technical issues should better be raised on GitHub than on the forum.
 
 ----
 
