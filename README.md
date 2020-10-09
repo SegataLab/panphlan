@@ -11,6 +11,9 @@ pathogens makes it an efficient tool for culture-free microbial population studi
 PanPhlAn is written in Python and covers the 4 main tasks:
 
 * `panphlan_download_pangenome.py`, to download pangenome files (fasta, BowTie2 indexes and general information) for over 3,000 species
+
+For custom pangenome generation (advanced) see the [PanPhlAn exporter](https://github.com/SegataLab/PanPhlAn_pangenome_exporter)
+
 * `panphlan_map.py`, to profile each metagenomic sample by mapping it against the species of interest
 * `panphlan_profile.py`, to merge and process the mapping results in order to get the final gene presence/absence matrix
 * `panphlan_find_gene_grp.py`, organise OPTICS clustering to find some group of gene with similar profile and assess if they could be mobile elements in the genome. Also plot the presence/absence matrix as Heatmap. 
