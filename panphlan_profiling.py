@@ -36,8 +36,8 @@ def read_params():
     p.add_argument('-p', '--pangenome', type = str,
                    help='Path to pangenome tsv file exported from ChocoPhlAn')
     p.add_argument('--i_covmat', type=str, default=None,
-                   help='Path to precomputed coverage matrix')               
-                 
+                   help='Path to precomputed coverage matrix')
+
     # OUTPUT ARGUMENTS
     p.add_argument('--o_matrix', type=str, default=None,
                    help='Path for presence/absence matrix output')
@@ -68,7 +68,7 @@ def read_params():
                     help='Minimum threshold (percentage) for genome length to add a reference genome to presence/absence matrix (default: 50).')
 
     # TRANSCRIPTOMICS ARGUMENTS
-    p.add_argument('--i_rna', metavar='INPUT_RNA_FOLDER', type=str, 
+    p.add_argument('--i_rna', metavar='INPUT_RNA_FOLDER', type=str,
                    help='RNA-seq: input directory of RNA mapping results SAMPLE_RNA.csv.bz2')
     p.add_argument('--sample_pairs', metavar='DNA_RNA_MAPPING', type=str,
                    help='RNA-seq: list of DNA-RNA sequencing pairs from the same biological sample.')
@@ -76,9 +76,9 @@ def read_params():
                    help='Max accepted percent of zero coveraged gene-families (default: <10 %%).')
     p.add_argument('--rna_norm_percentile', metavar='RNA_NORM_PERCENTILE', type=float, default=50,
                    help='Percentile for normalizing RNA/DNA ratios')
-    p.add_argument('--o_rna', metavar='RNA_EXPRS_FILE', type=str, 
+    p.add_argument('--o_rna', metavar='RNA_EXPRS_FILE', type=str,
                    help='Write normalized gene-family transcription values (RNA-seq).')
-                   
+
 
     # OPTIONAL ARGUMENTS
     p.add_argument('--add_ref', action='store_true',
@@ -336,7 +336,7 @@ def print_coverage_matrix(dna_samples_covs, out_channel, families, VERBOSE):
 
 def read_coverage_matrix(cov_matrix_file):
     """Read coverage matrix (option --o_cov) for re-analysis using other thresholds"""
-    
+
     sample2family2cov = defaultdict(dict)
 
     if not os.path.exists(cov_matrix_file):
@@ -499,7 +499,7 @@ def plot_dna_coverage(samples_coverages, sample_stats, genome_length, args, norm
                         used_colors = [color]
                     else:
                         used_colors.append(color)
-                
+
                 plt.xlabel('Gene families')
                 for s in samples:
                     covs = samples_coverages[s].values() # also finc a way to extract covs from here
@@ -580,6 +580,8 @@ def get_genefamily_presence_absence(sample2family2dnaidx, sample_stats, avg_geno
     gene family in sample has DNA index  1 or -1 ==> present (1)
     gene family in sample has DNA index -2 or -3 ==> NOT present (0)
     """
+    if len(sample2family2dnaidx) == 0:
+        sys.exit('[E] No sample passed the coverage threshold. Try more sensitive threhold or check that you are using both forward and reverse reads.')
     sample2family2presence = defaultdict(dict)
     dna_samples = sorted(sample2family2dnaidx.keys())
     # get keys (families names) from the sub dict.
@@ -701,8 +703,8 @@ def read_rna_coverage(input_rna, genes_info, verbose):
         rna_samples_covs[sample] = get_genefamily_coverages(rna_samples_covs[sample], genes_info, verbose)
         # dict of samples, for each sample : nested dict with familly and normalized coverage
     return rna_samples_covs
-    
-    
+
+
 def read_samples_pairs(mapping_file):
     dna2rna = dict()
     if os.path.exists(mapping_file):
@@ -738,12 +740,12 @@ def create_ratio_matrix(rna_samples_covs, dna_samples_covs, dna2rna, dna_accepte
 
 
 def filter_normalize_rna_rate(sample2family2rna_div_dna, sample2family2dnaidx, families, args ):
-    
+
     sample2family2median_norm = defaultdict(dict)
     sample2zeroes = defaultdict(tuple)
     sample2zeroes_ratio = defaultdict(float)
     median = defaultdict(float)
-    
+
     # Percentile (default 50 = median) normalization
     # plateau_rna_div_dna = []
     for sample in sample2family2rna_div_dna.keys():
@@ -754,7 +756,7 @@ def filter_normalize_rna_rate(sample2family2rna_div_dna, sample2family2dnaidx, f
         #     print("{} : {}".format(f, sample2family2dnaidx[sample][f]))
         #     if sample2family2dnaidx[sample][f] == 1:
         #         plateau_rna_div_dna.append(sample2family2rna_div_dna[sample][f])
-        # 
+        #
         plateau_rna_div_dna = [sample2family2rna_div_dna[sample][f] for f in sample2family2rna_div_dna[sample] if sample2family2dnaidx[sample][f] == 1]
         if len(plateau_rna_div_dna) == 0:
             continue
@@ -764,7 +766,7 @@ def filter_normalize_rna_rate(sample2family2rna_div_dna, sample2family2dnaidx, f
         for f in families:
             # If the family is in the plateau, calculate median normalized RNA/DNA value
             if sample2family2dnaidx[sample][f] == 1:
-                if median[sample] == 0: 
+                if median[sample] == 0:
                     sample2family2median_norm[sample][f] = 0.0
                 else:
                     sample2family2median_norm[sample][f] = sample2family2rna_div_dna[sample][f] / median[sample]
@@ -780,7 +782,7 @@ def filter_normalize_rna_rate(sample2family2rna_div_dna, sample2family2dnaidx, f
             else:
                 sample2family2median_norm[sample][f] = 'NaN'
         sample2zeroes_ratio[sample] = float(sample2zeroes[sample][0]) / sample2zeroes[sample][1]
-        
+
     print(sample2zeroes_ratio)
     # Reject samples with too many zeros
     rnaseq_accepted_samples = []
@@ -805,8 +807,8 @@ def filter_normalize_rna_rate(sample2family2rna_div_dna, sample2family2dnaidx, f
                 sample2family2log_norm[sample][f] = 0.0 if v == 0.0 else (numpy.log2(v) / 10) + 1.0
 
     return sample2family2log_norm
-    
-    
+
+
 def write_rna_rate_matrix(sample2family2log_norm, output_path, families):
     rnaseq_accepted_samples = sample2family2log_norm.keys()
     if not output_path == '':
@@ -854,10 +856,10 @@ def main():
             else:
                 write_presence_absence_matrix(ref2family2presence, args, None)
             sys.exit(0)
-        
-        
+
+
     if args.i_covmat == None:
-        # no shortcut        
+        # no shortcut
         print('\nSTEP 2. Create coverage matrix')
         dna_samples_covs = read_map_results(args.i_dna, args.verbose)
         # Merge gene/transcript abundance into family (normalized) coverage
@@ -871,7 +873,7 @@ def main():
         # shortcut possible, precomputed coverage matrix available
         print('\nSTEP 2. Read provided coverage matrix')
         dna_samples_covs = read_coverage_matrix(args.i_covmat)
-    
+
 
     print('\nSTEP 3: Strain presence/absence filter based on coverage plateau curve...')
     avg_genome_length = adjust_genome_length(genome2families)
@@ -912,7 +914,7 @@ def main():
     # RNA SEQ
     if args.o_rna:
         print('\nSTEP 7: Meta-transcriptomics analysis : Gene family transcription rate')
-        # read rna coverage 
+        # read rna coverage
         rna_samples_covs = read_rna_coverage(args.i_rna, genes_info, args.verbose)
         # check samples sample_pairs
         dna2rna = read_samples_pairs(args.sample_pairs)

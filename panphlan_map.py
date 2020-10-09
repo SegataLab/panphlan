@@ -144,16 +144,17 @@ def samtools_sam2bam(in_sam, args):
                 is_tmp = True
                 out_bam = tmp_bam.name
             else:
+                out_bam = args.out_bam
                 is_tmp = False
 
-            sort_cmd += ['-', '-o', out_bam]
+            sort_cmd += ['-o', out_bam]
+            # sort_cmd += ['-', '-o', out_bam]
             if args.verbose: print('[I] cmd (v'  + samtools_version + '): ' + ' '.join(sort_cmd))
             with open(out_bam, mode='w') as OUT:
                 p3 = subprocess.Popen(sort_cmd, stdin=p2.stdout, stdout=OUT)
                 p3.wait() # Wait until previous process has finished its computation (otherwise there will be error raised by Samtools)
             if args.verbose:
-                print('[I] Temporary .bam file ' + tmp_bam.name + ' has been sorted')
-                print('[I] User-defined .bam file ' + out_bam + ' has been sorted')
+                print('[I] .bam file ' + out_bam + ' has been sorted')
                 print('Samtools SAM->BAM translation (view+sort) completed.')
             outcome = (is_tmp, out_bam)
 
