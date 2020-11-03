@@ -49,7 +49,7 @@ def read_params():
     p.add_argument('--close_analysis', action='store_true',
                     help='Compute analysis of genes proximity in genomes')
     p.add_argument('--empirical', type = int, default = 1000,
-                    help='How many ramdom sample in empirical pvalue generation ? Default 500')
+                    help='How many ramdom sample in empirical pvalue generation ? Default 1000')
 
     p.add_argument('-v', '--verbose', action='store_true',
                     help='Show progress information')
@@ -202,7 +202,7 @@ def assessment_operon(clust_res, args):
     """
     if args.verbose:
         print(' [I] Computing empirical pvalue for span of gene families clusters...')
-        print('     Generating ' + str(args.empirical) + ' empirical samples to compute the pvalue (arg --empirical, default 500)')
+        print('     Generating ' + str(args.empirical) + ' empirical samples to compute the pvalue (arg --empirical, default 1000)')
 
     clust_is_operon = dict()
     table_count = {a : list(clust_res.values()).count(a) for a in clust_res.values()}

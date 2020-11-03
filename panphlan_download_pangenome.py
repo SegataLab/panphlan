@@ -5,6 +5,7 @@ Downloading PanPhlAn pangenome files
 """
 
 import os, subprocess, sys, time, bz2
+import hashlib
 import re
 import argparse as ap
 from urllib.request import urlretrieve, urlcleanup
@@ -15,7 +16,8 @@ author__ = 'Leonard Dubois and Nicola Segata (contact on https://forum.biobakery
 __version__ = '3.0'
 __date__ = '24 April 2020'
 
-DOWNLOAD_URL = "https://www.dropbox.com/s/1gxpwk8ba0rmopp/panphlan_pangenomes_links.tsv?dl=1"
+#DOWNLOAD_URL = "https://www.dropbox.com/s/1gxpwk8ba0rmopp/panphlan_pangenomes_links.tsv?dl=1"
+DOWNLOAD_URL = "https://www.dropbox.com/s/c6fkhz4g42w4pf2/panphlan_pangenomes_links_md5.tsv?dl=1"
 
 
 # ------------------------------------------------------------------------------
@@ -106,7 +108,7 @@ def find_url(query, verbose):
     for line in IN:
         line = line.strip()
         if re.match(query, line):
-            filename, url = line.split('\t')
+            filename, url, true_md5 = line.split('\t')
             if verbose:
                 print("Pangenome found : {}".format(filename))
             break
@@ -116,7 +118,7 @@ def find_url(query, verbose):
         sys.exit()
 
     url = url.replace('?dl=0', '?dl=1')
-    return(url, filename)
+    return(url, filename, true_md5)
 
 
 def extract_pangenome(archive_name, output_path):
@@ -139,9 +141,16 @@ def main():
     if not os.path.exists(args.output) :
         os.mkdir(args.output)
 
-    url, filename = find_url(args.input_name, args.verbose)
+    url, filename, true_md5 = find_url(args.input_name, args.verbose)
     download(url, os.path.join(args.output, filename) )
+    current_hash = hashlib.md5(open( os.path.join(args.output, filename),'rb').read()).hexdigest()
+    while current_hash != true_md5:
+        sys.stdout.write('[W] Incorrect MD5 sum. PanPhlAn will try to re-dowload the file...\n')
+        download(url, os.path.join(args.output, filename) )
+        current_hash = hashlib.md5(open( os.path.join(args.output, filename),'rb').read()).hexdigest()
+    sys.stdout.write('[I] File downloaded ! MD5 checked\n')
     extract_pangenome(filename, args.output)
+    sys.stdout.write('[I] Archive extracted !\n')
 
 
 if __name__ == '__main__':
