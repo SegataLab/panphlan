@@ -146,7 +146,7 @@ def main():
     current_hash = hashlib.md5(open( os.path.join(args.output, filename),'rb').read()).hexdigest()
     while current_hash != true_md5:
         sys.stdout.write('[W] Incorrect MD5 sum. PanPhlAn will try to re-dowload the file...\n')
-        download(url, os.path.join(args.output, filename)  overwrite=True )
+        download(url, os.path.join(args.output, filename), overwrite=True )
         current_hash = hashlib.md5(open( os.path.join(args.output, filename),'rb').read()).hexdigest()
     sys.stdout.write('[I] File downloaded ! MD5 checked\n')
     extract_pangenome(filename, args.output)
