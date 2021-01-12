@@ -281,7 +281,13 @@ def get_sampleID_from_path(sample_path):
 def read_gene_cov_file(input_file):
     """Convert coverage mapping file into a dictionary data structure"""
     d = {}
+
+    # this seem to have been designed for Python 2
+    #f = bz2.BZ2File(input_file, mode='r')
+    # Here is the new way (Python 3)
     f = bz2.open(input_file, mode='rt')
+    # even if first way was working as well
+
     for line in f:
         words = line.strip().split('\t')
         gene, coverage = words[0], int(words[1])
