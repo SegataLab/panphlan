@@ -33,7 +33,7 @@ And the following Python libraries:
 
 If you use PanPhlAn, please cite:
 
-[**Integrating taxonomic, functional, and strain-level profiling of diverse microbial communities with bioBakery 3**](https://www.biorxiv.org/content/10.1101/2020.11.19.388223v1) *Francesco Beghini, Lauren J McIver, Aitor Blanco-Miguez, Leonard Dubois, Francesco Asnicar, Sagun Maharjan, Ana Mailyan, Andrew Maltez Thomas, Paolo Manghi, Mireia Valles-Colomer, George Weingart, Yancong Zhang, Moreno Zolfo, Curtis Huttenhower, Eric A Franzosa, Nicola Segata*. bioRxiv preprint (2020)
+> [**Integrating taxonomic, functional, and strain-level profiling of diverse microbial communities with bioBakery 3**](https://www.biorxiv.org/content/10.1101/2020.11.19.388223v1) *Francesco Beghini, Lauren J McIver, Aitor Blanco-Miguez, Leonard Dubois, Francesco Asnicar, Sagun Maharjan, Ana Mailyan, Andrew Maltez Thomas, Paolo Manghi, Mireia Valles-Colomer, George Weingart, Yancong Zhang, Moreno Zolfo, Curtis Huttenhower, Eric A Franzosa, Nicola Segata*. bioRxiv preprint (2020)
 
 ---
 
