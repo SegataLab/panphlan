@@ -13,8 +13,8 @@ from shutil import copyfileobj
 from misc import check_bowtie2
 
 __author__ = 'Leonard Dubois, Matthias Scholz, Thomas Tolio and Nicola Segata (contact on https://forum.biobakery.org/)'
-__version__ = '3.0'
-__date__ = '20 April 2020'
+__version__ = '3.1'
+__date__ = '13 Jan 2021'
 
 
 DEFAULT_MIN_READ_LENGTH = 70
@@ -26,14 +26,18 @@ Reads and parses the command line arguments of the script.
 """
 def read_params():
     p = ap.ArgumentParser(description="")
-    p.add_argument('-i', '--input', type = str, default=sys.stdin,
-                   help='Metagenomic sample to map')
-    p.add_argument('--indexes', type = str,
-                   help='Bowtie2 indexes path and file prefix')
-    p.add_argument('-p', '--pangenome', type = str,
+    required = p.add_argument_group('required arguments')
+    required.add_argument('-i', '--input', type = str, default=sys.stdin,
+                   help='Metagenomic sample to map', required=True)
+    required.add_argument('--indexes', type = str,
+                   help='Bowtie2 indexes path and file prefix', required=True)
+    required.add_argument('-p', '--pangenome', type = str, required=True,
                    help='Path to pangenome tsv file exported from ChocoPhlAn')
-    p.add_argument('-o', '--output', type = str, default=None,
-                   help='Path to output file')
+    required.add_argument('-o', '--output', type = str,
+                   help='Path to output file', required=True)
+                                      
+    p.add_argument('--tmp', type=str, default='/tmp/',
+                   help='Location used for tmp files ')
     p.add_argument('--bt2', type=str, default='--very-sensitive',
                    help='Additional bowtie2 mapping options, separated by slash: /-D/20/-R/3/, default: -bt2 /--very-sensitive/')
     p.add_argument('-b','--out_bam', type=str, default=None,
@@ -140,12 +144,12 @@ def samtools_sam2bam(in_sam, args):
             sort_cmd = ['samtools', 'sort', '-m', str(int(args.sam_memory * 1024*1024*1024))]
 
             if args.out_bam == None: # .bam file is not saved, only temporary bam file
-                tmp_bam = tempfile.NamedTemporaryFile(delete=False, prefix='panphlan_', suffix='.bam')
-                is_tmp = True
+                tmp_bam = tempfile.NamedTemporaryFile(dir = args.tmp, delete=False, prefix='panphlan_', suffix='.bam')
+                is_bam_tmp = True
                 out_bam = tmp_bam.name
             else:
                 out_bam = args.out_bam
-                is_tmp = False
+                is_bam_tmp = False
 
             sort_cmd += ['-o', out_bam]
             # sort_cmd += ['-', '-o', out_bam]
@@ -156,7 +160,7 @@ def samtools_sam2bam(in_sam, args):
             if args.verbose:
                 print('[I] .bam file ' + out_bam + ' has been sorted')
                 print('Samtools SAM->BAM translation (view+sort) completed.')
-            outcome = (is_tmp, out_bam)
+            outcome = (is_bam_tmp, out_bam)
 
         except (KeyboardInterrupt, SystemExit):
             p3.kill()
@@ -167,6 +171,8 @@ def samtools_sam2bam(in_sam, args):
         p2.kill()
         sys.stderr.flush()
         sys.stderr.write('\r')
+        if is_bam_tmp:
+            os.unlink(tmp_bam.name)
         sys.exit('[E] Execution has been manually halted.\n')
     finally:
         os.unlink(in_sam.name)
@@ -211,7 +217,7 @@ def mapping(args):
             p1 = subprocess.Popen(bowtie2_cmd, stdin=p0.stdout, stdout=subprocess.PIPE)
         else:
             p1 = subprocess.Popen(bowtie2_cmd, stdout=subprocess.PIPE)
-        tmp_sam = tempfile.NamedTemporaryFile(delete=False, prefix='panphlan_', suffix='.sam')
+        tmp_sam = tempfile.NamedTemporaryFile(dir = args.tmp, delete=False, prefix='panphlan_', suffix='.sam')
         if args.verbose:
             print('[I] Created temporary file ' + tmp_sam.name)
             print('[W] Please wait. The computation may take several minutes...')
@@ -253,7 +259,7 @@ def mapping(args):
 # ------------------------------------------------------------------------------
 #   STEP 3
 # ------------------------------------------------------------------------------
-def piling_up(bam_file, is_tmp, csv_file, args):
+def piling_up(bam_file, is_bam_tmp, csv_file, args):
     """Create the indexes and then call the Samtool's mpileup command
         CSV file: meaning of the columns
             Each line consists of 5 (or optionally 6) tab-separated columns:
@@ -281,36 +287,42 @@ def piling_up(bam_file, is_tmp, csv_file, args):
         index_cmd = ['samtools', 'index', bam_file]
         print('[I] ' + ' '.join(index_cmd))
         p4 = subprocess.Popen(index_cmd)
+        p4.wait()
+        if p4.returncode != 0 :
+            os.unlink(csv_file)
+            sys.exit('[E] Samtools index encountered some error.\n')
         if args.verbose: print('[I] BAM file ' + bam_file + ' has been indexed')
         try:
-            with open(csv_file, mode='w') as ocsv:
+            with open(csv_file, mode='w') as OUT_csv:
                 # command: samtools mpileup <INPUT BAM FILE> > <OUTPUT CSV FILE>
                 mpileup_cmd = ['samtools', 'mpileup', bam_file]
                 print('[I] ' + ' '.join(mpileup_cmd) + ' > ' + csv_file)
                 try:
-                    p5 = subprocess.Popen(mpileup_cmd, stdout=ocsv)
+                    p5 = subprocess.Popen(mpileup_cmd, stdout=OUT_csv)
                     p5.wait()
                 except Exception as err:
                     show_error_message(err)
                     sys.stderr.flush()
                     sys.stderr.write('\r')
                     sys.exit('[E] Samtools encountered some error.\n')
-            # delete tmp file
-            if is_tmp: os.unlink(bam_file)
-            os.unlink(bam_file + '.bai')
             if args.verbose: print('Samtools piling up (view+mpileup) completed.')
-        except (KeyboardInterrupt, SystemExit):
+        except KeyboardInterrupt:
             p5.kill()
-            if isTemp: os.unlink(bam_file)
             sys.stderr.flush()
             sys.stderr.write('\r')
             sys.exit('[E] Execution has been manually halted.\n')
-    except (KeyboardInterrupt, SystemExit):
+            
+    except KeyboardInterrupt:
         p4.kill()
-        if isTemp: os.unlink(bam_file)
         sys.stderr.flush()
         sys.stderr.write('\r')
-        sys.exit('[E] Execution has been manually halted.\n')
+        sys.exit('[E] Execution has been manually halted.\n')    
+    finally :
+        # delete tmp file
+        if is_bam_tmp: 
+            os.unlink(bam_file)
+        if os.path.isfile(bam_file + '.bai'): 
+            os.unlink(bam_file + '.bai')
 
 # ------------------------------------------------------------------------------
 #   STEP 4
@@ -343,8 +355,8 @@ def genes_abundances(reads_file, contig2gene, args):
                 contig, position, abundance = words[0], int(words[1]), int(words[3])
                 # For each gene in the contig, if position in range of gene, increase its abundance
                 if contig in contig2gene.keys():
-                    for gene, (fr,to) in contig2gene[contig].items():
-                        if position in range(fr, to+1):
+                    for gene, (begin, end) in contig2gene[contig].items():
+                        if begin <= position and position <= end +1:
                             genes_abundances[gene] += abundance
         # WRITE
         if args.output == None:
@@ -353,15 +365,16 @@ def genes_abundances(reads_file, contig2gene, args):
                     sys.stdout.write(str(g) + '\t' + str(genes_abundances[g]) + '\n')
         else:
             # WRITE AND THEN COMPRESS WITH copyobj()
-            with bz2.open(args.output + '.bz2', 'wt', compresslevel=9) as OUT:
+            with open(args.output , 'wt') as OUT:
                 for g in genes_abundances:
                     if genes_abundances[g] > 0:
                         OUT.write(str(g) + '\t' + str(genes_abundances[g]) + '\n')
     except (KeyboardInterrupt, SystemExit):
-        os.unlink(reads_file)
         sys.stderr.flush()
         sys.stderr.write('\r')
         sys.exit('[E] Execution has been manually halted.\n')
+    finally:
+        os.unlink(reads_file)
     if args.verbose: print('Gene abundances computing has just been completed.')
 
 # ------------------------------------------------------------------------------
@@ -382,16 +395,16 @@ def main():
 
     if args.verbose: print('\nSTEP 2.  Mapping the reads...')
     tmp_sam =  mapping(args)
-    is_tmp, out_bam = samtools_sam2bam(tmp_sam, args)
+    is_bam_tmp, out_bam = samtools_sam2bam(tmp_sam, args)
 
     if args.verbose: print('\nSTEP 3. Piling up...')
-    tmp_csv = tempfile.NamedTemporaryFile(delete=False, prefix='panphlan_', suffix='.csv')
-    piling_up(out_bam, is_tmp, tmp_csv.name, args)
+    tmp_csv = tempfile.NamedTemporaryFile(dir = args.tmp, delete=False, prefix='panphlan_', suffix='.csv')
+    piling_up(out_bam, is_bam_tmp, tmp_csv.name, args)
 
     if args.verbose: print('\nSTEP 4. Exporting results...')
     contig2gene = build_pangenome_dicts(args)
     genes_abundances(tmp_csv.name, contig2gene, args)
-    os.unlink(tmp_csv.name)
+    
 
 
 if __name__ == '__main__':

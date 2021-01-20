@@ -13,10 +13,9 @@ from urllib.request import urlretrieve, urlcleanup
 from misc import info
 
 author__ = 'Leonard Dubois and Nicola Segata (contact on https://forum.biobakery.org/)'
-__version__ = '3.0'
-__date__ = '24 April 2020'
+__version__ = '3.1'
+__date__ = '12 Jan 2021'
 
-#DOWNLOAD_URL = "https://www.dropbox.com/s/1gxpwk8ba0rmopp/panphlan_pangenomes_links.tsv?dl=1"
 DOWNLOAD_URL = "https://www.dropbox.com/s/c6fkhz4g42w4pf2/panphlan_pangenomes_links_md5.tsv?dl=1"
 
 
@@ -26,13 +25,18 @@ Reads and parses the command line arguments of the script.
 :returns: the parsed arguments
 """
 def read_params():
-    p = ap.ArgumentParser(description="")
-    p.add_argument('-i','--input_name', type=str, default = None,
-                    help='')
-    p.add_argument('-o', '--output', type = str, default = ".",
-                    help='')
+    p = ap.ArgumentParser()
+    required = p.add_argument_group('required arguments')
+    required.add_argument('-i','--input_name', type = str, default = None,
+                        help='Name of species to download', required=True)
+    required.add_argument('-o', '--output', type = str, default = ".",
+                        help='output location', required=True)
     p.add_argument('-v', '--verbose', action='store_true',
                     help='Show progress information')
+    p.add_argument('--retry', type = int, default = 5,
+                    help='Number of retry in pangenome download. Default is 5')
+    p.add_argument('--wait', type = int, default = 30,
+                    help='Number of second spend waiting between download retries. Default 60')
     return p.parse_args()
 
 
@@ -87,7 +91,7 @@ def download(url, download_file, overwrite=False, verbose=False):
             urlretrieve(url, download_file, reporthook=ReportHook().report)
             info('\n')
         except EnvironmentError:
-            info('unable to download "{}"'.format(url), exit=True)
+            info('unable to download "{}"'.format(url), exit = True, exit_value = 1)
     else:
         info('File "{}" already present\n'.format(download_file))
 
@@ -97,12 +101,12 @@ def download(url, download_file, overwrite=False, verbose=False):
 # ------------------------------------------------------------------------------
 
 
-def find_url(query, verbose):
+def find_url(query, verbose, output_path):
     if verbose:
         print("Retrieving mapping file...")
     mapping_file = os.path.basename(DOWNLOAD_URL).replace('?dl=1', '')
-    download(DOWNLOAD_URL, mapping_file, overwrite=True, verbose=False)
-    IN = open(mapping_file, mode='r')
+    download(DOWNLOAD_URL, os.path.join(output_path, mapping_file), overwrite=False, verbose=False)
+    IN = open(os.path.join(output_path, mapping_file), mode='r')
 
     url = ""
     for line in IN:
@@ -115,18 +119,24 @@ def find_url(query, verbose):
     IN.close()
     if url == "":
         print("Pangenome not found.\nEither the species is not available or the name provided is incorrect")
-        sys.exit()
+        sys.exit(2)
 
     url = url.replace('?dl=0', '?dl=1')
     return(url, filename, true_md5)
 
 
-def extract_pangenome(archive_name, output_path):
-    print("Extracting archive")
-    process = subprocess.Popen(['tar', 'jxvf', os.path.join(output_path, archive_name), '-C', output_path],
-                     stdout=subprocess.PIPE,
-                     stderr=subprocess.PIPE)
-    stdout, stderr = process.communicate()
+def extract_pangenome(archive_name, output_path, verbose):
+    print("Extracting archive")                     
+    try:
+        proc = subprocess.check_output(['tar', 'jxvf', os.path.join(output_path, archive_name), '-C', output_path], 
+                        stderr=subprocess.STDOUT)
+        if verbose:
+            sys.stdout.write('[I] Archive extracted !\n')
+        os.remove(os.path.join(output_path, archive_name))    
+    except subprocess.CalledProcessError:
+        print("Error in extracting pangenome archive \n")
+        sys.exit(3)
+
 
 
 # ------------------------------------------------------------------------------
@@ -141,16 +151,23 @@ def main():
     if not os.path.exists(args.output) :
         os.mkdir(args.output)
 
-    url, filename, true_md5 = find_url(args.input_name, args.verbose)
+    url, filename, true_md5 = find_url(args.input_name, args.verbose, args.output)
     download(url, os.path.join(args.output, filename) )
     current_hash = hashlib.md5(open( os.path.join(args.output, filename),'rb').read()).hexdigest()
-    while current_hash != true_md5:
+    retries_done = 0
+    while current_hash != true_md5 and retries_done < args.retry :
         sys.stdout.write('[W] Incorrect MD5 sum. PanPhlAn will try to re-dowload the file...\n')
+        retries_done += 1
+        time.sleep(args.wait)
         download(url, os.path.join(args.output, filename), overwrite=True )
         current_hash = hashlib.md5(open( os.path.join(args.output, filename),'rb').read()).hexdigest()
+        
+    if current_hash != true_md5:
+        info("Incorrect file integrity after retries", exit=True, exit_value = 3)
+    
     sys.stdout.write('[I] File downloaded ! MD5 checked\n')
-    extract_pangenome(filename, args.output)
-    sys.stdout.write('[I] Archive extracted !\n')
+    extract_pangenome(filename, args.output, args.verbose)
+    
 
 
 if __name__ == '__main__':

@@ -15,8 +15,8 @@ from random import randint
 
 
 __author__ = 'Leonard Dubois, Matthias Scholz, Thomas Tolio and Nicola Segata (contact on https://forum.biobakery.org/)'
-__version__ = '3.0'
-__date__ = '20 April 2020'
+__version__ = '3.1'
+__date__ = '19 Jan 2021'
 
 
 # FIXED THRESHOLDS
@@ -31,10 +31,11 @@ Reads and parses the command line arguments of the script.
 def read_params():
     p = ap.ArgumentParser(description="")
     # INPUT ARGUMENTS
+    required = p.add_argument_group('required arguments')
+    required.add_argument('-p', '--pangenome', type = str,
+                   help='Path to pangenome tsv file', required=True)
     p.add_argument('-i','--i_dna', type=str, default=None,
-                   help='Input directory of panphlan_map.py results, containing SAMPLE.csv.bz2 files')
-    p.add_argument('-p', '--pangenome', type = str,
-                   help='Path to pangenome tsv file exported from ChocoPhlAn')
+                   help='Input directory of panphlan_map.py results or text file with ')
     p.add_argument('--i_covmat', type=str, default=None,
                    help='Path to precomputed coverage matrix')
 
@@ -96,11 +97,17 @@ def read_params():
 
 """Check arguments consistency"""
 def check_args(args):
+
+    if not os.path.exists(args.pangenome):
+        sys.exit('[E] Input (' + args.pangenome + ') not found\n')
     if args.i_dna:
         if not os.path.exists(args.i_dna):
-            sys.exit('[E] Sample file directory (' + args.i_dna + ') not found\n')
+            sys.exit('[E] Input (' + args.i_dna + ') not found\n')
+    elif args.i_covmat:
+        if not os.path.exists(args.i_covmat):
+            sys.exit('[E] Input (' + args.i_covmat + ') not found\n')
     else:
-        sys.exit('[E] Please provide a valid sample file (argument -i or --i_dna).\n')
+        sys.exit('[E] Please provide a valid input (argument --i_dna or --i_covmat).\n')
 
 
 
@@ -119,7 +126,6 @@ def read_pangenome(pangenome_file):
     genome_lengths = defaultdict(int)
     genome2families = defaultdict(set)
 
-    pangenome_file = pangenome_file
     with open(pangenome_file, mode='r') as f:
         for line in f:
             words = line.strip().split('\t')
@@ -281,12 +287,7 @@ def get_sampleID_from_path(sample_path):
 def read_gene_cov_file(input_file):
     """Convert coverage mapping file into a dictionary data structure"""
     d = {}
-
-    # this seem to have been designed for Python 2
-    #f = bz2.BZ2File(input_file, mode='r')
-    # Here is the new way (Python 3)
-    f = bz2.open(input_file, mode='rt')
-    # even if first way was working as well
+    f = open(input_file, mode='rt')
 
     for line in f:
         words = line.strip().split('\t')
@@ -298,11 +299,20 @@ def read_gene_cov_file(input_file):
 def read_map_results(i_dna, VERBOSE):
     """Read results from panphlan_map.py"""
     dna_samples_covs = {}
-    dna_files_list =  os.listdir(i_dna)
+    if os.path.isdir(i_dna):
+        dna_files_list = os.listdir(i_dna)
+    if os.path.isfile(i_dna):
+        with open(i_dna, "r") as INPUT:
+            dna_files_list = [line.strip() for line in INPUT]
+
     for dna_covs_file in dna_files_list: # i_dna: path2id
         dna_sample_id = get_sampleID_from_path(dna_covs_file)
         if VERBOSE: print(' [I] Reading mapping result file: ' + dna_covs_file )
-        dna_samples_covs[dna_sample_id] = read_gene_cov_file(os.path.join(i_dna, dna_covs_file))
+        if os.path.isdir(i_dna):
+            dna_samples_covs[dna_sample_id] = read_gene_cov_file(os.path.join(i_dna, dna_covs_file))
+        if os.path.isfile(i_dna):
+            dna_samples_covs[dna_sample_id] = read_gene_cov_file(dna_covs_file)
+
     return dna_samples_covs
 
 def get_genefamily_coverages(gene2cov, genes_info, VERBOSE):
