@@ -19,9 +19,9 @@ For custom pangenome generation (advanced) see the [PanPhlAn exporter](https://g
 ---
 PanPhlAn runs under Ubuntu/Linux and requires the following software tools to be installed on your system:
 
-* Bowtie2
-* Samtools
-* Python 3
+* Bowtie2 (bowtie2 >=2.3.0)
+* Samtools (samtools >=1.9)
+* Python 3 (python >=3.7)
 
 And the following Python libraries:
 
