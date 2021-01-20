@@ -29,7 +29,7 @@ def read_params():
     required = p.add_argument_group('required arguments')
     required.add_argument('-i','--input_name', type = str, default = None,
                         help='Name of species to download', required=True)
-    required.add_argument('-o', '--output', type = str, default = ".",
+    p.add_argument('-o', '--output', type = str, default = ".",
                         help='output location', required=True)
     p.add_argument('-v', '--verbose', action='store_true',
                     help='Show progress information')
