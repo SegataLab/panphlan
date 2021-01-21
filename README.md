@@ -29,6 +29,10 @@ And the following Python libraries:
 * pandas
 * scipy
 
+PanPhlAn is also available in bioconda :
+```
+conda install -c bioconda panphlan 
+```
 ---
 
 If you use PanPhlAn, please cite:
