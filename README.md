@@ -19,9 +19,9 @@ For custom pangenome generation (advanced) see the [PanPhlAn exporter](https://g
 ---
 PanPhlAn runs under Ubuntu/Linux and requires the following software tools to be installed on your system:
 
-* Bowtie2
-* Samtools
-* Python 3
+* Bowtie2 (bowtie2 >=2.3.0)
+* Samtools (samtools >=1.9)
+* Python 3 (python >=3.7)
 
 And the following Python libraries:
 
@@ -29,11 +29,15 @@ And the following Python libraries:
 * pandas
 * scipy
 
+PanPhlAn is also available in bioconda :
+```
+conda install -c bioconda panphlan 
+```
 ---
 
 If you use PanPhlAn, please cite:
 
-[**Integrating taxonomic, functional, and strain-level profiling of diverse microbial communities with bioBakery 3**](https://www.biorxiv.org/content/10.1101/2020.11.19.388223v1) *Francesco Beghini, Lauren J McIver, Aitor Blanco-Miguez, Leonard Dubois, Francesco Asnicar, Sagun Maharjan, Ana Mailyan, Andrew Maltez Thomas, Paolo Manghi, Mireia Valles-Colomer, George Weingart, Yancong Zhang, Moreno Zolfo, Curtis Huttenhower, Eric A Franzosa, Nicola Segata*. bioRxiv preprint (2020)
+> [**Integrating taxonomic, functional, and strain-level profiling of diverse microbial communities with bioBakery 3**](https://www.biorxiv.org/content/10.1101/2020.11.19.388223v1) *Francesco Beghini, Lauren J McIver, Aitor Blanco-Miguez, Leonard Dubois, Francesco Asnicar, Sagun Maharjan, Ana Mailyan, Andrew Maltez Thomas, Paolo Manghi, Mireia Valles-Colomer, George Weingart, Yancong Zhang, Moreno Zolfo, Curtis Huttenhower, Eric A Franzosa, Nicola Segata*. bioRxiv preprint (2020)
 
 ---
 
