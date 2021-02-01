@@ -35,7 +35,7 @@ def read_params():
                    help='Path to pangenome tsv file exported from ChocoPhlAn')
     required.add_argument('-o', '--output', type = str,
                    help='Path to output file', required=True)
-                                      
+
     p.add_argument('--tmp', type=str, default='/tmp/',
                    help='Location used for tmp files ')
     p.add_argument('--bt2', type=str, default='--very-sensitive',
@@ -72,6 +72,10 @@ def check_args(args):
             sys.exit('[E] Pangenome file (' + args.pangenome + ') not found\n')
     else:
         sys.exit('[E] Please provide a valid pangenome file (argument -p or --pangenome).\n')
+
+    if not os.path.exists(args.tmp):
+        os.makedirs(args.tmp)
+
 
 # ------------------------------------------------------------------------------
 #   STEP 1
@@ -311,17 +315,17 @@ def piling_up(bam_file, is_bam_tmp, csv_file, args):
             sys.stderr.flush()
             sys.stderr.write('\r')
             sys.exit('[E] Execution has been manually halted.\n')
-            
+
     except KeyboardInterrupt:
         p4.kill()
         sys.stderr.flush()
         sys.stderr.write('\r')
-        sys.exit('[E] Execution has been manually halted.\n')    
+        sys.exit('[E] Execution has been manually halted.\n')
     finally :
         # delete tmp file
-        if is_bam_tmp: 
+        if is_bam_tmp:
             os.unlink(bam_file)
-        if os.path.isfile(bam_file + '.bai'): 
+        if os.path.isfile(bam_file + '.bai'):
             os.unlink(bam_file + '.bai')
 
 # ------------------------------------------------------------------------------
@@ -404,7 +408,7 @@ def main():
     if args.verbose: print('\nSTEP 4. Exporting results...')
     contig2gene = build_pangenome_dicts(args)
     genes_abundances(tmp_csv.name, contig2gene, args)
-    
+
 
 
 if __name__ == '__main__':
